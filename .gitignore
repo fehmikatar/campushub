@@ -1,0 +1,39 @@
+# --- Java / Maven (api-gateway, user-service) ---
+target/
+*.class
+*.jar
+
+# --- Node / NestJS / Express (course-service, forum-service, Frontend) ---
+node_modules/
+dist/
+build/
+.vite/
+
+# --- Python / Django (enrollment-service) ---
+__pycache__/
+*.pyc
+venv/
+env/
+db.sqlite3
+
+# --- .NET (evaluation-service) ---
+bin/
+obj/
+*.user
+
+# --- PHP / Laravel (notification-service) ---
+vendor/
+.phpunit.cache/
+storage/*.key
+
+# --- Environnement / secrets ---
+.env
+.env.local
+.env.*.local
+*.log
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
