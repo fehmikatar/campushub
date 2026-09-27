@@ -64,7 +64,3 @@ campushub/
 
 Toute fusion vers `develop` ou `main` passe par une Pull Request relue par un autre membre.
 
-## Liens
-
-- Présentation (séance 4) : https://claude.ai/artifact/28QZpYMPY89qHGfygAJd7e
-- Diagramme d'architecture globale : https://claude.ai/artifact/1G7oVeZCZHXKcfq5J9xgPf
