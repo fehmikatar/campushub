@@ -14,7 +14,7 @@ const origins = (process.env.CORS_ALLOWED_ORIGINS || '')
 app.use(helmet());
 app.use(cors({ origin: origins }));
 app.use(express.json());
-app.use(morgan('dev'));
+if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
 app.get('/health', (req, res) => {
   const dbUp = mongoose.connection.readyState === 1;
@@ -24,13 +24,30 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.use('/api/v1', require('./routes'));
+
 app.use((req, res) => {
   res.status(404).json({ message: 'Route introuvable' });
 });
 
 app.use((err, req, res, next) => {
+  if (err.name === 'CastError') {
+    return res.status(400).json({ message: 'Identifiant invalide' });
+  }
+  if (err.name === 'ValidationError') {
+    return res.status(400).json({
+      message: 'Données invalides',
+      errors: Object.values(err.errors).map((e) => ({ field: e.path, message: e.message })),
+    });
+  }
+  if (err.code === 11000) {
+    return res.status(409).json({ message: 'Ressource déjà existante' });
+  }
+  if (err.status && err.status < 500) {
+    return res.status(err.status).json({ message: err.message });
+  }
   console.error(err);
-  res.status(err.status || 500).json({ message: err.message || 'Erreur interne' });
+  res.status(500).json({ message: 'Erreur interne' });
 });
 
 module.exports = app;
