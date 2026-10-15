@@ -18,7 +18,8 @@ namespace EvaluationService.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Titre = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CourseId = table.Column<int>(type: "int", nullable: false)
+                    CourseId = table.Column<int>(type: "int", nullable: false),
+                    EnseignantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -32,7 +33,7 @@ namespace EvaluationService.Migrations
                     Id = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     QuizId = table.Column<int>(type: "int", nullable: false),
-                    UserId = table.Column<int>(type: "int", nullable: false),
+                    EtudiantId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Score = table.Column<double>(type: "float", nullable: false),
                     DatePassage = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
@@ -93,9 +94,9 @@ namespace EvaluationService.Migrations
                 column: "QuestionId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Resultats_UserId_QuizId",
+                name: "IX_Resultats_EtudiantId_QuizId",
                 table: "Resultats",
-                columns: new[] { "UserId", "QuizId" });
+                columns: new[] { "EtudiantId", "QuizId" });
         }
 
         /// <inheritdoc />

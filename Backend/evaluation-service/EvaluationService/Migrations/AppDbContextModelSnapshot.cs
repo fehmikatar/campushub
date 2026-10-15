@@ -55,6 +55,9 @@ namespace EvaluationService.Migrations
                     b.Property<int>("CourseId")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("EnseignantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Titre")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -100,18 +103,18 @@ namespace EvaluationService.Migrations
                     b.Property<DateTime>("DatePassage")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid>("EtudiantId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<int>("QuizId")
                         .HasColumnType("int");
 
                     b.Property<double>("Score")
                         .HasColumnType("float");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId", "QuizId");
+                    b.HasIndex("EtudiantId", "QuizId");
 
                     b.ToTable("Resultats");
                 });

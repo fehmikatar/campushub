@@ -1,9 +1,9 @@
 namespace EvaluationService.Dtos;
 
 // Réponses envoyées par un étudiant pour un quiz.
+// L'étudiant est identifié par le token (claim "sub"), jamais par le corps de la requête.
 public class SubmitQuizDto
 {
-    public int UserId { get; set; }
     public List<ReponseSoumiseDto> Reponses { get; set; } = new();
 }
 

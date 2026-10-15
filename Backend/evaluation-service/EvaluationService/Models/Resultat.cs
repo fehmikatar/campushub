@@ -7,8 +7,8 @@ public class Resultat
 
     public int QuizId { get; set; }
 
-    // Référence vers le service User (pas de clé étrangère SQL).
-    public int UserId { get; set; }
+    // Étudiant concerné (claim "sub" du token). Simple colonne, sans clé étrangère.
+    public Guid EtudiantId { get; set; }
 
     // Score en pourcentage (0 à 100).
     public double Score { get; set; }

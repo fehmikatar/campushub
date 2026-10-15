@@ -9,5 +9,8 @@ public class Quiz
     // Référence vers le service Course (pas de clé étrangère SQL).
     public int CourseId { get; set; }
 
+    // Enseignant créateur (claim "sub" du token). Simple colonne, sans clé étrangère.
+    public Guid EnseignantId { get; set; }
+
     public List<Question> Questions { get; set; } = new();
 }

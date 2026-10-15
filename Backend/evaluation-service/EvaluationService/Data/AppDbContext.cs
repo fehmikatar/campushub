@@ -33,6 +33,6 @@ public class AppDbContext : DbContext
 
         // Index pour retrouver rapidement les résultats d'un étudiant sur un quiz.
         modelBuilder.Entity<Resultat>()
-            .HasIndex(r => new { r.UserId, r.QuizId });
+            .HasIndex(r => new { r.EtudiantId, r.QuizId });
     }
 }

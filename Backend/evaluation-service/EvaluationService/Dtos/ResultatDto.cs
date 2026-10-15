@@ -5,7 +5,7 @@ public class ResultatDto
 {
     public int Id { get; set; }
     public int QuizId { get; set; }
-    public int UserId { get; set; }
+    public Guid EtudiantId { get; set; }
     public double Score { get; set; }
     public DateTime DatePassage { get; set; }
 }

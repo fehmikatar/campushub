@@ -1,13 +1,18 @@
 using EvaluationService.Data;
 using EvaluationService.Dtos;
+using EvaluationService.Errors;
 using EvaluationService.Models;
+using EvaluationService.Security;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace EvaluationService.Controllers;
 
+// Tous les endpoints exigent un token valide (ajoutés au pipeline par [Authorize]).
 [ApiController]
 [Route("api/quizzes")]
+[Authorize]
 public class QuizzesController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -43,26 +48,28 @@ public class QuizzesController : ControllerBase
 
         if (quiz is null)
         {
-            return NotFound();
+            return NotFoundError();
         }
 
         return Ok(ToQuizDto(quiz));
     }
 
-    // POST api/quizzes : créer un quiz avec ses questions et réponses.
+    // POST api/quizzes : créer un quiz (ENSEIGNANT ou ADMIN).
     [HttpPost]
+    [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
     public async Task<ActionResult<QuizDto>> Create(QuizCreateDto dto)
     {
-        var erreur = ValiderQuiz(dto);
-        if (erreur is not null)
+        var erreurs = ValiderQuiz(dto);
+        if (erreurs.Count > 0)
         {
-            return BadRequest(erreur);
+            return ValidationError(erreurs);
         }
 
         var quiz = new Quiz
         {
             Titre = dto.Titre,
             CourseId = dto.CourseId,
+            EnseignantId = User.GetUserId(), // propriétaire = "sub" du créateur
             Questions = dto.Questions.Select(question => new Question
             {
                 Texte = question.Texte,
@@ -80,8 +87,9 @@ public class QuizzesController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = quiz.Id }, ToQuizDto(quiz));
     }
 
-    // PUT api/quizzes/{id} : modifier un quiz (remplace questions et réponses).
+    // PUT api/quizzes/{id} : modifier un quiz (son créateur ou un ADMIN).
     [HttpPut("{id:int}")]
+    [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
     public async Task<IActionResult> Update(int id, QuizCreateDto dto)
     {
         var quiz = await _context.Quizzes
@@ -91,13 +99,18 @@ public class QuizzesController : ControllerBase
 
         if (quiz is null)
         {
-            return NotFound();
+            return NotFoundError();
         }
 
-        var erreur = ValiderQuiz(dto);
-        if (erreur is not null)
+        if (!EstProprietaireOuAdmin(quiz))
         {
-            return BadRequest(erreur);
+            return ForbiddenError();
+        }
+
+        var erreurs = ValiderQuiz(dto);
+        if (erreurs.Count > 0)
+        {
+            return ValidationError(erreurs);
         }
 
         quiz.Titre = dto.Titre;
@@ -120,14 +133,20 @@ public class QuizzesController : ControllerBase
         return NoContent();
     }
 
-    // DELETE api/quizzes/{id} : supprimer un quiz.
+    // DELETE api/quizzes/{id} : supprimer un quiz (son créateur ou un ADMIN).
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
     public async Task<IActionResult> Delete(int id)
     {
         var quiz = await _context.Quizzes.FindAsync(id);
         if (quiz is null)
         {
-            return NotFound();
+            return NotFoundError();
+        }
+
+        if (!EstProprietaireOuAdmin(quiz))
+        {
+            return ForbiddenError();
         }
 
         _context.Quizzes.Remove(quiz);
@@ -136,8 +155,9 @@ public class QuizzesController : ControllerBase
         return NoContent();
     }
 
-    // POST api/quizzes/{id}/submit : corriger les réponses et enregistrer le résultat.
+    // POST api/quizzes/{id}/submit : corriger les réponses (ETUDIANT connecté).
     [HttpPost("{id:int}/submit")]
+    [Authorize(Roles = CampusHubRoles.Etudiant)]
     public async Task<ActionResult<ResultatDto>> Submit(int id, SubmitQuizDto dto)
     {
         var quiz = await _context.Quizzes
@@ -147,12 +167,12 @@ public class QuizzesController : ControllerBase
 
         if (quiz is null)
         {
-            return NotFound();
+            return NotFoundError();
         }
 
         if (quiz.Questions.Count == 0)
         {
-            return BadRequest("Ce quiz ne contient aucune question.");
+            return StatusCode(400, ApiErrorFactory.Validation("This quiz contains no question."));
         }
 
         // On associe chaque question à la réponse choisie par l'étudiant.
@@ -161,13 +181,13 @@ public class QuizzesController : ControllerBase
         int bonnesReponses = 0;
         foreach (var question in quiz.Questions)
         {
-            if (!choix.TryGetValue(question.Id, out var reponseIdConcernee))
+            if (!choix.TryGetValue(question.Id, out var reponseChoisieId))
             {
                 continue; // Question non répondue : comptée comme fausse.
             }
 
-            var reponseChoisie = question.Reponses.FirstOrDefault(r => r.Id == reponseIdConcernee);
-            if (reponseChoisie is not null && reponseChoisie.EstCorrecte)
+            var reponseChoisie = question.Reponses.FirstOrDefault(r => r.Id == reponseChoisieId);
+            if (reponseChoisie is { EstCorrecte: true })
             {
                 bonnesReponses++;
             }
@@ -179,7 +199,7 @@ public class QuizzesController : ControllerBase
         var resultat = new Resultat
         {
             QuizId = quiz.Id,
-            UserId = dto.UserId,
+            EtudiantId = User.GetUserId(), // identité issue uniquement du token
             Score = score,
             DatePassage = DateTime.UtcNow
         };
@@ -191,34 +211,46 @@ public class QuizzesController : ControllerBase
     }
 
     // Vérifie les règles métier avant création/modification d'un quiz.
-    private static string? ValiderQuiz(QuizCreateDto dto)
+    private static List<FieldError> ValiderQuiz(QuizCreateDto dto)
     {
+        var erreurs = new List<FieldError>();
+
         if (string.IsNullOrWhiteSpace(dto.Titre))
         {
-            return "Le titre du quiz est obligatoire.";
+            erreurs.Add(new FieldError("titre", "Le titre du quiz est obligatoire."));
         }
 
         if (dto.Questions.Count == 0)
         {
-            return "Le quiz doit contenir au moins une question.";
+            erreurs.Add(new FieldError("questions", "Le quiz doit contenir au moins une question."));
         }
 
-        foreach (var question in dto.Questions)
+        for (int i = 0; i < dto.Questions.Count; i++)
         {
+            var question = dto.Questions[i];
+
             if (question.Reponses.Count < 2)
             {
-                return "Chaque question doit avoir au moins deux réponses.";
+                erreurs.Add(new FieldError($"questions[{i}].reponses", "Chaque question doit avoir au moins deux réponses."));
             }
-
-            int correctes = question.Reponses.Count(r => r.EstCorrecte);
-            if (correctes != 1)
+            else if (question.Reponses.Count(r => r.EstCorrecte) != 1)
             {
-                return "Chaque question doit avoir exactement une réponse correcte.";
+                erreurs.Add(new FieldError($"questions[{i}].reponses", "Chaque question doit avoir exactement une réponse correcte."));
             }
         }
 
-        return null;
+        return erreurs;
     }
+
+    private bool EstProprietaireOuAdmin(Quiz quiz)
+        => User.IsAdmin() || quiz.EnseignantId == User.GetUserId();
+
+    private ObjectResult ForbiddenError() => StatusCode(403, ApiErrorFactory.Forbidden());
+
+    private ObjectResult NotFoundError() => StatusCode(404, ApiErrorFactory.NotFound());
+
+    private ObjectResult ValidationError(IReadOnlyList<FieldError> erreurs)
+        => StatusCode(400, ApiErrorFactory.Validation(fieldErrors: erreurs));
 
     private static QuizDto ToQuizDto(Quiz quiz) => new()
     {
@@ -241,7 +273,7 @@ public class QuizzesController : ControllerBase
     {
         Id = resultat.Id,
         QuizId = resultat.QuizId,
-        UserId = resultat.UserId,
+        EtudiantId = resultat.EtudiantId,
         Score = resultat.Score,
         DatePassage = resultat.DatePassage
     };
