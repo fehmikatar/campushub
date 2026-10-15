@@ -10,11 +10,11 @@ Un seul point d'accès pour les cours, la progression, les évaluations et les �
 
 | Membre | Service | Framework |
 |---|---|---|
-| Hosni Aziz | API Gateway + User Service | Spring Boot |
+| Hosni Mohamed Aziz | API Gateway + User Service | Spring Boot |
 | Zerai Wassim | Course Service | NestJS |
-| Boukhris Oussama | Enrollment Service | Django REST |
-| Mohamed Lemin cheikh | Evaluation Service | ASP.NET Core |
-| Fgaier Rayen | Notification Service | Laravel |
+| Oussama Boukhris | Enrollment Service | Django REST |
+| Cheikh Med Lamine | Evaluation Service | ASP.NET Core |
+| Rayen Fgaier | Notification Service | Laravel |
 | Katar Fehmi | Forum Service | Express.js |
 
 Chaque membre est responsable de son service de bout en bout ; le frontend React est partagé.
