@@ -1,0 +1,42 @@
+@EvaluationService_HostAddress = http://localhost:8084
+
+### Créer un quiz
+POST {{EvaluationService_HostAddress}}/api/quizzes
+Content-Type: application/json
+
+{
+  "titre": "Quiz EF Core",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Qu'est-ce que EF Core ?",
+      "reponses": [
+        { "texte": "Un ORM", "estCorrecte": true },
+        { "texte": "Un serveur web", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### Détail d'un quiz
+GET {{EvaluationService_HostAddress}}/api/quizzes/1
+Accept: application/json
+
+### Liste des quiz d'un cours
+GET {{EvaluationService_HostAddress}}/api/quizzes/course/10
+Accept: application/json
+
+### Soumettre un quiz
+POST {{EvaluationService_HostAddress}}/api/quizzes/1/submit
+Content-Type: application/json
+
+{
+  "userId": 7,
+  "reponses": [
+    { "questionId": 1, "reponseId": 1 }
+  ]
+}
+
+### Résultats d'un utilisateur
+GET {{EvaluationService_HostAddress}}/api/resultats/user/7
+Accept: application/json
