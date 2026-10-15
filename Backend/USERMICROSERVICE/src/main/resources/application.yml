@@ -1,0 +1,74 @@
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # MySQL 8.4. Host, port, database and user have defaults; the password never does.
+  # The URL parameters keep the JDBC session in UTC, matching the DATETIME(6)/UTC columns.
+  datasource:
+    url: "${DB_URL:jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:campushub_users}?connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true&preserveInstants=true}"
+    username: ${DB_USERNAME:campushub_app}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks that the entities match it.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        type:
+          # UUIDs stored as CHAR(36), readable in a MySQL client (see V1__create_users.sql).
+          preferred_uuid_jdbc_type: CHAR
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    # Never adopt a non-empty database that has no CampusHub migration history.
+    baseline-on-migrate: false
+
+  mvc:
+    throw-exception-if-no-handler-found: true
+
+  web:
+    resources:
+      add-mappings: false
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+campushub:
+  security:
+    jwt:
+      # Required, at least 32 bytes. No default outside the local profile.
+      secret: ${JWT_SECRET}
+      issuer: campushub-user-service
+      # No refresh token: when this expires, the user logs in again.
+      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT1H}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:}
+    rate-limit:
+      login-max-attempts: ${RATE_LIMIT_LOGIN_MAX:10}
+      register-max-attempts: ${RATE_LIMIT_REGISTER_MAX:5}
+      password-change-max-attempts: ${RATE_LIMIT_PASSWORD_CHANGE_MAX:5}
+      window: ${RATE_LIMIT_WINDOW:PT15M}
+  # First administrator: created at startup only if both are set and no admin exists yet.
+  admin-bootstrap:
+    email: ${CAMPUSHUB_ADMIN_EMAIL:}
+    password: ${CAMPUSHUB_ADMIN_PASSWORD:}

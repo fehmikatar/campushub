@@ -1,0 +1,33 @@
+## Build output
+target/
+*.class
+
+## Environment / secrets
+.env
+.env.*
+!.env.example
+
+## Local database dumps / backups (never commit database contents)
+/backups/
+*.sql.bak
+
+## Local Spring Boot config override (./config is loaded ahead of the classpath).
+## Used to hold the local DB_PASSWORD outside version control — see README.
+## Leading slash is required: an unanchored "config/" would also match the Java
+## packages src/main/java/com/campushub/userservice/config/ (and the test one).
+/config/
+
+## Logs
+*.log
+
+## IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+## OS
+.DS_Store
+Thumbs.db
