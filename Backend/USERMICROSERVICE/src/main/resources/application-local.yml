@@ -1,0 +1,17 @@
+# Local development profile (the default, see application.yml).
+#
+# The database password is still required: set DB_PASSWORD, or put it in a git-ignored
+# config/application-local.yml. Startup fails with an explicit message if it is missing.
+
+logging:
+  level:
+    com.campushub.userservice: DEBUG
+
+campushub:
+  security:
+    jwt:
+      # Local-only, publicly known fallback so the app starts without JWT_SECRET on a developer
+      # machine. Tokens signed with it protect nothing; always set JWT_SECRET anywhere else.
+      secret: ${JWT_SECRET:local-development-only-insecure-jwt-signing-secret-change-me}
+    cors:
+      allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}

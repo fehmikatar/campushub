@@ -1,0 +1,32 @@
+# Test profile: `mvnw test` needs no database. Datasource/JPA/Flyway autoconfiguration is off;
+# full-context tests replace the repository (and the JDBC-based MatriculeGenerator) with Mockito
+# mocks (see AbstractMockedRepositorySecurityTest), and a no-op transaction manager lets
+# @Transactional services run against them (NoOpTransactionManagerTestConfig).
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
+      - org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
+
+logging:
+  level:
+    com.campushub.userservice: INFO
+
+# Fixed, clearly labelled, test-only values.
+campushub:
+  security:
+    jwt:
+      secret: automated-test-only-jwt-signing-secret-not-used-anywhere-else-32bytes
+    cors:
+      allowed-origins: http://localhost:3000
+    rate-limit:
+      login-max-attempts: 1000
+      register-max-attempts: 1000
+      password-change-max-attempts: 1000
+      window: PT15M
+  admin-bootstrap:
+    email: ""
+    password: ""

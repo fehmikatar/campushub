@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(\\(Get-Command java\\).Source; Get-ChildItem \"C:\\\\Users\\\\Mon Pc\\\\.jdks\" | Select-Object Name)",
+      "Read(//c/Users/Mon Pc/.jdks/jbr-17.0.12/bin/**)",
+      "PowerShell([Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"User\"\\); [Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"Machine\"\\))",
+      "PowerShell([Environment]::SetEnvironmentVariable\\(\"JAVA_HOME\", \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\", \"User\"\\); [Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\",\"User\"\\))",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd -q clean compile 2>&1 | Select-Object -Last 200)",
+      "PowerShell(docker info 2>&1)",
+      "PowerShell(docker context ls)",
+      "Bash(curl -s \"https://repo1.maven.org/maven2/org/testcontainers/testcontainers-bom/2.0.5/testcontainers-bom-2.0.5.pom\")",
+      "Bash(ls -la /c/xampp/mysql/bin/ 2>&1 | head -5; echo \"---\"; netstat -an 2>/dev/null | grep \":3306\" || echo \"port 3306 not listening\")",
+      "Read(//c/xampp/mysql/bin//**)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd -q dependency:tree \"-Dincludes=com.mysql:mysql-connector-j,org.flywaydb:flyway-mysql,org.mapstruct:mapstruct,org.springdoc:springdoc-openapi-starter-webmvc-ui,org.testcontainers:testcontainers-bom\" 2>&1)",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd -q dependency:tree 2>&1 | Select-String -Pattern \"mysql-connector-j|flyway|mapstruct|springdoc|lombok|testcontainers\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd dependency:tree 2>&1 | Select-String -Pattern \"mysql-connector-j|flyway|mapstruct|springdoc|lombok|testcontainers|spring-boot-starter-parent\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd -q clean compile 2>&1 | Select-String -Pattern \"WARNING|warning\")",
+      "PowerShell($env:JAVA_HOME = \"C:\\\\Users\\\\Mon Pc\\\\.jdks\\\\jbr-17.0.12\"; cd \"C:\\\\Users\\\\Mon Pc\\\\Desktop\\\\HB_TravelAgencyBackend\\\\HB-TravelAgencyBackend\"; .\\\\mvnw.cmd clean test 2>&1 | Select-Object -Last 100)"
+    ]
+  }
+}
