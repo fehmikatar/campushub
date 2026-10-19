@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 
 // Charge un éventuel fichier .env local (valeurs non committées). Sans effet en production.
 Env.TraversePath().Load();
@@ -50,8 +51,32 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
     };
 });
 
-// OpenAPI (documentation de l'API en développement).
-builder.Services.AddOpenApi();
+// OpenAPI (documentation de l'API en développement) + schéma de sécurité Bearer JWT.
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer((document, context, cancellationToken) =>
+    {
+        const string schemeName = "Bearer";
+
+        document.Components ??= new OpenApiComponents();
+        document.Components.SecuritySchemes ??= new Dictionary<string, IOpenApiSecurityScheme>();
+        document.Components.SecuritySchemes[schemeName] = new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            Description = "Token JWT émis par le User Service. Coller uniquement le token, sans le préfixe \"Bearer\"."
+        };
+
+        document.Security ??= new List<OpenApiSecurityRequirement>();
+        document.Security.Add(new OpenApiSecurityRequirement
+        {
+            [new OpenApiSecuritySchemeReference(schemeName, document)] = new List<string>()
+        });
+
+        return Task.CompletedTask;
+    });
+});
 
 // Connexion à SQL Server via EF Core.
 builder.Services.AddDbContext<AppDbContext>(options =>
@@ -129,6 +154,11 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi(); // documentation publique en développement uniquement
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "Evaluation Service v1");
+        options.RoutePrefix = "swagger";
+    });
 }
 
 app.UseCors(CorsPolicy);

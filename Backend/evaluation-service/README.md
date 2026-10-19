@@ -35,6 +35,21 @@ Ce service est indépendant : `CourseId` référence le service Course (entier),
 L'API est disponible sur `http://localhost:8084`. En développement, la
 documentation OpenAPI est exposée (`Program.cs`, `MapOpenApi`).
 
+## Tester avec Swagger
+
+En développement uniquement, l'interface Swagger UI est disponible sur
+`http://localhost:8084/swagger` (le JSON OpenAPI reste accessible sur
+`http://localhost:8084/openapi/v1.json`).
+
+1. Démarrer le service puis ouvrir `http://localhost:8084/swagger`.
+2. Cliquer sur **Authorize**.
+3. Coller le token JWT **sans** le mot `Bearer` (par exemple le champ
+   `accessToken` renvoyé par `POST http://localhost:8081/api/v1/auth/login`).
+4. Valider, puis appeler les endpoints protégés depuis Swagger UI.
+
+Swagger UI n'est pas exposé en production (`ASPNETCORE_ENVIRONMENT` différent
+de `Development`).
+
 > Le service **refuse de démarrer** si `JWT_SECRET` est absent ou trop court
 > (message explicite). Aucune valeur par défaut n'est stockée dans le code ni
 > dans `appsettings.json`.
@@ -101,8 +116,8 @@ Un token dont le `sub` n'est pas un Guid ou dont le `role` est inconnu est rejet
 | GET | `/api/resultats/quiz/{quizId}` | ENSEIGNANT ou ADMIN |
 | GET | `/api/resultats/{id}` | propriétaire du résultat, ou ENSEIGNANT/ADMIN |
 
-Publics en développement uniquement : la documentation OpenAPI
-(`/openapi/v1.json`). Tout le reste exige un token valide.
+Publics en développement uniquement : Swagger UI (`/swagger`) et le JSON
+OpenAPI (`/openapi/v1.json`). Tout le reste exige un token valide.
 
 ### Format des erreurs
 
