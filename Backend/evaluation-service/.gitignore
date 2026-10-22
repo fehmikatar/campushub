@@ -1,0 +1,6 @@
+.qoder/
+.vs/
+bin/
+obj/
+*.user
+.env

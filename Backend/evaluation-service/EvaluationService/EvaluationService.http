@@ -1,0 +1,278 @@
+@host = http://localhost:8084
+
+# ---------------------------------------------------------------------------
+# Tokens
+# Remplir avec un vrai token du User Service :
+#   POST http://localhost:8081/api/v1/auth/login  ->  champ "accessToken"
+# OU avec des tokens de test générés localement (même JWT_SECRET et issuer) :
+#   JWT_SECRET="..." node ../tools/generate-test-tokens.mjs
+# ---------------------------------------------------------------------------
+@tokenEtudiant = COLLER_ICI
+@tokenEtudiant2 = COLLER_ICI
+@tokenEnseignant = COLLER_ICI
+@tokenEnseignant2 = COLLER_ICI
+@tokenAdmin = COLLER_ICI
+@tokenExpire = COLLER_ICI
+@tokenMauvaisSecret = COLLER_ICI
+@tokenMauvaisIssuer = COLLER_ICI
+@tokenRoleInconnu = COLLER_ICI
+@tokenSubNonGuid = COLLER_ICI
+
+# Identifiants de test (sub du token)
+@etudiantId = 11111111-1111-1111-1111-111111111111
+@etudiant2Id = 44444444-4444-4444-4444-444444444444
+
+# Ids a adapter apres creation
+@quizId = 1
+@resultatId = 1
+
+### ----------------------------------------------------------------------
+### 1. Authentication — attendu 401
+### ----------------------------------------------------------------------
+
+### GET /api/quizzes/1 sans token -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+
+### GET /api/quizzes/1 token expiré -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenExpire}}
+
+### GET /api/quizzes/1 mauvais secret -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenMauvaisSecret}}
+
+### GET /api/quizzes/1 mauvais issuer -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenMauvaisIssuer}}
+
+### GET /api/quizzes/1 rôle inconnu -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenRoleInconnu}}
+
+### GET /api/quizzes/1 sub non-Guid -> 401
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenSubNonGuid}}
+
+### ----------------------------------------------------------------------
+### 2. Quiz — lecture (tout utilisateur authentifié) -> 200
+### ----------------------------------------------------------------------
+
+### GET /api/quizzes/{id} (ETUDIANT) -> 200
+GET {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEtudiant}}
+
+### GET /api/quizzes/course/10 (ENSEIGNANT) -> 200
+GET {{host}}/api/quizzes/course/10
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/quizzes/999 -> 404
+GET {{host}}/api/quizzes/999
+Authorization: Bearer {{tokenEtudiant}}
+
+### ----------------------------------------------------------------------
+### 3. Quiz — création (ENSEIGNANT ou ADMIN) -> 201
+### ----------------------------------------------------------------------
+
+### POST /api/quizzes (ENSEIGNANT) -> 201
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz securise",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Qu'est-ce qu'un JWT ?",
+      "reponses": [
+        { "texte": "Un token signe", "estCorrecte": true },
+        { "texte": "Un mot de passe", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (ADMIN) -> 201
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz admin",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (ETUDIANT) -> 403
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "titre": "Interdit",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (ENSEIGNANT, corps invalide) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "",
+  "courseId": 10,
+  "questions": []
+}
+
+### ----------------------------------------------------------------------
+### 4. Quiz — modification / suppression (créateur ou ADMIN)
+### ----------------------------------------------------------------------
+
+### PUT /api/quizzes/{id} (créateur) -> 204
+PUT {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz modifie",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### PUT /api/quizzes/{id} (autre enseignant) -> 403
+PUT {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEnseignant2}}
+Content-Type: application/json
+
+{
+  "titre": "Tentative",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### PUT /api/quizzes/{id} (ADMIN) -> 204
+PUT {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenAdmin}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz modifie par admin",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### DELETE /api/quizzes/{id} (non propriétaire) -> 403
+DELETE {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEnseignant2}}
+
+### DELETE /api/quizzes/{id} (ADMIN) -> 204
+DELETE {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenAdmin}}
+
+### ----------------------------------------------------------------------
+### 5. Quiz — soumission (ETUDIANT uniquement) -> 200
+### L'étudiant est déduit du token (claim "sub"), aucun userId dans le corps.
+### ----------------------------------------------------------------------
+
+### POST /api/quizzes/{id}/submit (ETUDIANT) -> 200
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": 1, "reponseId": 1 }
+  ]
+}
+
+### POST /api/quizzes/{id}/submit (ENSEIGNANT) -> 403
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": 1, "reponseId": 1 }
+  ]
+}
+
+### ----------------------------------------------------------------------
+### 6. Résultats
+### ----------------------------------------------------------------------
+
+### GET /api/resultats/etudiant/{etudiantId} (l'étudiant lui-même) -> 200
+GET {{host}}/api/resultats/etudiant/{{etudiantId}}
+Authorization: Bearer {{tokenEtudiant}}
+
+### GET /api/resultats/etudiant/{etudiantId} (un autre étudiant) -> 403
+GET {{host}}/api/resultats/etudiant/{{etudiantId}}
+Authorization: Bearer {{tokenEtudiant2}}
+
+### GET /api/resultats/etudiant/{etudiantId} (ENSEIGNANT) -> 200
+GET {{host}}/api/resultats/etudiant/{{etudiantId}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/quiz/{quizId} (ETUDIANT) -> 403
+GET {{host}}/api/resultats/quiz/{{quizId}}
+Authorization: Bearer {{tokenEtudiant}}
+
+### GET /api/resultats/quiz/{quizId} (ENSEIGNANT) -> 200
+GET {{host}}/api/resultats/quiz/{{quizId}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/{id} (propriétaire) -> 200
+GET {{host}}/api/resultats/{{resultatId}}
+Authorization: Bearer {{tokenEtudiant}}
+
+### GET /api/resultats/{id} (un autre étudiant) -> 403
+GET {{host}}/api/resultats/{{resultatId}}
+Authorization: Bearer {{tokenEtudiant2}}
+
+### GET /api/resultats/{id} (ADMIN) -> 200
+GET {{host}}/api/resultats/{{resultatId}}
+Authorization: Bearer {{tokenAdmin}}
+
+### GET /api/resultats/999 -> 404
+GET {{host}}/api/resultats/999
+Authorization: Bearer {{tokenEnseignant}}
