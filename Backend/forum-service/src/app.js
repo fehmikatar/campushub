@@ -1,18 +1,11 @@
 const express = require('express');
-const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
 
 const app = express();
 
-const origins = (process.env.CORS_ALLOWED_ORIGINS || '')
-  .split(',')
-  .map((o) => o.trim())
-  .filter(Boolean);
-
 app.use(helmet());
-app.use(cors({ origin: origins }));
 app.use(express.json());
 if (process.env.NODE_ENV !== 'test') app.use(morgan('dev'));
 
