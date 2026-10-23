@@ -69,3 +69,9 @@ Générer un token : `php artisan token:make alice ETUDIANT`, puis *Authorize* d
 - **Emails** : envoyés via Laravel Mail dès qu'une adresse est renseignée (driver `log` par défaut : le mail s'écrit dans `storage/logs/laravel.log` ; passer `MAIL_MAILER=smtp` pour un vrai envoi). Un échec d'email ne perd jamais la notification.
 - **Diffusion générique** (`POST /api/internal/events/broadcast`, clé interne) : pour les autres services (notes, annonces, rappels d'échéance), types `grade`, `announcement`, `deadline`, `system`, jusqu'à 500 destinataires.
 - Toute création passe par `NotificationDispatcher` (préférences + email), utilisé aussi par les événements du forum.
+
+## Eureka et API Gateway
+
+- Enregistrement dans Eureka (à lancer à côté de `php artisan serve`) : `php artisan eureka:register` (signal de vie toutes les 30 s ; `--once` pour un seul enregistrement). Réglages : `EUREKA_HOST`, `EUREKA_PORT`, `EUREKA_INSTANCE_HOST`, `SERVICE_PORT`.
+- Via la Gateway : `GET http://localhost:8080/api/v1/notifications` est redirigé vers `/api/notifications`. Les routes `/api/internal/**` ne sont pas exposées.
+- Si le port 8080 est déjà pris (ex. base Oracle), lancer la Gateway ailleurs : `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8090`.
