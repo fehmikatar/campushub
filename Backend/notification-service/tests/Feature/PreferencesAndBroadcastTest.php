@@ -46,6 +46,17 @@ class PreferencesAndBroadcastTest extends TestCase
         $this->broadcast(['userIds' => []])->assertStatus(422);
     }
 
+    public function test_malformed_json_gets_explicit_error(): void
+    {
+        $this->call('POST', '/api/internal/events/broadcast', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json',
+            'HTTP_X_INTERNAL_KEY' => 'test-internal-key',
+        ], '{"userIds":["a"],"data": {23/10/2026}}')
+            ->assertStatus(400)
+            ->assertJsonPath('message', fn ($m) => str_starts_with($m, 'JSON invalide'));
+    }
+
     public function test_default_preferences(): void
     {
         $this->as('alice')->getJson('/api/notifications/preferences')

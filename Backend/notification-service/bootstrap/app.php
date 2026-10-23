@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AuthenticateJwt;
+use App\Http\Middleware\RejectInvalidJson;
 use App\Http\Middleware\RequireInternalKey;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -13,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->api(prepend: [RejectInvalidJson::class]);
         $middleware->alias([
             'jwt' => AuthenticateJwt::class,
             'internal' => RequireInternalKey::class,
