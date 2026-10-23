@@ -14,9 +14,14 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   process.exit(1);
 }
 
+const registerWithEureka = require('./config/eureka');
+
 connectDB(MONGO_URI)
   .then(() => {
-    app.listen(PORT, () => console.log(`forum-service démarré sur le port ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`forum-service démarré sur le port ${PORT}`);
+      if (process.env.EUREKA_ENABLED !== 'false') registerWithEureka({ port: PORT });
+    });
   })
   .catch((err) => {
     console.error('Connexion MongoDB impossible :', err.message);
