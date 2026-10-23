@@ -1,0 +1,430 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "CampusHub - Notification Service",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8085"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      },
+      "internalKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Internal-Key"
+      }
+    },
+    "schemas": {
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string",
+            "example": "forum.reply"
+          },
+          "title": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "data": {
+            "type": "object"
+          },
+          "read_at": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      },
+      "ForumEvent": {
+        "type": "object",
+        "required": [
+          "event",
+          "actorId",
+          "topic"
+        ],
+        "properties": {
+          "event": {
+            "type": "string",
+            "enum": [
+              "post.created",
+              "post.liked",
+              "post.accepted",
+              "topic.locked",
+              "topic.resolved"
+            ]
+          },
+          "actorId": {
+            "type": "string",
+            "example": "bob"
+          },
+          "topic": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "t1"
+              },
+              "title": {
+                "type": "string",
+                "example": "Question sur Laravel"
+              },
+              "authorId": {
+                "type": "string",
+                "example": "alice"
+              },
+              "courseId": {
+                "type": "string",
+                "example": "c1"
+              }
+            }
+          },
+          "post": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "p1"
+              },
+              "authorId": {
+                "type": "string",
+                "example": "bob"
+              },
+              "parentAuthorId": {
+                "type": "string",
+                "example": "carol"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/notifications": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Mes notifications (paginées)",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "unread",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Token manquant/invalide"
+          }
+        }
+      }
+    },
+    "/api/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Nombre de non lues",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{count}"
+          }
+        }
+      }
+    },
+    "/api/notifications/read-all": {
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Tout marquer comme lu",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{updated}"
+          }
+        }
+      }
+    },
+    "/api/notifications/{id}/read": {
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Marquer une notification comme lue",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "404": {
+            "description": "Introuvable ou pas la vôtre"
+          }
+        }
+      }
+    },
+    "/api/notifications/{id}": {
+      "delete": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Supprimer",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Supprimée"
+          },
+          "404": {
+            "description": "Introuvable"
+          }
+        }
+      }
+    },
+    "/api/internal/events/forum": {
+      "post": {
+        "tags": [
+          "Interne (forum-service)"
+        ],
+        "summary": "Recevoir un événement du forum",
+        "security": [
+          {
+            "internalKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForumEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "{created: n}"
+          },
+          "403": {
+            "description": "Clé invalide"
+          },
+          "422": {
+            "description": "Validation"
+          }
+        }
+      }
+    },
+    "/api/notifications/preferences": {
+      "get": {
+        "tags": [
+          "Préférences"
+        ],
+        "summary": "Mes préférences",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{email, email_enabled, muted_types}"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Préférences"
+        ],
+        "summary": "Définir l'email et les types à couper",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "example": "etudiant@esprit.tn"
+                  },
+                  "email_enabled": {
+                    "type": "boolean",
+                    "example": true
+                  },
+                  "muted_types": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "forum.like"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "422": {
+            "description": "Validation"
+          }
+        }
+      }
+    },
+    "/api/internal/events/broadcast": {
+      "post": {
+        "tags": [
+          "Interne (autres services)"
+        ],
+        "summary": "Notifier une liste d'utilisateurs (note, annonce, échéance)",
+        "security": [
+          {
+            "internalKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userIds",
+                  "type",
+                  "title",
+                  "message"
+                ],
+                "properties": {
+                  "userIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "example": [
+                      "alice",
+                      "bob"
+                    ]
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "grade",
+                      "announcement",
+                      "deadline",
+                      "system"
+                    ]
+                  },
+                  "title": {
+                    "type": "string",
+                    "example": "Nouvelle annonce"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Le cours de demain est reporté."
+                  },
+                  "data": {
+                    "type": "object"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "{created: n}"
+          },
+          "403": {
+            "description": "Clé invalide"
+          },
+          "422": {
+            "description": "Validation"
+          }
+        }
+      }
+    }
+  }
+}

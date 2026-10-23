@@ -83,6 +83,10 @@ exports.deleteTopic = async (req, res) => {
   res.status(204).end();
 };
 
+const { notify } = require('../utils/notifier');
+
+const NOTIFIED_EVENTS = { isLocked: 'topic.locked', isResolved: 'topic.resolved' };
+
 const setFlag = (field, { moderatorOnly }) => async (req, res) => {
   const topic = await findActiveTopic(req.params.topicId);
   const allowed = moderatorOnly ? isModerator(req.user) : isOwnerOrModerator(req.user, topic.authorId);
@@ -90,6 +94,7 @@ const setFlag = (field, { moderatorOnly }) => async (req, res) => {
 
   topic[field] = req.body.value;
   await topic.save();
+  if (req.body.value && NOTIFIED_EVENTS[field]) notify(NOTIFIED_EVENTS[field], req.user, topic);
   res.json({ id: topic.id, [field]: topic[field] });
 };
 

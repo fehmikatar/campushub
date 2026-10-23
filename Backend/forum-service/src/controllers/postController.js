@@ -5,16 +5,19 @@ const HttpError = require('../utils/httpError');
 const { findActiveTopic, findActivePost } = require('../utils/finders');
 const { isModerator, isOwnerOrModerator } = require('../utils/permissions');
 const paginate = require('../utils/pagination');
+const { notify, postPayload } = require('../utils/notifier');
 
 exports.createPost = async (req, res) => {
   const topic = await findActiveTopic(req.params.topicId);
   if (topic.isLocked && !isModerator(req.user)) throw new HttpError(403, 'Sujet verrouillé');
 
   const { content, parentPostId } = req.body;
+  let parentAuthorId = null;
   if (parentPostId) {
     const parent = await Post.findOne({ _id: parentPostId, topicId: topic._id, isDeleted: false });
     if (!parent) throw new HttpError(400, 'Réponse parente introuvable dans ce sujet');
     if (parent.parentPostId) throw new HttpError(400, 'Un seul niveau de réponse imbriquée est autorisé');
+    parentAuthorId = parent.authorId;
   }
 
   const post = await Post.create({
@@ -30,6 +33,7 @@ exports.createPost = async (req, res) => {
     { $inc: { repliesCount: 1 }, $set: { lastActivityAt: new Date() } }
   );
 
+  notify('post.created', req.user, topic, postPayload(post, parentAuthorId));
   res.status(201).json(post);
 };
 
@@ -92,6 +96,7 @@ exports.acceptPost = async (req, res) => {
   }
   await Post.updateOne({ _id: post._id }, { $set: { isAcceptedAnswer: accepted } });
   await Topic.updateOne({ _id: topic._id }, { $set: { isResolved: accepted } });
+  if (accepted) notify('post.accepted', req.user, topic, postPayload(post));
 
   res.json({ postId: post.id, isAcceptedAnswer: accepted, topicResolved: accepted });
 };
@@ -101,6 +106,8 @@ exports.likePost = async (req, res) => {
 
   await Like.create({ userId: req.user.id, postId: post._id });
   const updated = await Post.findByIdAndUpdate(post._id, { $inc: { likesCount: 1 } }, { returnDocument: 'after' }).lean();
+  const topic = await Topic.findById(post.topicId);
+  if (topic) notify('post.liked', req.user, topic, postPayload(post));
 
   res.status(201).json({ postId: post.id, likesCount: updated.likesCount, likedByMe: true });
 };
