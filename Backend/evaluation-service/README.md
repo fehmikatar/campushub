@@ -35,6 +35,25 @@ Ce service est indépendant : `CourseId` référence le service Course (entier),
 L'API est disponible sur `http://localhost:8084`. En développement, la
 documentation OpenAPI est exposée (`Program.cs`, `MapOpenApi`).
 
+## Eureka
+
+Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
+`evaluation-service`), sur `http://localhost:8761/eureka/`, avec l'instance
+`evaluation-service:localhost:8084`.
+
+- Écoute HTTP fixée à `http://localhost:8084` par la clé `Urls` de
+  `appsettings.json` (surchargeable par `ASPNETCORE_URLS` ou `--urls`).
+- Port annoncé à Eureka : `Eureka:Instance:Port` = `8084`, cohérent avec
+  l'écoute Kestrel.
+- Le registre n'est pas interrogé (`ShouldFetchRegistry=false`) : le service
+  ne dépend d'aucun autre service pour démarrer.
+- Si le serveur Eureka (8761) est arrêté, le service démarre quand même ;
+  l'enregistrement est réessayé en arrière-plan.
+- `GET /health` n'existe pas encore (à venir). Eureka s'appuie sur les
+  heartbeats de l'instance pour son état.
+- La route gateway correspondante est documentée dans `INTEGRATION_EQUIPE.md`
+  (la gateway n'est pas modifiée par ce dépôt).
+
 ## Tester avec Swagger
 
 En développement uniquement, l'interface Swagger UI est disponible sur
@@ -284,6 +303,7 @@ invalides (expiré, mauvais secret, mauvais issuer, rôle inconnu, `sub` non-Gui
 ```
 evaluation-service/
 ├── .env.example            # Modèle de configuration locale (sans secret)
+├── INTEGRATION_EQUIPE.md   # Route gateway et points d'intégration
 ├── tools/
 │   └── generate-test-tokens.mjs
 └── EvaluationService/

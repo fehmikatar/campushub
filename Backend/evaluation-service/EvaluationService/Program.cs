@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Steeltoe.Discovery.Eureka;
 
 // Charge un éventuel fichier .env local (valeurs non committées). Sans effet en production.
 Env.TraversePath().Load();
@@ -134,6 +135,9 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+
+// Enregistrement Eureka : les échecs de contact sont réessayés en arrière-plan sans bloquer le démarrage.
+builder.Services.AddEurekaDiscoveryClient();
 
 // --- CORS : origines autorisées lues depuis la configuration (défaut : front local) ---
 const string CorsPolicy = "CorsPolicy";
