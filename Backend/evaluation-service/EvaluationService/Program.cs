@@ -136,6 +136,10 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
+
 // Enregistrement Eureka : les échecs de contact sont réessayés en arrière-plan sans bloquer le démarrage.
 builder.Services.AddEurekaDiscoveryClient();
 
@@ -171,5 +175,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Endpoint public de santé (Eureka / gateway / orchestration).
+app.MapGet("/health", () => Results.Ok(new { status = "UP" })).AllowAnonymous();
 
 app.Run();

@@ -15,6 +15,10 @@ namespace EvaluationService.Controllers;
 [Authorize]
 public class QuizzesController : ControllerBase
 {
+    private const int MaxTitreLength = 200;
+    private const int MaxQuestionLength = 500;
+    private const int MaxReponseLength = 300;
+
     private readonly AppDbContext _context;
 
     public QuizzesController(AppDbContext context)
@@ -57,8 +61,13 @@ public class QuizzesController : ControllerBase
     // POST api/quizzes : créer un quiz (ENSEIGNANT ou ADMIN).
     [HttpPost]
     [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
-    public async Task<ActionResult<QuizDto>> Create(QuizCreateDto dto)
+    public async Task<ActionResult<QuizDto>> Create(QuizCreateDto? dto)
     {
+        if (dto is null)
+        {
+            return ValidationError(new[] { new FieldError("quiz", "Le corps de la requête est obligatoire.") });
+        }
+
         var erreurs = ValiderQuiz(dto);
         if (erreurs.Count > 0)
         {
@@ -67,15 +76,15 @@ public class QuizzesController : ControllerBase
 
         var quiz = new Quiz
         {
-            Titre = dto.Titre,
+            Titre = dto.Titre!,
             CourseId = dto.CourseId,
             EnseignantId = User.GetUserId(), // propriétaire = "sub" du créateur
-            Questions = dto.Questions.Select(question => new Question
+            Questions = dto.Questions!.Select(question => new Question
             {
-                Texte = question.Texte,
-                Reponses = question.Reponses.Select(reponse => new Reponse
+                Texte = question.Texte!,
+                Reponses = question.Reponses!.Select(reponse => new Reponse
                 {
-                    Texte = reponse.Texte,
+                    Texte = reponse.Texte!,
                     EstCorrecte = reponse.EstCorrecte
                 }).ToList()
             }).ToList()
@@ -90,7 +99,7 @@ public class QuizzesController : ControllerBase
     // PUT api/quizzes/{id} : modifier un quiz (son créateur ou un ADMIN).
     [HttpPut("{id:int}")]
     [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
-    public async Task<IActionResult> Update(int id, QuizCreateDto dto)
+    public async Task<IActionResult> Update(int id, QuizCreateDto? dto)
     {
         var quiz = await _context.Quizzes
             .Include(q => q.Questions)
@@ -107,23 +116,34 @@ public class QuizzesController : ControllerBase
             return ForbiddenError();
         }
 
+        // Modifier les questions rendrait les résultats déjà enregistrés incomparables.
+        if (await _context.Resultats.AnyAsync(r => r.QuizId == id))
+        {
+            return ConflictError();
+        }
+
+        if (dto is null)
+        {
+            return ValidationError(new[] { new FieldError("quiz", "Le corps de la requête est obligatoire.") });
+        }
+
         var erreurs = ValiderQuiz(dto);
         if (erreurs.Count > 0)
         {
             return ValidationError(erreurs);
         }
 
-        quiz.Titre = dto.Titre;
+        quiz.Titre = dto.Titre!;
         quiz.CourseId = dto.CourseId;
 
         // On retire les questions existantes (les réponses suivent en cascade).
         _context.Questions.RemoveRange(quiz.Questions);
-        quiz.Questions = dto.Questions.Select(question => new Question
+        quiz.Questions = dto.Questions!.Select(question => new Question
         {
-            Texte = question.Texte,
-            Reponses = question.Reponses.Select(reponse => new Reponse
+            Texte = question.Texte!,
+            Reponses = question.Reponses!.Select(reponse => new Reponse
             {
-                Texte = reponse.Texte,
+                Texte = reponse.Texte!,
                 EstCorrecte = reponse.EstCorrecte
             }).ToList()
         }).ToList();
@@ -149,6 +169,12 @@ public class QuizzesController : ControllerBase
             return ForbiddenError();
         }
 
+        // Supprimer le quiz laisserait des résultats orphelins et une historique incohérent.
+        if (await _context.Resultats.AnyAsync(r => r.QuizId == id))
+        {
+            return ConflictError();
+        }
+
         _context.Quizzes.Remove(quiz);
         await _context.SaveChangesAsync();
 
@@ -158,7 +184,7 @@ public class QuizzesController : ControllerBase
     // POST api/quizzes/{id}/submit : corriger les réponses (ETUDIANT connecté).
     [HttpPost("{id:int}/submit")]
     [Authorize(Roles = CampusHubRoles.Etudiant)]
-    public async Task<ActionResult<ResultatDto>> Submit(int id, SubmitQuizDto dto)
+    public async Task<ActionResult<ResultatDto>> Submit(int id, SubmitQuizDto? dto)
     {
         var quiz = await _context.Quizzes
             .Include(q => q.Questions)
@@ -170,13 +196,19 @@ public class QuizzesController : ControllerBase
             return NotFoundError();
         }
 
+        var erreursSoumission = ValiderSoumission(dto, quiz);
+        if (erreursSoumission.Count > 0)
+        {
+            return ValidationError(erreursSoumission);
+        }
+
         if (quiz.Questions.Count == 0)
         {
             return StatusCode(400, ApiErrorFactory.Validation("This quiz contains no question."));
         }
 
         // On associe chaque question à la réponse choisie par l'étudiant.
-        var choix = dto.Reponses.ToDictionary(r => r.QuestionId, r => r.ReponseId);
+        var choix = dto!.Reponses!.ToDictionary(r => r.QuestionId, r => r.ReponseId);
 
         int bonnesReponses = 0;
         foreach (var question in quiz.Questions)
@@ -219,23 +251,116 @@ public class QuizzesController : ControllerBase
         {
             erreurs.Add(new FieldError("titre", "Le titre du quiz est obligatoire."));
         }
+        else if (dto.Titre.Length > MaxTitreLength)
+        {
+            erreurs.Add(new FieldError("titre", $"Le titre du quiz ne doit pas dépasser {MaxTitreLength} caractères."));
+        }
 
-        if (dto.Questions.Count == 0)
+        if (dto.CourseId <= 0)
+        {
+            erreurs.Add(new FieldError("courseId", "Le courseId doit être supérieur à 0."));
+        }
+
+        if (dto.Questions is null || dto.Questions.Count == 0)
         {
             erreurs.Add(new FieldError("questions", "Le quiz doit contenir au moins une question."));
+            return erreurs;
         }
 
         for (int i = 0; i < dto.Questions.Count; i++)
         {
             var question = dto.Questions[i];
 
-            if (question.Reponses.Count < 2)
+            if (question is null)
+            {
+                erreurs.Add(new FieldError($"questions[{i}]", "La question ne peut pas être null."));
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(question.Texte))
+            {
+                erreurs.Add(new FieldError($"questions[{i}].texte", "Le texte de la question est obligatoire."));
+            }
+            else if (question.Texte.Length > MaxQuestionLength)
+            {
+                erreurs.Add(new FieldError($"questions[{i}].texte", $"Le texte de la question ne doit pas dépasser {MaxQuestionLength} caractères."));
+            }
+
+            if (question.Reponses is null || question.Reponses.Count < 2)
             {
                 erreurs.Add(new FieldError($"questions[{i}].reponses", "Chaque question doit avoir au moins deux réponses."));
+                continue;
             }
-            else if (question.Reponses.Count(r => r.EstCorrecte) != 1)
+
+            for (int j = 0; j < question.Reponses.Count; j++)
+            {
+                var reponse = question.Reponses[j];
+
+                if (reponse is null)
+                {
+                    erreurs.Add(new FieldError($"questions[{i}].reponses[{j}]", "La réponse ne peut pas être null."));
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(reponse.Texte))
+                {
+                    erreurs.Add(new FieldError($"questions[{i}].reponses[{j}].texte", "Le texte de la réponse est obligatoire."));
+                }
+                else if (reponse.Texte.Length > MaxReponseLength)
+                {
+                    erreurs.Add(new FieldError($"questions[{i}].reponses[{j}].texte", $"Le texte de la réponse ne doit pas dépasser {MaxReponseLength} caractères."));
+                }
+            }
+
+            if (question.Reponses.Count(r => r is not null && r.EstCorrecte) != 1)
             {
                 erreurs.Add(new FieldError($"questions[{i}].reponses", "Chaque question doit avoir exactement une réponse correcte."));
+            }
+        }
+
+        return erreurs;
+    }
+
+    // Vérifie la cohérence des réponses soumises avant toute correction.
+    private static List<FieldError> ValiderSoumission(SubmitQuizDto? dto, Quiz quiz)
+    {
+        var erreurs = new List<FieldError>();
+        var reponses = dto?.Reponses;
+
+        if (reponses is null || reponses.Count == 0)
+        {
+            erreurs.Add(new FieldError("reponses", "La liste des réponses est obligatoire et ne peut pas être vide."));
+            return erreurs;
+        }
+
+        var questions = quiz.Questions.ToDictionary(q => q.Id);
+        var questionIdsVus = new HashSet<int>();
+
+        for (int i = 0; i < reponses.Count; i++)
+        {
+            var soumise = reponses[i];
+
+            if (soumise is null)
+            {
+                erreurs.Add(new FieldError($"reponses[{i}]", "La réponse soumise ne peut pas être null."));
+                continue;
+            }
+
+            if (!questionIdsVus.Add(soumise.QuestionId))
+            {
+                erreurs.Add(new FieldError($"reponses[{i}].questionId", "Cette question est présente plusieurs fois."));
+                continue;
+            }
+
+            if (!questions.TryGetValue(soumise.QuestionId, out var question))
+            {
+                erreurs.Add(new FieldError($"reponses[{i}].questionId", "Cette question n'appartient pas à ce quiz."));
+                continue;
+            }
+
+            if (question.Reponses.All(r => r.Id != soumise.ReponseId))
+            {
+                erreurs.Add(new FieldError($"reponses[{i}].reponseId", "Cette réponse n'appartient pas à la question indiquée."));
             }
         }
 
@@ -248,6 +373,8 @@ public class QuizzesController : ControllerBase
     private ObjectResult ForbiddenError() => StatusCode(403, ApiErrorFactory.Forbidden());
 
     private ObjectResult NotFoundError() => StatusCode(404, ApiErrorFactory.NotFound());
+
+    private ObjectResult ConflictError() => StatusCode(409, ApiErrorFactory.Conflict());
 
     private ObjectResult ValidationError(IReadOnlyList<FieldError> erreurs)
         => StatusCode(400, ApiErrorFactory.Validation(fieldErrors: erreurs));

@@ -35,7 +35,7 @@ Ce service est indépendant : `CourseId` référence le service Course (entier),
 L'API est disponible sur `http://localhost:8084`. En développement, la
 documentation OpenAPI est exposée (`Program.cs`, `MapOpenApi`).
 
-## Eureka
+## Intégration Eureka / API Gateway
 
 Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
 `evaluation-service`), sur `http://localhost:8761/eureka/`, avec l'instance
@@ -49,10 +49,12 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
   ne dépend d'aucun autre service pour démarrer.
 - Si le serveur Eureka (8761) est arrêté, le service démarre quand même ;
   l'enregistrement est réessayé en arrière-plan.
-- `GET /health` n'existe pas encore (à venir). Eureka s'appuie sur les
-  heartbeats de l'instance pour son état.
-- La route gateway correspondante est documentée dans `INTEGRATION_EQUIPE.md`
-  (la gateway n'est pas modifiée par ce dépôt).
+- `GET /health` est public et renvoie `{"status":"UP"}` (sans authentification),
+  pour la gateway et l'orchestration. Eureka s'appuie aussi sur les heartbeats
+  de l'instance.
+- Côté gateway, router `/api/v1/evaluation/**` vers `lb://evaluation-service`
+  avec une réécriture vers `/api/**` (la gateway n'est pas modifiée par ce
+  dépôt).
 
 ## Tester avec Swagger
 
@@ -129,14 +131,17 @@ Un token dont le `sub` n'est pas un Guid ou dont le `role` est inconnu est rejet
 | GET | `/api/quizzes/{id}` | tout utilisateur authentifié (réponse sans `estCorrecte`) |
 | POST | `/api/quizzes` | ENSEIGNANT ou ADMIN |
 | PUT | `/api/quizzes/{id}` | créateur du quiz ou ADMIN |
-| DELETE | `/api/quizzes/{id}` | créateur du quiz ou ADMIN |
+| DELETE | `/api/quizzes/{id}` | créateur du quiz ou ADMIN ; `409` si des résultats existent |
 | POST | `/api/quizzes/{id}/submit` | ETUDIANT |
-| GET | `/api/resultats/etudiant/{etudiantId}` | l'étudiant lui-même, ou ENSEIGNANT/ADMIN |
-| GET | `/api/resultats/quiz/{quizId}` | ENSEIGNANT ou ADMIN |
-| GET | `/api/resultats/{id}` | propriétaire du résultat, ou ENSEIGNANT/ADMIN |
+| GET | `/api/resultats/etudiant/{etudiantId}` | l'étudiant lui-même ; ENSEIGNANT limité à ses quiz ; ADMIN |
+| GET | `/api/resultats/quiz/{quizId}` | ENSEIGNANT créateur du quiz ou ADMIN |
+| GET | `/api/resultats/me` | ETUDIANT (identité issue du claim `sub`) |
+| GET | `/api/resultats/{id}` | propriétaire ; ENSEIGNANT créateur du quiz ; ADMIN |
+| GET | `/health` | public |
 
 Publics en développement uniquement : Swagger UI (`/swagger`) et le JSON
-OpenAPI (`/openapi/v1.json`). Tout le reste exige un token valide.
+OpenAPI (`/openapi/v1.json`). `GET /health` reste public dans tous les
+environnements. Tout le reste exige un token valide.
 
 ### Format des erreurs
 
@@ -153,7 +158,11 @@ Identique au User Service :
 ```
 
 Codes : `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404),
-`VALIDATION_ERROR` (400, `fieldErrors` rempli).
+`VALIDATION_ERROR` (400, `fieldErrors` rempli), `CONFLICT` (409),
+`INTERNAL_SERVER_ERROR` (500, message générique sans détail technique).
+
+Toute exception non gérée est journalisée côté serveur et renvoyée en `500`
+au format CampusHub, sans stack trace ni détail interne.
 
 ### Limite connue
 
@@ -170,17 +179,24 @@ jusqu'à son expiration** (1 h au maximum).
 | GET | `/api/quizzes/course/{courseId}` | Liste des quiz d'un cours |
 | GET | `/api/quizzes/{id}` | Détail d'un quiz (sans les bonnes réponses) |
 | POST | `/api/quizzes` | Créer un quiz |
-| PUT | `/api/quizzes/{id}` | Modifier un quiz |
-| DELETE | `/api/quizzes/{id}` | Supprimer un quiz |
+| PUT | `/api/quizzes/{id}` | Modifier un quiz (`409` si des résultats existent) |
+| DELETE | `/api/quizzes/{id}` | Supprimer un quiz (`409` si des résultats existent) |
 | POST | `/api/quizzes/{id}/submit` | Soumettre ses réponses et obtenir un résultat |
 
 ### Résultats
 
 | Méthode | Route | Description |
 |---|---|---|
-| GET | `/api/resultats/etudiant/{etudiantId}` | Résultats d'un étudiant (`etudiantId` = Guid) |
-| GET | `/api/resultats/quiz/{quizId}` | Résultats d'un quiz |
-| GET | `/api/resultats/{id}` | Un résultat précis |
+| GET | `/api/resultats/me` | Résultats de l'étudiant connecté (ETUDIANT) |
+| GET | `/api/resultats/etudiant/{etudiantId}` | Résultats d'un étudiant (`etudiantId` = Guid ; enseignant : ses quiz uniquement) |
+| GET | `/api/resultats/quiz/{quizId}` | Résultats d'un quiz (créateur du quiz ou ADMIN) |
+| GET | `/api/resultats/{id}` | Un résultat précis (enseignant : quiz qu'il a créé) |
+
+### Santé
+
+| Méthode | Route | Description |
+|---|---|---|
+| GET | `/health` | État du service, public : `{"status":"UP"}` |
 
 ## Exemples
 
@@ -226,8 +242,17 @@ Sortie (`201 Created`) — la réponse ne contient jamais `estCorrecte` :
 }
 ```
 
-Règles de validation (sinon `400 VALIDATION_ERROR`) : au moins 1 question, et
-chaque question doit avoir au moins 2 réponses dont exactement 1 correcte.
+Règles de validation (sinon `400 VALIDATION_ERROR` avec `fieldErrors`) :
+
+- `titre` obligatoire, non vide, 200 caractères maximum ;
+- `courseId` strictement supérieur à 0 ;
+- `questions` obligatoire et non vide ;
+- `texte` de question obligatoire (500 caractères maximum) ;
+- `texte` de réponse obligatoire (300 caractères maximum) ;
+- au moins 2 réponses par question, dont exactement 1 correcte.
+
+Les collections `null` sont rejetées proprement (aucune
+`NullReferenceException`).
 
 ### Détail d'un quiz — `GET /api/quizzes/{id}`
 
@@ -260,12 +285,21 @@ Sortie (`200 OK`) — `score` en pourcentage :
 }
 ```
 
+Validation de la soumission (sinon `400 VALIDATION_ERROR` avec `fieldErrors`) :
+corps `null`, `reponses` `null` ou vide, `questionId` en doublon, `questionId`
+absent du quiz, `reponseId` inexistant ou rattaché à une autre question. Les
+questions non répondues restent comptées comme fausses.
+
 ### Modifier / supprimer un quiz
 
 `PUT /api/quizzes/{id}` : même corps que la création ; remplace les questions
-et réponses. `204 No Content` (créateur ou ADMIN), `403` sinon, `404` si absent.
+et réponses. `204 No Content` (créateur ou ADMIN), `403` sinon, `404` si absent,
+`409 CONFLICT` si des résultats existent déjà pour ce quiz (la modification est
+refusée pour ne pas rendre les anciens résultats incomparables).
 
-`DELETE /api/quizzes/{id}` : `204 No Content` (créateur ou ADMIN), `403` sinon.
+`DELETE /api/quizzes/{id}` : `204 No Content` (créateur ou ADMIN), `403` sinon,
+`409 CONFLICT` si des résultats existent déjà pour ce quiz (suppression refusée
+pour ne pas laisser de résultats orphelins).
 
 ### Résultats
 
@@ -279,13 +313,26 @@ et réponses. `204 No Content` (créateur ou ADMIN), `403` sinon, `404` si absen
 }
 ```
 
+`GET /api/resultats/me` renvoie les résultats de l'étudiant connecté, identifié
+par le claim `sub` (réservé au rôle ETUDIANT).
+
 `GET /api/resultats/etudiant/{etudiantId}` et `GET /api/resultats/quiz/{quizId}`
 renvoient un tableau ; `GET /api/resultats/{id}` en renvoie un seul.
 
+Règles d'accès aux résultats :
+
+- ETUDIANT : uniquement ses propres résultats (`403` sinon) ;
+- ENSEIGNANT : uniquement les résultats des quiz qu'il a créés, y compris via
+  `/etudiant/{id}` qui est filtré sur ses quiz ;
+- ADMIN : tous les résultats.
+
+Pour un quiz, un résultat isolé ou un accès enseignant : `404` si le quiz ou le
+résultat n'existe pas, `403` si le quiz appartient à un autre enseignant.
+
 ## Tests
 
-Le fichier `EvaluationService.http` contient les cas de test (200 / 401 / 403 /
-400 / 404). Pour un token du User Service :
+Le fichier `EvaluationService.http` contient les cas de test (200 / 201 / 204 /
+400 / 401 / 403 / 404 / 409). Pour un token du User Service :
 `POST http://localhost:8081/api/v1/auth/login` -> champ `accessToken`.
 
 Pour générer localement des tokens de test (même `JWT_SECRET` et issuer) :
@@ -303,14 +350,13 @@ invalides (expiré, mauvais secret, mauvais issuer, rôle inconnu, `sub` non-Gui
 ```
 evaluation-service/
 ├── .env.example            # Modèle de configuration locale (sans secret)
-├── INTEGRATION_EQUIPE.md   # Route gateway et points d'intégration
 ├── tools/
 │   └── generate-test-tokens.mjs
 └── EvaluationService/
     ├── Controllers/        # QuizzesController, ResultatsController
     ├── Data/               # AppDbContext (EF Core)
     ├── Dtos/               # Objets d'échange (entrée / sortie de l'API)
-    ├── Errors/             # Format d'erreur CampusHub (ApiError, factory)
+    ├── Errors/             # Format CampusHub + gestionnaire global des exceptions
     ├── Migrations/         # Migrations EF Core
     ├── Models/             # Entités : Quiz, Question, Reponse, Resultat
     ├── Security/           # Rôles + accès aux claims (sub, role)
