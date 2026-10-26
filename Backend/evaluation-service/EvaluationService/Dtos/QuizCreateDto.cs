@@ -5,6 +5,13 @@ public class QuizCreateDto
 {
     public string? Titre { get; set; }
     public int CourseId { get; set; }
+
+    // null = valeur par défaut (1).
+    public int? MaxTentatives { get; set; }
+
+    // null = pas de limite de durée.
+    public int? DureeMinutes { get; set; }
+
     public List<QuestionCreateDto>? Questions { get; set; }
 }
 

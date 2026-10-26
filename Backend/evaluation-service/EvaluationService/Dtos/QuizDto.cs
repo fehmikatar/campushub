@@ -6,6 +6,8 @@ public class QuizDto
     public int Id { get; set; }
     public string Titre { get; set; } = string.Empty;
     public int CourseId { get; set; }
+    public int MaxTentatives { get; set; }
+    public int? DureeMinutes { get; set; }
     public List<QuestionDto> Questions { get; set; } = new();
 }
 

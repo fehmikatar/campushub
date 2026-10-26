@@ -18,6 +18,7 @@ public class QuizzesController : ControllerBase
     private const int MaxTitreLength = 200;
     private const int MaxQuestionLength = 500;
     private const int MaxReponseLength = 300;
+    private const int ToleranceDelaiSecondes = 30;
 
     private readonly AppDbContext _context;
 
@@ -79,6 +80,8 @@ public class QuizzesController : ControllerBase
             Titre = dto.Titre!,
             CourseId = dto.CourseId,
             EnseignantId = User.GetUserId(), // propriétaire = "sub" du créateur
+            MaxTentatives = dto.MaxTentatives ?? 1,
+            DureeMinutes = dto.DureeMinutes,
             Questions = dto.Questions!.Select(question => new Question
             {
                 Texte = question.Texte!,
@@ -135,6 +138,8 @@ public class QuizzesController : ControllerBase
 
         quiz.Titre = dto.Titre!;
         quiz.CourseId = dto.CourseId;
+        quiz.MaxTentatives = dto.MaxTentatives ?? 1;
+        quiz.DureeMinutes = dto.DureeMinutes;
 
         // On retire les questions existantes (les réponses suivent en cascade).
         _context.Questions.RemoveRange(quiz.Questions);
@@ -181,6 +186,56 @@ public class QuizzesController : ControllerBase
         return NoContent();
     }
 
+    // POST api/quizzes/{id}/start : démarrer une tentative (ETUDIANT connecté).
+    // Une tentative en cours et non expirée est renvoyée telle quelle (aucune nouvelle ligne).
+    [HttpPost("{id:int}/start")]
+    [Authorize(Roles = CampusHubRoles.Etudiant)]
+    public async Task<ActionResult<TentativeDto>> Start(int id)
+    {
+        var quiz = await _context.Quizzes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == id);
+
+        if (quiz is null)
+        {
+            return NotFoundError();
+        }
+
+        var etudiantId = User.GetUserId();
+
+        if (await _context.Resultats.CountAsync(r => r.QuizId == id && r.EtudiantId == etudiantId) >= quiz.MaxTentatives)
+        {
+            return ConflictError("The maximum number of attempts for this quiz has been reached.");
+        }
+
+        var maintenant = DateTime.UtcNow;
+
+        var tentative = await _context.Tentatives
+            .OrderByDescending(t => t.Id)
+            .FirstOrDefaultAsync(t => t.QuizId == id && t.EtudiantId == etudiantId);
+
+        if (tentative is not null && EstExpiree(tentative, quiz, maintenant))
+        {
+            _context.Tentatives.Remove(tentative);
+            tentative = null;
+        }
+
+        if (tentative is null)
+        {
+            tentative = new Tentative
+            {
+                QuizId = id,
+                EtudiantId = etudiantId,
+                DebutUtc = maintenant
+            };
+
+            _context.Tentatives.Add(tentative);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(ToTentativeDto(tentative, quiz));
+    }
+
     // POST api/quizzes/{id}/submit : corriger les réponses (ETUDIANT connecté).
     [HttpPost("{id:int}/submit")]
     [Authorize(Roles = CampusHubRoles.Etudiant)]
@@ -196,6 +251,14 @@ public class QuizzesController : ControllerBase
             return NotFoundError();
         }
 
+        var etudiantId = User.GetUserId();
+
+        // Quota de tentatives atteint : refus avant toute correction.
+        if (await _context.Resultats.CountAsync(r => r.QuizId == id && r.EtudiantId == etudiantId) >= quiz.MaxTentatives)
+        {
+            return ConflictError("The maximum number of attempts for this quiz has been reached.");
+        }
+
         var erreursSoumission = ValiderSoumission(dto, quiz);
         if (erreursSoumission.Count > 0)
         {
@@ -205,6 +268,26 @@ public class QuizzesController : ControllerBase
         if (quiz.Questions.Count == 0)
         {
             return StatusCode(400, ApiErrorFactory.Validation("This quiz contains no question."));
+        }
+
+        var tentative = await _context.Tentatives
+            .OrderByDescending(t => t.Id)
+            .FirstOrDefaultAsync(t => t.QuizId == id && t.EtudiantId == etudiantId);
+
+        // Un quiz avec durée exige un /start préalable et une soumission dans les temps.
+        if (quiz.DureeMinutes is int dureeMinutes)
+        {
+            if (tentative is null)
+            {
+                return StatusCode(400, ApiErrorFactory.Validation(
+                    $"This quiz has a time limit: call POST /api/quizzes/{id}/start before submitting."));
+            }
+
+            var limiteUtc = tentative.DebutUtc.AddMinutes(dureeMinutes);
+            if (DateTime.UtcNow > limiteUtc.AddSeconds(ToleranceDelaiSecondes))
+            {
+                return ConflictError("The time allowed for this quiz attempt has expired.");
+            }
         }
 
         // On associe chaque question à la réponse choisie par l'étudiant.
@@ -231,10 +314,16 @@ public class QuizzesController : ControllerBase
         var resultat = new Resultat
         {
             QuizId = quiz.Id,
-            EtudiantId = User.GetUserId(), // identité issue uniquement du token
+            EtudiantId = etudiantId, // identité issue uniquement du token
             Score = score,
             DatePassage = DateTime.UtcNow
         };
+
+        // La tentative en cours est consommée par la soumission réussie.
+        if (tentative is not null)
+        {
+            _context.Tentatives.Remove(tentative);
+        }
 
         _context.Resultats.Add(resultat);
         await _context.SaveChangesAsync();
@@ -259,6 +348,16 @@ public class QuizzesController : ControllerBase
         if (dto.CourseId <= 0)
         {
             erreurs.Add(new FieldError("courseId", "Le courseId doit être supérieur à 0."));
+        }
+
+        if (dto.MaxTentatives is int maxTentatives && maxTentatives < 1)
+        {
+            erreurs.Add(new FieldError("maxTentatives", "Le nombre maximal de tentatives doit être supérieur ou égal à 1."));
+        }
+
+        if (dto.DureeMinutes is int dureeMinutes && dureeMinutes < 1)
+        {
+            erreurs.Add(new FieldError("dureeMinutes", "La durée du quiz doit être supérieure ou égale à 1 minute."));
         }
 
         if (dto.Questions is null || dto.Questions.Count == 0)
@@ -370,11 +469,17 @@ public class QuizzesController : ControllerBase
     private bool EstProprietaireOuAdmin(Quiz quiz)
         => User.IsAdmin() || quiz.EnseignantId == User.GetUserId();
 
+    // Une tentative sans durée n'expire jamais.
+    private static bool EstExpiree(Tentative tentative, Quiz quiz, DateTime maintenant)
+        => quiz.DureeMinutes is int dureeMinutes
+            && maintenant > tentative.DebutUtc.AddMinutes(dureeMinutes).AddSeconds(ToleranceDelaiSecondes);
+
     private ObjectResult ForbiddenError() => StatusCode(403, ApiErrorFactory.Forbidden());
 
     private ObjectResult NotFoundError() => StatusCode(404, ApiErrorFactory.NotFound());
 
-    private ObjectResult ConflictError() => StatusCode(409, ApiErrorFactory.Conflict());
+    private ObjectResult ConflictError(string? message = null)
+        => StatusCode(409, message is null ? ApiErrorFactory.Conflict() : ApiErrorFactory.Conflict(message));
 
     private ObjectResult ValidationError(IReadOnlyList<FieldError> erreurs)
         => StatusCode(400, ApiErrorFactory.Validation(fieldErrors: erreurs));
@@ -384,6 +489,8 @@ public class QuizzesController : ControllerBase
         Id = quiz.Id,
         Titre = quiz.Titre,
         CourseId = quiz.CourseId,
+        MaxTentatives = quiz.MaxTentatives,
+        DureeMinutes = quiz.DureeMinutes,
         Questions = quiz.Questions.Select(question => new QuestionDto
         {
             Id = question.Id,
@@ -404,4 +511,21 @@ public class QuizzesController : ControllerBase
         Score = resultat.Score,
         DatePassage = resultat.DatePassage
     };
+
+    private static TentativeDto ToTentativeDto(Tentative tentative, Quiz quiz)
+    {
+        // La valeur relue depuis SQL Server perd DateTimeKind : on la réaffirme en UTC.
+        var debutUtc = DateTime.SpecifyKind(tentative.DebutUtc, DateTimeKind.Utc);
+
+        return new()
+        {
+            Id = tentative.Id,
+            QuizId = tentative.QuizId,
+            EtudiantId = tentative.EtudiantId,
+            DebutUtc = debutUtc,
+            LimiteUtc = quiz.DureeMinutes is int dureeMinutes
+                ? debutUtc.AddMinutes(dureeMinutes)
+                : null
+        };
+    }
 }
