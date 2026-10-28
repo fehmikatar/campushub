@@ -55,14 +55,24 @@ namespace EvaluationService.Migrations
                     b.Property<int>("CourseId")
                         .HasColumnType("int");
 
+                    b.Property<int?>("DureeMinutes")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("EnseignantId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("MaxTentatives")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Titre")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CourseId");
 
                     b.ToTable("Quizzes");
                 });
@@ -114,9 +124,35 @@ namespace EvaluationService.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("QuizId");
+
                     b.HasIndex("EtudiantId", "QuizId");
 
                     b.ToTable("Resultats");
+                });
+
+            modelBuilder.Entity("EvaluationService.Models.Tentative", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DebutUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EtudiantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("QuizId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QuizId", "EtudiantId");
+
+                    b.ToTable("Tentatives");
                 });
 
             modelBuilder.Entity("EvaluationService.Models.Question", b =>
@@ -133,6 +169,15 @@ namespace EvaluationService.Migrations
                     b.HasOne("EvaluationService.Models.Question", null)
                         .WithMany("Reponses")
                         .HasForeignKey("QuestionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("EvaluationService.Models.Tentative", b =>
+                {
+                    b.HasOne("EvaluationService.Models.Quiz", null)
+                        .WithMany()
+                        .HasForeignKey("QuizId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

@@ -25,6 +25,20 @@
 # Ids a adapter apres creation
 @quizId = 1
 @resultatId = 1
+# Quiz cree par tokenEnseignant2 (pour le cas 403)
+@quizIdAutreEnseignant = 2
+@questionId = 1
+@reponseId = 1
+@questionIdInconnu = 999
+@reponseIdInconnu = 999
+
+# Lot 2 — ids a adapter apres les creations de la section 9
+@quizIdTentativeUnique = 3
+@quizIdDuree = 4
+@questionIdTentativeUnique = 1
+@reponseIdTentativeUnique = 1
+@questionIdDuree = 1
+@reponseIdDuree = 1
 
 ### ----------------------------------------------------------------------
 ### 1. Authentication — attendu 401
@@ -206,13 +220,13 @@ Content-Type: application/json
 DELETE {{host}}/api/quizzes/{{quizId}}
 Authorization: Bearer {{tokenEnseignant2}}
 
-### DELETE /api/quizzes/{id} (ADMIN) -> 204
+### DELETE /api/quizzes/{id} (ADMIN) -> 204 (409 si des resultats existent)
 DELETE {{host}}/api/quizzes/{{quizId}}
 Authorization: Bearer {{tokenAdmin}}
 
 ### ----------------------------------------------------------------------
 ### 5. Quiz — soumission (ETUDIANT uniquement) -> 200
-### L'étudiant est déduit du token (claim "sub"), aucun userId dans le corps.
+### L'étudiant est déduit du token (claim "sub"), aucun etudiantId dans le corps.
 ### ----------------------------------------------------------------------
 
 ### POST /api/quizzes/{id}/submit (ETUDIANT) -> 200
@@ -249,7 +263,7 @@ Authorization: Bearer {{tokenEtudiant}}
 GET {{host}}/api/resultats/etudiant/{{etudiantId}}
 Authorization: Bearer {{tokenEtudiant2}}
 
-### GET /api/resultats/etudiant/{etudiantId} (ENSEIGNANT) -> 200
+### GET /api/resultats/etudiant/{etudiantId} (ENSEIGNANT) -> 200, uniquement ses quiz
 GET {{host}}/api/resultats/etudiant/{{etudiantId}}
 Authorization: Bearer {{tokenEnseignant}}
 
@@ -276,3 +290,451 @@ Authorization: Bearer {{tokenAdmin}}
 ### GET /api/resultats/999 -> 404
 GET {{host}}/api/resultats/999
 Authorization: Bearer {{tokenEnseignant}}
+
+### ----------------------------------------------------------------------
+### 7. Lot 1 — acces, validation, /me, /health, PUT 409
+### Prerequis :
+### - quizId cree par tokenEnseignant ;
+### - quizIdAutreEnseignant cree par tokenEnseignant2 ;
+### - au moins une soumission reussie sur quizId (pour le cas PUT 409) ;
+### - executer ces cas avant le DELETE du quiz.
+### Les ids de questions/reponses sont a adapter au quiz utilise.
+### ----------------------------------------------------------------------
+
+### GET /health sans token -> 200 {"status":"UP"}
+GET {{host}}/health
+
+### GET /api/resultats/me (ETUDIANT) -> 200
+GET {{host}}/api/resultats/me
+Authorization: Bearer {{tokenEtudiant}}
+
+### GET /api/resultats/me (ENSEIGNANT) -> 403
+GET {{host}}/api/resultats/me
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/quiz/999 (quiz inexistant) -> 404
+GET {{host}}/api/resultats/quiz/999
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/quiz/{quizIdAutreEnseignant} (autre enseignant) -> 403
+GET {{host}}/api/resultats/quiz/{{quizIdAutreEnseignant}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### PUT /api/quizzes/{quizId} avec resultats existants -> 409
+PUT {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz modifie apres resultats",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes/{id}/submit corps null -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+null
+
+### POST /api/quizzes/{id}/submit reponses null -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": null
+}
+
+### POST /api/quizzes/{id}/submit reponses vide -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": []
+}
+
+### POST /api/quizzes/{id}/submit doublon de questionId -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionId}}, "reponseId": {{reponseId}} },
+    { "questionId": {{questionId}}, "reponseId": {{reponseId}} }
+  ]
+}
+
+### POST /api/quizzes/{id}/submit questionId hors quiz -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdInconnu}}, "reponseId": {{reponseId}} }
+  ]
+}
+
+### POST /api/quizzes/{id}/submit reponseId inexistant -> 400 (fieldErrors)
+POST {{host}}/api/quizzes/{{quizId}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionId}}, "reponseId": {{reponseIdInconnu}} }
+  ]
+}
+
+### POST /api/quizzes (questions null) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz sans questions",
+  "courseId": 10,
+  "questions": null
+}
+
+### POST /api/quizzes (courseId invalide) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz courseId invalide",
+  "courseId": 0,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (texte de question vide) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz question vide",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (une seule reponse) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz une reponse",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (deux reponses correctes) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz deux correctes",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": true }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (texte de reponse vide) -> 400 (fieldErrors)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Quiz reponse vide",
+  "courseId": 10,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### ----------------------------------------------------------------------
+### 8. Lot 1bis — DELETE 409 et filtrage des resultats par enseignant
+### Prerequis :
+### - quizId possede au moins un resultat et n'a pas encore ete supprime ;
+### - resultatId appartient a un resultat d'un quiz cree par tokenEnseignant ;
+### - etudiantId possede des resultats sur des quiz de plusieurs enseignants.
+### ----------------------------------------------------------------------
+
+### DELETE /api/quizzes/{quizId} avec resultats (createur) -> 409
+DELETE {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### DELETE /api/quizzes/{quizId} avec resultats (ADMIN) -> 409
+DELETE {{host}}/api/quizzes/{{quizId}}
+Authorization: Bearer {{tokenAdmin}}
+
+### GET /api/resultats/etudiant/{etudiantId} (ENSEIGNANT) -> 200 filtre
+### Ne doit contenir que les resultats des quiz crees par tokenEnseignant.
+GET {{host}}/api/resultats/etudiant/{{etudiantId}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/{resultatId} (ENSEIGNANT createur du quiz) -> 200
+GET {{host}}/api/resultats/{{resultatId}}
+Authorization: Bearer {{tokenEnseignant}}
+
+### GET /api/resultats/{resultatId} (autre enseignant) -> 403
+GET {{host}}/api/resultats/{{resultatId}}
+Authorization: Bearer {{tokenEnseignant2}}
+
+### ----------------------------------------------------------------------
+### 9. Lot 2 — tentatives et duree
+### Prerequis :
+### - executer les deux creations ci-dessous (ENSEIGNANT) et reporter les ids
+###   dans quizIdTentativeUnique et quizIdDuree ;
+### - reporter les ids de question/reponse dans les variables Lot 2 ;
+### - executer le PUT invalide avant toute soumission sur le quiz concerne ;
+### - un quiz sans maxTentatives recoit 1, sans dureeMinutes il n'a pas de limite.
+### ----------------------------------------------------------------------
+
+### POST /api/quizzes (maxTentatives = 1, sans duree) -> 201
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Lot 2 - une tentative",
+  "courseId": 10,
+  "maxTentatives": 1,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (maxTentatives = 3, dureeMinutes = 1) -> 201
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Lot 2 - quiz chronometre",
+  "courseId": 10,
+  "maxTentatives": 3,
+  "dureeMinutes": 1,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (maxTentatives = 0) -> 400 (fieldErrors.maxTentatives)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Lot 2 - maxTentatives invalide",
+  "courseId": 10,
+  "maxTentatives": 0,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### POST /api/quizzes (dureeMinutes = 0) -> 400 (fieldErrors.dureeMinutes)
+POST {{host}}/api/quizzes
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Lot 2 - duree invalide",
+  "courseId": 10,
+  "dureeMinutes": 0,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### PUT /api/quizzes/{quizIdTentativeUnique} (maxTentatives = 0) -> 400
+### A executer avant toute soumission sur ce quiz (sinon 409 dues aux resultats).
+PUT {{host}}/api/quizzes/{{quizIdTentativeUnique}}
+Authorization: Bearer {{tokenEnseignant}}
+Content-Type: application/json
+
+{
+  "titre": "Lot 2 - maxTentatives invalide",
+  "courseId": 10,
+  "maxTentatives": 0,
+  "questions": [
+    {
+      "texte": "Q1",
+      "reponses": [
+        { "texte": "A", "estCorrecte": true },
+        { "texte": "B", "estCorrecte": false }
+      ]
+    }
+  ]
+}
+
+### GET /api/quizzes/{quizIdDuree} -> 200 (maxTentatives et dureeMinutes exposes)
+GET {{host}}/api/quizzes/{{quizIdDuree}}
+Authorization: Bearer {{tokenEtudiant}}
+
+### POST /api/quizzes/{quizIdDuree}/start (ENSEIGNANT) -> 403
+POST {{host}}/api/quizzes/{{quizIdDuree}}/start
+Authorization: Bearer {{tokenEnseignant}}
+
+### POST /api/quizzes/999/start -> 404
+POST {{host}}/api/quizzes/999/start
+Authorization: Bearer {{tokenEtudiant}}
+
+### POST /api/quizzes/{quizIdDuree}/submit sans /start -> 400 explicite
+POST {{host}}/api/quizzes/{{quizIdDuree}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdDuree}}, "reponseId": {{reponseIdDuree}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdDuree}/start (ETUDIANT) -> 200 (debutUtc, limiteUtc)
+POST {{host}}/api/quizzes/{{quizIdDuree}}/start
+Authorization: Bearer {{tokenEtudiant}}
+
+### POST /api/quizzes/{quizIdDuree}/start (rappel immediat) -> 200, meme id et debutUtc
+POST {{host}}/api/quizzes/{{quizIdDuree}}/start
+Authorization: Bearer {{tokenEtudiant}}
+
+### POST /api/quizzes/{quizIdDuree}/submit hors delai -> 409
+### Attendre plus de 90 secondes apres le /start (1 min + 30 s de tolerance).
+POST {{host}}/api/quizzes/{{quizIdDuree}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdDuree}}, "reponseId": {{reponseIdDuree}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdDuree}/start apres expiration -> 200 (nouvel id)
+POST {{host}}/api/quizzes/{{quizIdDuree}}/start
+Authorization: Bearer {{tokenEtudiant}}
+
+### POST /api/quizzes/{quizIdDuree}/submit dans les temps -> 200 (tentative consommee)
+POST {{host}}/api/quizzes/{{quizIdDuree}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdDuree}}, "reponseId": {{reponseIdDuree}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdDuree}/submit sans nouveau /start -> 400
+POST {{host}}/api/quizzes/{{quizIdDuree}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdDuree}}, "reponseId": {{reponseIdDuree}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdTentativeUnique}/submit (1re soumission) -> 200
+POST {{host}}/api/quizzes/{{quizIdTentativeUnique}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdTentativeUnique}}, "reponseId": {{reponseIdTentativeUnique}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdTentativeUnique}/submit (2e soumission) -> 409
+POST {{host}}/api/quizzes/{{quizIdTentativeUnique}}/submit
+Authorization: Bearer {{tokenEtudiant}}
+Content-Type: application/json
+
+{
+  "reponses": [
+    { "questionId": {{questionIdTentativeUnique}}, "reponseId": {{reponseIdTentativeUnique}} }
+  ]
+}
+
+### POST /api/quizzes/{quizIdTentativeUnique}/start (quota atteint) -> 409
+POST {{host}}/api/quizzes/{{quizIdTentativeUnique}}/start
+Authorization: Bearer {{tokenEtudiant}}

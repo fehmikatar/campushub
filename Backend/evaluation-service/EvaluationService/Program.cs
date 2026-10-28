@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using Steeltoe.Discovery.Eureka;
 
 // Charge un éventuel fichier .env local (valeurs non committées). Sans effet en production.
 Env.TraversePath().Load();
@@ -135,6 +136,13 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
+builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
+
+// Enregistrement Eureka : les échecs de contact sont réessayés en arrière-plan sans bloquer le démarrage.
+builder.Services.AddEurekaDiscoveryClient();
+
 // --- CORS : origines autorisées lues depuis la configuration (défaut : front local) ---
 const string CorsPolicy = "CorsPolicy";
 var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? "http://localhost:3000")
@@ -167,5 +175,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Endpoint public de santé (Eureka / gateway / orchestration).
+app.MapGet("/health", () => Results.Ok(new { status = "UP" })).AllowAnonymous();
 
 app.Run();
