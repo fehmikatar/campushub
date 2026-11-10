@@ -1,4 +1,6 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException, ForbiddenException, Injectable, NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, Repository } from 'typeorm';
 import { Course } from './course.entity.js';
@@ -7,6 +9,7 @@ import { CreateCourseDto, QueryCourseDto, UpdateCourseDto } from './course.dto.j
 import { IMAGE_URL_PREFIX, StatutCours } from './course.enums.js';
 import { supprimerFichier } from '../common/upload.js';
 import { EventPublisher } from '../messaging/event-publisher.service.js';
+import { AuthUser, Role } from '../auth/auth.js';
 
 @Injectable()
 export class CourseService {
@@ -37,13 +40,15 @@ export class CourseService {
     }
   }
 
-  async create(dto: CreateCourseDto) {
+  // Le formateur est l'utilisateur connecte (claim "sub" du JWT), jamais le corps de la requete
+  async create(dto: CreateCourseDto, user: AuthUser) {
     const { chapitres = [], ...data } = dto;
     if (data.statut === StatutCours.PUBLIE && chapitres.length === 0) {
       throw new BadRequestException('Impossible de publier un cours sans chapitre');
     }
     const course = this.repo.create({
       ...data,
+      formateurId: user.id,
       chapitres: chapitres.map((c, i) => ({ ...c, ordre: i + 1 })),
     });
     const saved = await this.repo.save(course);
@@ -52,8 +57,11 @@ export class CourseService {
     return created;
   }
 
-  async findAll(query: QueryCourseDto) {
-    const { search, categorie, statut, formateurId, page, limit } = query;
+  async findAll(query: QueryCourseDto, user: AuthUser) {
+    const { search, categorie, formateurId, page, limit } = query;
+    // Un etudiant ne voit que les cours publies et leurs chapitres visibles
+    const etudiant = user.role === Role.ETUDIANT;
+    const statut = etudiant ? StatutCours.PUBLIE : query.statut;
 
     const qb = this.repo.createQueryBuilder('cours')
       .orderBy('cours.id', 'ASC')
@@ -72,13 +80,14 @@ export class CourseService {
 
     // Nombre de chapitres par cours (badge "3 chapitres") en une seule requete
     if (data.length) {
-      const counts: { coursId: number; nb: string }[] = await this.chapters
+      const countQb = this.chapters
         .createQueryBuilder('ch')
         .select('ch.coursId', 'coursId')
         .addSelect('COUNT(*)', 'nb')
         .where('ch.coursId IN (:...ids)', { ids: data.map((c) => c.id) })
-        .groupBy('ch.coursId')
-        .getRawMany();
+        .groupBy('ch.coursId');
+      if (etudiant) countQb.andWhere('ch.visible = true');
+      const counts: { coursId: number; nb: string }[] = await countQb.getRawMany();
       const parCours = new Map(counts.map((c) => [Number(c.coursId), Number(c.nb)]));
       data.forEach((c) => (c.nbChapitres = parCours.get(c.id) ?? 0));
     }
@@ -96,8 +105,27 @@ export class CourseService {
     return course;
   }
 
-  async update(id: number, dto: UpdateCourseDto) {
+  // Consultation : pour un etudiant, un cours non publie n'existe pas (404)
+  async findOneFor(id: number, user: AuthUser) {
     const course = await this.findOne(id);
+    if (user.role === Role.ETUDIANT) {
+      if (course.statut !== StatutCours.PUBLIE) throw new NotFoundException(`Cours ${id} introuvable`);
+      course.chapitres = course.chapitres.filter((c) => c.visible);
+    }
+    return course;
+  }
+
+  // Modification : un enseignant n'agit que sur ses propres cours (403), un admin sur tous
+  async findOwned(id: number, user: AuthUser) {
+    const course = await this.findOne(id);
+    if (user.role !== Role.ADMIN && course.formateurId !== user.id) {
+      throw new ForbiddenException("Vous n'etes pas le formateur de ce cours");
+    }
+    return course;
+  }
+
+  async update(id: number, dto: UpdateCourseDto, user: AuthUser) {
+    const course = await this.findOwned(id, user);
     if (dto.statut === StatutCours.PUBLIE && course.chapitres.length === 0) {
       throw new BadRequestException('Impossible de publier un cours sans chapitre');
     }
@@ -110,8 +138,8 @@ export class CourseService {
     return updated;
   }
 
-  async publish(id: number) {
-    const course = await this.findOne(id);
+  async publish(id: number, user: AuthUser) {
+    const course = await this.findOwned(id, user);
     if (course.statut === StatutCours.PUBLIE) {
       throw new BadRequestException(`Le cours ${id} est deja publie`);
     }
@@ -124,8 +152,8 @@ export class CourseService {
     return published;
   }
 
-  async archive(id: number) {
-    const course = await this.findOne(id);
+  async archive(id: number, user: AuthUser) {
+    const course = await this.findOwned(id, user);
     if (course.statut === StatutCours.ARCHIVE) {
       throw new BadRequestException(`Le cours ${id} est deja archive`);
     }
@@ -135,10 +163,10 @@ export class CourseService {
     return archived;
   }
 
-  async setImage(id: number, file?: Express.Multer.File) {
+  async setImage(id: number, user: AuthUser, file?: Express.Multer.File) {
     if (!file) throw new BadRequestException('Aucun fichier recu (champ "file")');
-    const course = await this.findOne(id).catch((e) => {
-      supprimerFichier('images', file.filename); // cours inexistant : on jette le fichier
+    const course = await this.findOwned(id, user).catch((e) => {
+      supprimerFichier('images', file.filename); // cours inexistant ou interdit : on jette le fichier
       throw e;
     });
     this.supprimerImageLocale(course.imageUrl);
@@ -146,15 +174,15 @@ export class CourseService {
     return this.findOne(id);
   }
 
-  async removeImage(id: number) {
-    const course = await this.findOne(id);
+  async removeImage(id: number, user: AuthUser) {
+    const course = await this.findOwned(id, user);
     this.supprimerImageLocale(course.imageUrl);
     await this.repo.update(id, { imageUrl: null });
     return this.findOne(id);
   }
 
-  async remove(id: number) {
-    const course = await this.findOne(id);
+  async remove(id: number, user: AuthUser) {
+    const course = await this.findOwned(id, user);
     await this.repo.remove(course); // chapitres supprimes par ON DELETE CASCADE
     this.supprimerImageLocale(course.imageUrl);
     course.chapitres.forEach((ch) => supprimerFichier('pdfs', ch.pdfFichier));

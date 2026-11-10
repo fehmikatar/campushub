@@ -41,12 +41,7 @@ export class CreateCourseDto {
   @IsUrl({ require_protocol: true })
   imageUrl?: string;
 
-  @ApiProperty({
-    example: '3f2a9c1e-7b4d-4e6a-9d21-5c8b0a1f2e34',
-    description: 'UUID du formateur (User Service)',
-  })
-  @IsUUID()
-  formateurId: string;
+  // Pas de formateurId : c'est l'utilisateur connecte (claim "sub" du JWT)
 
   @ApiPropertyOptional({
     type: () => [CreateChapterDto],
@@ -60,9 +55,9 @@ export class CreateCourseDto {
   chapitres?: CreateChapterDto[];
 }
 
-// Le formateur proprietaire ne change pas ; les chapitres ont leurs propres routes.
+// Les chapitres ont leurs propres routes.
 export class UpdateCourseDto extends PartialType(
-  OmitType(CreateCourseDto, ['formateurId', 'chapitres'] as const),
+  OmitType(CreateCourseDto, ['chapitres'] as const),
 ) {}
 
 export class QueryCourseDto {

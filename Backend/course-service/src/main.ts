@@ -9,6 +9,10 @@ import { registerWithEureka } from './config/eureka.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Meme secret que le User Service (HS256) : sans lui, aucun token ne peut etre verifie
+  if (Buffer.byteLength(process.env.JWT_SECRET ?? '', 'utf8') < 32) {
+    throw new Error('JWT_SECRET est absent ou trop court (minimum 32 octets) : voir .env.example');
+  }
   app.enableCors();
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
@@ -22,6 +26,7 @@ async function bootstrap() {
     .setTitle('CampusHub - Course Service')
     .setDescription('Gestion des cours, des chapitres, des images de couverture et des PDF')
     .setVersion('1.0')
+    .addBearerAuth() // bouton "Authorize" : coller le JWT du User Service
     .build();
   SwaggerModule.setup('api', app, SwaggerModule.createDocument(app, config));
 
