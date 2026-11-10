@@ -36,7 +36,7 @@ app.use((err, req, res, next) => {
   if (err.code === 11000) {
     return res.status(409).json({ message: 'Ressource déjà existante' });
   }
-  if (err.status && err.status < 500) {
+  if (err.status && (err.status < 500 || err.status === 503)) {
     return res.status(err.status).json({ message: err.message });
   }
   console.error(err);
