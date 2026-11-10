@@ -3,6 +3,7 @@ require('dotenv').config();
 const connectDB = require('./shared/config/db');
 const app = require('./app');
 const rabbitPublisher = require('./shared/utils/rabbitPublisher');
+const courseClient = require('./shared/utils/courseClient');
 
 const { PORT = 8086, MONGO_URI, JWT_SECRET } = process.env;
 
@@ -26,6 +27,7 @@ connectDB(MONGO_URI)
       console.log(`forum-service démarré sur le port ${PORT}`);
       if (process.env.EUREKA_ENABLED !== 'false') {
         eurekaClient = registerWithEureka({ port: PORT });
+                courseClient.setEurekaClient(eurekaClient);
       }
     });
   })
