@@ -1,9 +1,9 @@
-const Topic = require('../models/Topic');
-const Category = require('../models/Category');
-const HttpError = require('../utils/httpError');
-const { findActiveTopic } = require('../utils/finders');
-const { isModerator, isOwnerOrModerator } = require('../utils/permissions');
-const paginate = require('../utils/pagination');
+const Topic = require('./Topic');
+const Category = require('../category/Category');
+const HttpError = require('../shared/utils/httpError');
+const { findActiveTopic } = require('../shared/utils/finders');
+const { isModerator, isOwnerOrModerator } = require('../shared/utils/permissions');
+const paginate = require('../shared/utils/pagination');
 
 async function assertCategoryExists(categoryId) {
   if (categoryId && !(await Category.exists({ _id: categoryId }))) {
@@ -83,7 +83,7 @@ exports.deleteTopic = async (req, res) => {
   res.status(204).end();
 };
 
-const { notify } = require('../utils/notifier');
+const { notify } = require('../shared/utils/notifier');
 
 const NOTIFIED_EVENTS = { isLocked: 'topic.locked', isResolved: 'topic.resolved' };
 

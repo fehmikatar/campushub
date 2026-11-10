@@ -1,5 +1,5 @@
-const Topic = require('../models/Topic');
-const Post = require('../models/Post');
+const Topic = require('../../topic/Topic');
+const Post = require('../../post/Post');
 const HttpError = require('./httpError');
 
 async function findActiveTopic(id) {

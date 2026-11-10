@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { ROLES } = require('../config/roles');
+const { ROLES } = require('../shared/config/roles');
 
 const topicSchema = new mongoose.Schema(
   {

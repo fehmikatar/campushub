@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const connectDB = require('./config/db');
+const connectDB = require('./shared/config/db');
 const app = require('./app');
 
 const { PORT = 8086, MONGO_URI, JWT_SECRET } = process.env;
@@ -14,7 +14,7 @@ if (!JWT_SECRET || JWT_SECRET.length < 32) {
   process.exit(1);
 }
 
-const registerWithEureka = require('./config/eureka');
+const registerWithEureka = require('./shared/config/eureka');
 
 connectDB(MONGO_URI)
   .then(() => {

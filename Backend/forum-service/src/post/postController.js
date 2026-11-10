@@ -1,11 +1,11 @@
-const Post = require('../models/Post');
-const Topic = require('../models/Topic');
-const Like = require('../models/Like');
-const HttpError = require('../utils/httpError');
-const { findActiveTopic, findActivePost } = require('../utils/finders');
-const { isModerator, isOwnerOrModerator } = require('../utils/permissions');
-const paginate = require('../utils/pagination');
-const { notify, postPayload } = require('../utils/notifier');
+const Post = require('./Post');
+const Topic = require('../topic/Topic');
+const Like = require('./Like');
+const HttpError = require('../shared/utils/httpError');
+const { findActiveTopic, findActivePost } = require('../shared/utils/finders');
+const { isModerator, isOwnerOrModerator } = require('../shared/utils/permissions');
+const paginate = require('../shared/utils/pagination');
+const { notify, postPayload } = require('../shared/utils/notifier');
 
 exports.createPost = async (req, res) => {
   const topic = await findActiveTopic(req.params.topicId);

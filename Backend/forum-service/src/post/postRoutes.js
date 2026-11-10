@@ -1,8 +1,8 @@
 const express = require('express');
 const { body } = require('express-validator');
-const validate = require('../middlewares/validate');
-const { mongoIdParam } = require('../utils/rules');
-const c = require('../controllers/postController');
+const validate = require('../shared/middlewares/validate');
+const { mongoIdParam } = require('../shared/utils/rules');
+const c = require('./postController');
 
 const router = express.Router();
 

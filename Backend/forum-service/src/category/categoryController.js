@@ -1,7 +1,7 @@
-const Category = require('../models/Category');
-const Topic = require('../models/Topic');
-const HttpError = require('../utils/httpError');
-const slugify = require('../utils/slugify');
+const Category = require('./Category');
+const Topic = require('../topic/Topic');
+const HttpError = require('../shared/utils/httpError');
+const slugify = require('../shared/utils/slugify');
 
 exports.listCategories = async (req, res) => {
   res.json(await Category.find().sort({ order: 1, name: 1 }).lean());
