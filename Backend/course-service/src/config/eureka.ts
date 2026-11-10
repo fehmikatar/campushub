@@ -2,15 +2,24 @@ import EurekaPkg from 'eureka-js-client';
 
 const Eureka = (EurekaPkg as any).Eureka ?? EurekaPkg;
 
-export const EUREKA_CLIENT = Symbol('EUREKA_CLIENT');
-
 export interface EurekaClient {
   getInstancesByAppId(appId: string): any[];
   start(callback: (error: unknown) => void): void;
   stop(callback: () => void): void;
 }
 
-export function registerWithEureka(port: number | string) {
+// Shared client singleton (style Forum)
+let sharedEurekaClient: EurekaClient | null = null;
+
+export function setEurekaClient(client: EurekaClient | null): void {
+  sharedEurekaClient = client;
+}
+
+export function getEurekaClient(): EurekaClient | null {
+  return sharedEurekaClient;
+}
+
+export function registerWithEureka(port: number | string): EurekaClient {
   const eurekaHost = process.env.EUREKA_HOST || 'localhost';
   const eurekaPort = Number(process.env.EUREKA_PORT) || 8761;
   const instanceHost = process.env.EUREKA_INSTANCE_HOST || 'localhost';

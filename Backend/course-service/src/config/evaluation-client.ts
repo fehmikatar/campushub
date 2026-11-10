@@ -1,19 +1,16 @@
-import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { EUREKA_CLIENT, EurekaClient } from './eureka.js';
+import { getEurekaClient, EurekaClient } from './eureka.js';
 
 @Injectable()
 export class EvaluationClient implements OnModuleInit {
   private readonly logger = new Logger(EvaluationClient.name);
   private readonly timeout = 3000; // 3s
 
-  constructor(
-    private config: ConfigService,
-    @Optional() @Inject(EUREKA_CLIENT) private eurekaClient: EurekaClient | null,
-  ) {}
+  constructor(private config: ConfigService) {}
 
   async onModuleInit() {
-    // No longer creates its own Eureka client - uses injected one
+    // Client Eureka récupéré via getEurekaClient() (singleton partagé avec main.ts)
   }
 
   async getQuizCount(courseId: number, authHeader: string): Promise<number | null> {
@@ -65,10 +62,11 @@ export class EvaluationClient implements OnModuleInit {
     const envUrl = this.config.get<string>('EVALUATION_SERVICE_URL');
     if (envUrl?.trim()) return envUrl.replace(/\/$/, '');
 
-    // 2. Eureka discovery
-    if (this.eurekaClient) {
+    // 2. Eureka discovery via client partagé
+    const eurekaClient = getEurekaClient();
+    if (eurekaClient) {
       try {
-        const instances = this.eurekaClient.getInstancesByAppId('EVALUATION-SERVICE');
+        const instances = eurekaClient.getInstancesByAppId('EVALUATION-SERVICE');
         if (instances && instances.length > 0) {
           const instance = instances[0];
           const host = instance.hostName || instance.ipAddr;
