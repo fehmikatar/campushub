@@ -9,6 +9,7 @@ import { Chapter } from '../chapter/chapter.entity.js';
 import { EventPublisher } from '../messaging/event-publisher.service.js';
 import { AuthUser, Role } from '../auth/auth.js';
 import { StatutCours } from './course.enums.js';
+import { EvaluationClient } from '../config/evaluation-client.js';
 
 const SUB = '3f2a9c1e-7b4d-4e6a-9d21-5c8b0a1f2e34';
 const FORMATEUR_ID = SUB;
@@ -77,6 +78,10 @@ const mockEventPublisher = {
   publish: vi.fn(),
 };
 
+const mockEvaluationClient = {
+  getQuizCount: vi.fn().mockResolvedValue(null),
+};
+
 describe('CourseService - Synchronous calls from other services', () => {
   let service: CourseService;
   let module: TestingModule;
@@ -95,6 +100,7 @@ describe('CourseService - Synchronous calls from other services', () => {
         { provide: getRepositoryToken(Course), useValue: mockCourseRepo },
         { provide: getRepositoryToken(Chapter), useValue: mockChapterRepo },
         { provide: EventPublisher, useValue: mockEventPublisher },
+        { provide: EvaluationClient, useValue: mockEvaluationClient },
       ],
     }).compile();
 
@@ -113,8 +119,9 @@ describe('CourseService - Synchronous calls from other services', () => {
     it('returns 200 (course) when course is PUBLISHED and student calls', async () => {
       const publishedCourse = createMockCourse({ statut: StatutCours.PUBLIE });
       mockCourseRepo.findOne.mockResolvedValue(publishedCourse);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(0);
 
-      const result = await service.findOneFor(1, studentUser);
+      const result = await service.findOneFor(1, studentUser, 'Bearer token');
 
       expect(result).toEqual(publishedCourse);
       expect(mockCourseRepo.findOne).toHaveBeenCalledWith({
@@ -122,22 +129,22 @@ describe('CourseService - Synchronous calls from other services', () => {
         relations: { chapitres: true },
         order: { chapitres: { ordre: 'ASC', id: 'ASC' } },
       });
+      expect(mockEvaluationClient.getQuizCount).toHaveBeenCalledWith(1, 'Bearer token');
+      expect(result.nbQuiz).toBe(0);
     });
 
     it('returns 404 when course is BROUILLON and student calls', async () => {
       const draftCourse = createMockCourse({ statut: StatutCours.BROUILLON });
       mockCourseRepo.findOne.mockResolvedValue(draftCourse);
 
-      await expect(service.findOneFor(1, studentUser)).rejects.toThrow(NotFoundException);
-      // Note: The second expect would need the error to be thrown again, which it won't be
-      // This is just to document the expected message
+      await expect(service.findOneFor(1, studentUser, 'Bearer token')).rejects.toThrow(NotFoundException);
     });
 
     it('returns 404 when course is ARCHIVE and student calls', async () => {
       const archivedCourse = createMockCourse({ statut: StatutCours.ARCHIVE });
       mockCourseRepo.findOne.mockResolvedValue(archivedCourse);
 
-      await expect(service.findOneFor(1, studentUser)).rejects.toThrow(NotFoundException);
+      await expect(service.findOneFor(1, studentUser, 'Bearer token')).rejects.toThrow(NotFoundException);
     });
 
     it('returns course with only visible chapters for student', async () => {
@@ -149,8 +156,9 @@ describe('CourseService - Synchronous calls from other services', () => {
         ],
       });
       mockCourseRepo.findOne.mockResolvedValue(course);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(null);
 
-      const result = await service.findOneFor(1, studentUser);
+      const result = await service.findOneFor(1, studentUser, 'Bearer token');
 
       expect(result.chapitres).toHaveLength(1);
       expect(result.chapitres[0].visible).toBe(true);
@@ -165,8 +173,9 @@ describe('CourseService - Synchronous calls from other services', () => {
         ],
       });
       mockCourseRepo.findOne.mockResolvedValue(course);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(null);
 
-      const result = await service.findOneFor(1, teacherUser);
+      const result = await service.findOneFor(1, teacherUser, 'Bearer token');
 
       expect(result).toEqual(course);
       expect(result.chapitres).toHaveLength(2);
@@ -178,26 +187,42 @@ describe('CourseService - Synchronous calls from other services', () => {
         chapitres: [createMockChapter({ id: 1, visible: false })],
       });
       mockCourseRepo.findOne.mockResolvedValue(course);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(null);
 
-      const result = await service.findOneFor(1, adminUser);
+      const result = await service.findOneFor(1, adminUser, 'Bearer token');
 
       expect(result).toEqual(course);
+    });
+
+    it('calls EvaluationClient with auth header and sets nbQuiz', async () => {
+      const publishedCourse = createMockCourse({ statut: StatutCours.PUBLIE });
+      mockCourseRepo.findOne.mockResolvedValue(publishedCourse);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(3);
+
+      const result = await service.findOneFor(1, studentUser, 'Bearer test-token');
+
+      expect(mockEvaluationClient.getQuizCount).toHaveBeenCalledWith(1, 'Bearer test-token');
+      expect(result.nbQuiz).toBe(3);
+    });
+
+    it('sets nbQuiz to null when EvaluationClient returns null', async () => {
+      const publishedCourse = createMockCourse({ statut: StatutCours.PUBLIE });
+      mockCourseRepo.findOne.mockResolvedValue(publishedCourse);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(null);
+
+      const result = await service.findOneFor(1, studentUser, 'Bearer token');
+
+      expect(result.nbQuiz).toBeNull();
     });
   });
 
   describe('Token validation for inter-service calls', () => {
     it('accepts token with correct JWT_SECRET and JWT_ISSUER from another service', async () => {
-      // This test verifies that the auth guard configuration matches
-      // the User Service standards (HS256, same secret, same issuer)
-      // The actual token validation is tested in auth.guard.spec.ts
-      // Here we verify the service uses the correct configuration
-
       const publishedCourse = createMockCourse({ statut: StatutCours.PUBLIE });
       mockCourseRepo.findOne.mockResolvedValue(publishedCourse);
+      mockEvaluationClient.getQuizCount.mockResolvedValue(0);
 
-      // Simulate a call from another service (Forum/Evaluation) with a valid token
-      // The token would be validated by JwtAuthGuard before reaching the service
-      const result = await service.findOneFor(1, studentUser);
+      const result = await service.findOneFor(1, studentUser, 'Bearer token');
 
       expect(result).toEqual(publishedCourse);
     });
