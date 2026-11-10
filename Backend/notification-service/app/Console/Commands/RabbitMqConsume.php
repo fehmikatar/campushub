@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\EventMessageProcessor;
 use App\Services\RabbitMqConsumer;
 use Illuminate\Console\Command;
 
@@ -15,7 +16,7 @@ class RabbitMqConsume extends Command
 
     protected $description = 'Écoute les files RabbitMQ (forum.events, evaluation.events, course.events)';
 
-    public function handle(RabbitMqConsumer $consumer): int
+    public function handle(RabbitMqConsumer $consumer, EventMessageProcessor $processor): int
     {
         if (! $consumer->isEnabled()) {
             $this->warn('RABBITMQ_URL est vide : consommation RabbitMQ désactivée.');
@@ -35,11 +36,13 @@ class RabbitMqConsume extends Command
         $this->line('En attente de messages... (Ctrl+C pour arrêter)');
 
         try {
-            // Le traitement des messages est branché à l'étape D ; en attendant, on les journalise et on les écarte.
-            $consumer->consume(function (string $queue, string $body): bool {
-                $this->warn("[$queue] message reçu mais pas encore traité : $body");
+            $consumer->consume(function (string $queue, string $body) use ($processor): bool {
+                $handled = $processor->process($queue, $body);
+                $handled
+                    ? $this->info("[$queue] message traité")
+                    : $this->warn("[$queue] message écarté (voir storage/logs/laravel.log)");
 
-                return false;
+                return $handled;
             });
         } catch (\Throwable $e) {
             $this->error('Consommation interrompue : '.$e->getMessage());
