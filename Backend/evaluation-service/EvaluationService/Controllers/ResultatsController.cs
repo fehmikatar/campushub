@@ -22,15 +22,12 @@ public class ResultatsController : ControllerBase
         _context = context;
     }
 
-    // GET api/resultats/etudiant/{etudiantId} : résultats d'un étudiant
-    // (l'étudiant lui-même, ou un ENSEIGNANT/ADMIN).
-    [HttpGet("etudiant/{etudiantId:guid}")]
-    public async Task<ActionResult<IEnumerable<ResultatDto>>> GetByEtudiant(Guid etudiantId)
+    // GET api/resultats/me : résultats de l'étudiant connecté (identité issue du claim "sub").
+    [HttpGet("me")]
+    [Authorize(Roles = CampusHubRoles.Etudiant)]
+    public async Task<ActionResult<IEnumerable<ResultatDto>>> GetMine()
     {
-        if (!User.IsEnseignantOrAdmin() && User.GetUserId() != etudiantId)
-        {
-            return ForbiddenError();
-        }
+        var etudiantId = User.GetUserId();
 
         var resultats = await _context.Resultats
             .Where(r => r.EtudiantId == etudiantId)
@@ -40,11 +37,60 @@ public class ResultatsController : ControllerBase
         return Ok(resultats.Select(ToResultatDto));
     }
 
-    // GET api/resultats/quiz/{quizId} : résultats d'un quiz (ENSEIGNANT ou ADMIN).
+    // GET api/resultats/etudiant/{etudiantId} : résultats d'un étudiant.
+    // ENSEIGNANT : uniquement les résultats des quiz qu'il a créés ; ADMIN : tous ;
+    // ETUDIANT : uniquement les siens.
+    [HttpGet("etudiant/{etudiantId:guid}")]
+    public async Task<ActionResult<IEnumerable<ResultatDto>>> GetByEtudiant(Guid etudiantId)
+    {
+        IQueryable<Resultat> requete;
+
+        if (User.IsEnseignant())
+        {
+            var enseignantId = User.GetUserId();
+
+            requete = from r in _context.Resultats
+                      join q in _context.Quizzes on r.QuizId equals q.Id
+                      where r.EtudiantId == etudiantId && q.EnseignantId == enseignantId
+                      select r;
+        }
+        else
+        {
+            if (!User.IsAdmin() && User.GetUserId() != etudiantId)
+            {
+                return ForbiddenError();
+            }
+
+            requete = _context.Resultats.Where(r => r.EtudiantId == etudiantId);
+        }
+
+        var resultats = await requete
+            .AsNoTracking()
+            .ToListAsync();
+
+        return Ok(resultats.Select(ToResultatDto));
+    }
+
+    // GET api/resultats/quiz/{quizId} : résultats d'un quiz (créateur du quiz ou ADMIN).
     [HttpGet("quiz/{quizId:int}")]
     [Authorize(Roles = CampusHubRoles.EnseignantOuAdmin)]
     public async Task<ActionResult<IEnumerable<ResultatDto>>> GetByQuiz(int quizId)
     {
+        var quiz = await _context.Quizzes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == quizId);
+
+        if (quiz is null)
+        {
+            return NotFoundError();
+        }
+
+        // Un enseignant ne voit que les résultats de ses propres quiz ; ADMIN est exempté.
+        if (!User.IsAdmin() && quiz.EnseignantId != User.GetUserId())
+        {
+            return ForbiddenError();
+        }
+
         var resultats = await _context.Resultats
             .Where(r => r.QuizId == quizId)
             .AsNoTracking()
@@ -53,7 +99,8 @@ public class ResultatsController : ControllerBase
         return Ok(resultats.Select(ToResultatDto));
     }
 
-    // GET api/resultats/{id} : un résultat (son propriétaire, ou un ENSEIGNANT/ADMIN).
+    // GET api/resultats/{id} : un résultat (son propriétaire, l'ENSEIGNANT créateur
+    // du quiz, ou un ADMIN).
     [HttpGet("{id:int}")]
     public async Task<ActionResult<ResultatDto>> GetById(int id)
     {
@@ -66,7 +113,27 @@ public class ResultatsController : ControllerBase
             return NotFoundError();
         }
 
-        if (!User.IsEnseignantOrAdmin() && resultat.EtudiantId != User.GetUserId())
+        if (User.IsAdmin() || resultat.EtudiantId == User.GetUserId())
+        {
+            return Ok(ToResultatDto(resultat));
+        }
+
+        if (!User.IsEnseignant())
+        {
+            return ForbiddenError();
+        }
+
+        // Un enseignant ne voit que les résultats des quiz qu'il a créés.
+        var quiz = await _context.Quizzes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == resultat.QuizId);
+
+        if (quiz is null)
+        {
+            return NotFoundError();
+        }
+
+        if (quiz.EnseignantId != User.GetUserId())
         {
             return ForbiddenError();
         }

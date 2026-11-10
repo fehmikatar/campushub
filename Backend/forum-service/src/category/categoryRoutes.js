@@ -1,9 +1,9 @@
 const express = require('express');
 const { body } = require('express-validator');
-const { requireRole } = require('../middlewares/auth');
-const validate = require('../middlewares/validate');
-const { mongoIdParam } = require('../utils/rules');
-const c = require('../controllers/categoryController');
+const { requireRole } = require('../shared/middlewares/auth');
+const validate = require('../shared/middlewares/validate');
+const { mongoIdParam } = require('../shared/utils/rules');
+const c = require('./categoryController');
 
 const router = express.Router();
 
