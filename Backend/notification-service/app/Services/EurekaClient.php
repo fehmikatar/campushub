@@ -48,6 +48,33 @@ class EurekaClient
         return Http::timeout(5)->put("{$this->baseUrl()}/".self::APP.'/'.$this->instanceId())->status();
     }
 
+    /**
+     * Adresse (http://hôte:port) d'une instance UP du service demandé, ou null si Eureka ne la connaît pas.
+     *
+     * @throws \Illuminate\Http\Client\ConnectionException si Eureka est injoignable
+     */
+    public function instanceUrl(string $app): ?string
+    {
+        $response = Http::timeout(3)->acceptJson()->get("{$this->baseUrl()}/".strtoupper($app));
+        if (! $response->successful()) {
+            return null;
+        }
+
+        $instances = $response->json('application.instance') ?? [];
+        if (isset($instances['hostName'])) {
+            $instances = [$instances]; // une seule instance : Eureka renvoie un objet et non une liste
+        }
+
+        foreach ($instances as $instance) {
+            $port = $instance['port']['$'] ?? null;
+            if (($instance['status'] ?? null) === 'UP' && ! empty($instance['hostName']) && $port) {
+                return "http://{$instance['hostName']}:$port";
+            }
+        }
+
+        return null;
+    }
+
     public function address(): string
     {
         return "{$this->config('host')}:{$this->config('port')}";

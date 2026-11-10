@@ -21,6 +21,9 @@ x-notification-env: &notification-env
   JWT_ISSUER: campushub-user-service
   INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-key}
   RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  # Eureka tourne sur la machine hôte ; USER_SERVICE_URL (ex. http://host.docker.internal:8081) remplace Eureka.
+  EUREKA_HOST: host.docker.internal
+  USER_SERVICE_URL: ${USER_SERVICE_URL:-}
 
 services:
   mysql:

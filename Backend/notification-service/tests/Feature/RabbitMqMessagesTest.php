@@ -91,6 +91,42 @@ class RabbitMqMessagesTest extends TestCase
         $this->assertSame(0, $this->unread('alice'));
     }
 
+    public function test_forum_notification_greets_recipient_by_first_name(): void
+    {
+        $this->userFirstNames(['alice' => 'Alice']);
+        $event = $this->forumEvent();
+
+        $this->send('forum.events', $this->envelope('post.created', ['topic' => $event['topic'], 'post' => $event['post']]));
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => 'alice',
+            'message' => 'Bonjour Alice, nouvelle réponse à votre sujet « Question sur Laravel ».',
+        ]);
+    }
+
+    public function test_notification_is_sent_without_first_name_when_user_service_has_none(): void
+    {
+        $this->assertTrue($this->send('evaluation.events', $this->envelope('result.published', [
+            'studentId' => 'alice', 'quizTitle' => 'Quiz',
+        ])));
+
+        $this->assertDatabaseHas('notifications', [
+            'user_id' => 'alice',
+            'message' => 'Votre résultat pour « Quiz » est disponible.',
+        ]);
+    }
+
+    public function test_course_published_makes_no_user_service_call_per_recipient(): void
+    {
+        $this->userFirstNames(['alice' => 'Alice']);
+
+        $this->send('course.events', $this->envelope('course.published', [
+            'courseId' => 'c1', 'title' => 'PHP avancé', 'userIds' => ['alice'],
+        ], 'prof'));
+
+        $this->assertDatabaseHas('notifications', ['user_id' => 'alice', 'message' => 'Le cours « PHP avancé » est disponible.']);
+    }
+
     public function test_unusable_messages_are_discarded(): void
     {
         $this->assertFalse($this->send('forum.events', 'pas du json'));
