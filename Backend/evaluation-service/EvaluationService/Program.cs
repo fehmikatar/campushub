@@ -1,5 +1,6 @@
 using System.Text;
 using DotNetEnv;
+using EvaluationService.Clients;
 using EvaluationService.Data;
 using EvaluationService.Errors;
 using EvaluationService.Messaging;
@@ -146,6 +147,10 @@ builder.Services.AddTransient<IStartupFilter, ExceptionHandlerStartupFilter>();
 
 // Enregistrement Eureka : les échecs de contact sont réessayés en arrière-plan sans bloquer le démarrage.
 builder.Services.AddEurekaDiscoveryClient();
+
+// Appel synchrone vers course-service : URL via COURSE_SERVICE_URL sinon Eureka.
+// Délai maximal de 3 s, un seul essai (pas de retry).
+builder.Services.AddHttpClient<ICourseClient, CourseClient>(client => client.Timeout = CourseClient.Timeout);
 
 // --- CORS : origines autorisées lues depuis la configuration (défaut : front local) ---
 const string CorsPolicy = "CorsPolicy";
