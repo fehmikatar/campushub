@@ -1,7 +1,14 @@
 import EurekaPkg from 'eureka-js-client';
 
-// eureka-js-client est en CommonJS : en ESM, l'export nomme n'est pas toujours disponible.
 const Eureka = (EurekaPkg as any).Eureka ?? EurekaPkg;
+
+export const EUREKA_CLIENT = Symbol('EUREKA_CLIENT');
+
+export interface EurekaClient {
+  getInstancesByAppId(appId: string): any[];
+  start(callback: (error: unknown) => void): void;
+  stop(callback: () => void): void;
+}
 
 export function registerWithEureka(port: number | string) {
   const eurekaHost = process.env.EUREKA_HOST || 'localhost';
