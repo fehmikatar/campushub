@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\JwtService;
 use Illuminate\Console\Command;
 
 class MakeToken extends Command
@@ -10,19 +11,9 @@ class MakeToken extends Command
 
     protected $description = 'Génère un JWT de test (HS256) pour Swagger / Postman';
 
-    public function handle(): int
+    public function handle(JwtService $jwt): int
     {
-        $b64 = fn (string $v) => rtrim(strtr(base64_encode($v), '+/', '-_'), '=');
-        $h = $b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT']));
-        $p = $b64(json_encode([
-            'sub' => $this->argument('userId'),
-            'role' => $this->argument('role'),
-            'iss' => config('services.jwt.issuer'),
-            'exp' => time() + 3600 * (int) $this->option('hours'),
-        ]));
-        $sig = $b64(hash_hmac('sha256', "$h.$p", (string) config('services.jwt.secret'), true));
-
-        $this->line("$h.$p.$sig");
+        $this->line($jwt->encode($this->argument('userId'), $this->argument('role'), (int) $this->option('hours')));
 
         return self::SUCCESS;
     }
