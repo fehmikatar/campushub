@@ -1,0 +1,103 @@
+{
+  "realm": "campushub",
+  "enabled": true,
+  "sslRequired": "external",
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "ETUDIANT",
+        "description": "Etudiant"
+      },
+      {
+        "name": "ENSEIGNANT",
+        "description": "Enseignant"
+      },
+      {
+        "name": "ADMIN",
+        "description": "Administrateur"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "campushub-frontend",
+      "name": "CampusHub Frontend (Angular)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "rootUrl": "http://localhost:4200",
+      "redirectUris": [
+        "http://localhost:4200/*"
+      ],
+      "webOrigins": [
+        "http://localhost:4200"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/*",
+        "pkce.code.challenge.method": "S256"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "11111111-1111-4111-8111-111111111111",
+      "username": "etudiant1",
+      "email": "etudiant1@campushub.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "fehmi",
+      "lastName": "katar",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ETUDIANT"
+      ]
+    },
+    {
+      "id": "3f2b8c1e-5d4a-4c1b-9a0e-2d7f6b1c8e90",
+      "username": "enseignant1",
+      "email": "enseignant1@campushub.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "sami",
+      "lastName": "enseignant",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ENSEIGNANT"
+      ]
+    },
+    {
+      "id": "99999999-9999-4999-8999-999999999999",
+      "username": "admin1",
+      "email": "admin1@campushub.test",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "nour",
+      "lastName": "admin",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Test1234!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ]
+    }
+  ]
+}
