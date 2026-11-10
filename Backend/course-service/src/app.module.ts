@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { CourseModule } from './course/course.module.js';
 import { ChapterModule } from './chapter/chapter.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { MessagingModule } from './messaging/messaging.module.js';
         synchronize: true, // dev uniquement : cree les tables automatiquement
       }),
     }),
+    AuthModule,
     MessagingModule,
     CourseModule,
     ChapterModule,
