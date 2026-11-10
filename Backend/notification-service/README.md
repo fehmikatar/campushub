@@ -100,3 +100,48 @@ notification-service/
 ```
 
 Règle : les contrôleurs restent fins (validation dans `Requests`, logique dans `Services`).
+
+## Communication asynchrone (RabbitMQ)
+
+Le notification-service est le **seul consommateur** : il déclare les 3 files durables `forum.events`, `evaluation.events` et `course.events`. Les autres services **publient seulement** (ils ne déclarent pas les files).
+
+- Variable d'environnement : `RABBITMQ_URL=amqp://guest:guest@localhost:5672` (vide = consommation désactivée, le service marche normalement).
+- Lancer RabbitMQ : `docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management` (interface : http://localhost:15672, `guest` / `guest`).
+- Lancer le consommateur, dans son propre terminal : `php artisan rabbitmq:consume`.
+- Ordre de démarrage : RabbitMQ, puis Notification, puis les producteurs.
+- Extension PHP requise : `sockets` (à activer dans `php.ini`).
+
+### Format des messages (JSON persistants, même enveloppe pour tous)
+
+```json
+{ "event": "nom.evenement", "occurredAt": "2026-11-10T12:00:00Z", "actorId": "<uuid>", "data": { } }
+```
+
+| File | `event` | `data` | Destinataire |
+|---|---|---|---|
+| `forum.events` | `post.created`, `post.liked`, `post.accepted`, `topic.locked`, `topic.resolved` | `{ "topic": {"id","title","authorId","courseId?"}, "post?": {"id","authorId","parentAuthorId?"} }` (`post` obligatoire pour `post.*`, `actorId` obligatoire) | auteur du sujet ou de la réponse |
+| `evaluation.events` | `result.published` | `{ "studentId", "quizTitle", "score?" }` | l'étudiant |
+| `course.events` | `course.published` | `{ "courseId", "title", "userIds": [...] }` | chaque utilisateur de `userIds` |
+
+### Comportement
+- Message traité : confirmé (ack) et retiré de la file. Les préférences de l'utilisateur (types coupés, email) sont appliquées comme pour l'API HTTP.
+- Message inutilisable (JSON invalide, enveloppe incomplète, événement ou file inconnus) : confirmé (ack) pour ne pas revenir en boucle, avec une ligne dans `storage/logs/laravel.log`.
+- Panne passagère (base indisponible) : le message est remis dans la file pour un nouvel essai.
+- Côté producteur : l'envoi doit être « best effort », une erreur RabbitMQ ne doit jamais faire échouer la requête.
+
+## Lancer avec Docker (Notification + RabbitMQ + MySQL)
+
+```bash
+docker compose up --build
+```
+
+| Conteneur | Rôle | Accès |
+|---|---|---|
+| `notification-api` | API HTTP Laravel (migrations lancées au démarrage) | http://localhost:8085/docs/ |
+| `notification-consumer` | `php artisan rabbitmq:consume` en continu (redémarre tout seul) | — |
+| `rabbitmq` | broker | AMQP `localhost:5672`, interface http://localhost:15672 (`guest` / `guest`) |
+| `mysql` | base `campushub_notification` | `localhost:3307` (`root` / `root`) |
+
+Valeurs par défaut de développement : `JWT_SECRET=dev-secret`, `INTERNAL_API_KEY=dev-key` (modifiables avec des variables d'environnement avant `docker compose up`). La clé d'application Laravel est générée au démarrage, aucun secret n'est dans le dépôt. Le mail est en mode `log`. Pour arrêter : `docker compose down` (`-v` pour effacer aussi la base).
+
+L'enregistrement Eureka (`php artisan eureka:register`) n'est pas lancé dans Docker : à utiliser en local.

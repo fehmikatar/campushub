@@ -6,13 +6,36 @@ import { Chapter } from '../chapter/chapter.entity.js';
 import { CreateCourseDto, QueryCourseDto, UpdateCourseDto } from './course.dto.js';
 import { IMAGE_URL_PREFIX, StatutCours } from './course.enums.js';
 import { supprimerFichier } from '../common/upload.js';
+import { EventPublisher } from '../messaging/event-publisher.service.js';
 
 @Injectable()
 export class CourseService {
   constructor(
     @InjectRepository(Course) private repo: Repository<Course>,
     @InjectRepository(Chapter) private chapters: Repository<Chapter>,
+    private events: EventPublisher,
   ) {}
+
+  // Evenement RabbitMQ (queue course.events) quand le statut passe a PUBLIE ou ARCHIVE
+  private emettreChangementStatut(course: Course, ancien: StatutCours | null) {
+    if (course.statut === ancien) return;
+    if (course.statut === StatutCours.PUBLIE) {
+      // Format attendu par le Notification Service : courseId en texte, title, userIds (>= 1).
+      // Destinataire pour l'instant : le formateur du cours. Quand l'Enrollment Service
+      // sera pret, userIds pourra contenir les etudiants concernes.
+      this.events.publish('course.published', course.formateurId, {
+        courseId: String(course.id),
+        title: course.titre,
+        userIds: [course.formateurId],
+      });
+    } else if (course.statut === StatutCours.ARCHIVE) {
+      this.events.publish('course.archived', course.formateurId, {
+        courseId: course.id,
+        titre: course.titre,
+        formateurId: course.formateurId,
+      });
+    }
+  }
 
   async create(dto: CreateCourseDto) {
     const { chapitres = [], ...data } = dto;
@@ -24,7 +47,9 @@ export class CourseService {
       chapitres: chapitres.map((c, i) => ({ ...c, ordre: i + 1 })),
     });
     const saved = await this.repo.save(course);
-    return this.findOne(saved.id);
+    const created = await this.findOne(saved.id);
+    this.emettreChangementStatut(created, null);
+    return created;
   }
 
   async findAll(query: QueryCourseDto) {
@@ -80,7 +105,9 @@ export class CourseService {
       this.supprimerImageLocale(course.imageUrl);
     }
     await this.repo.update(id, dto);
-    return this.findOne(id);
+    const updated = await this.findOne(id);
+    this.emettreChangementStatut(updated, course.statut);
+    return updated;
   }
 
   async publish(id: number) {
@@ -92,7 +119,9 @@ export class CourseService {
       throw new BadRequestException('Impossible de publier un cours sans chapitre');
     }
     await this.repo.update(id, { statut: StatutCours.PUBLIE });
-    return this.findOne(id);
+    const published = await this.findOne(id);
+    this.emettreChangementStatut(published, course.statut);
+    return published;
   }
 
   async archive(id: number) {
@@ -101,7 +130,9 @@ export class CourseService {
       throw new BadRequestException(`Le cours ${id} est deja archive`);
     }
     await this.repo.update(id, { statut: StatutCours.ARCHIVE });
-    return this.findOne(id);
+    const archived = await this.findOne(id);
+    this.emettreChangementStatut(archived, course.statut);
+    return archived;
   }
 
   async setImage(id: number, file?: Express.Multer.File) {

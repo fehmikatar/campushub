@@ -8,18 +8,29 @@ import { CreateChapterDto, UpdateChapterDto } from './chapter.dto.js';
 import { CourseService } from '../course/course.service.js';
 import { StatutCours } from '../course/course.enums.js';
 import { cheminFichier, nomOriginal, supprimerFichier } from '../common/upload.js';
+import { EventPublisher } from '../messaging/event-publisher.service.js';
 
 @Injectable()
 export class ChapterService {
   constructor(
     @InjectRepository(Chapter) private repo: Repository<Chapter>,
     private courses: CourseService,
+    private events: EventPublisher,
   ) {}
 
   async create(coursId: number, dto: CreateChapterDto) {
-    await this.courses.findOne(coursId); // 404 si le cours n'existe pas
+    const course = await this.courses.findOne(coursId); // 404 si le cours n'existe pas
     const max = (await this.repo.maximum('ordre', { coursId })) ?? 0;
-    return this.repo.save(this.repo.create({ ...dto, coursId, ordre: max + 1 }));
+    const saved = await this.repo.save(this.repo.create({ ...dto, coursId, ordre: max + 1 }));
+    // Evenement RabbitMQ : nouveau chapitre visible dans un cours deja publie
+    if (saved.visible && course.statut === StatutCours.PUBLIE) {
+      this.events.publish('chapter.created', course.formateurId, {
+        courseId: course.id,
+        chapterId: saved.id,
+        titre: saved.titre,
+      });
+    }
+    return saved;
   }
 
   async findByCourse(coursId: number, visibleSeulement = false) {
