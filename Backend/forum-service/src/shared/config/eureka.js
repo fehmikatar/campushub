@@ -34,10 +34,7 @@ function registerWithEureka({ port }) {
     else console.log(`forum-service enregistré dans Eureka (${eurekaHost}:${eurekaPort})`);
   });
 
-  const stop = () => client.stop(() => process.exit(0));
-  process.on('SIGINT', stop);
-  process.on('SIGTERM', stop);
-
+  // L'arrêt (désenregistrement) est géré dans server.js
   return client;
 }
 
