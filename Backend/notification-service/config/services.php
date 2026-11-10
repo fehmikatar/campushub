@@ -51,4 +51,10 @@ return [
         'key' => env('INTERNAL_API_KEY'),
     ],
 
+    // Vide = consommation RabbitMQ désactivée (le service marche normalement sans).
+    'rabbitmq' => [
+        'url' => env('RABBITMQ_URL'),
+        'queues' => ['forum.events', 'evaluation.events', 'course.events'],
+    ],
+
 ];
