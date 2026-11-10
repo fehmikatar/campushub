@@ -4,7 +4,7 @@ import {
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize, IsArray, IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, IsUrl,
-  Max, MaxLength, Min, ValidateNested,
+  IsUUID, Max, MaxLength, Min, ValidateNested,
 } from 'class-validator';
 import { Course } from './course.entity.js';
 import { CATEGORIES, StatutCours } from './course.enums.js';
@@ -41,10 +41,12 @@ export class CreateCourseDto {
   @IsUrl({ require_protocol: true })
   imageUrl?: string;
 
-  @ApiProperty({ example: 1, description: 'ID du formateur (User Service)' })
-  @IsInt()
-  @Min(1)
-  formateurId: number;
+  @ApiProperty({
+    example: '3f2a9c1e-7b4d-4e6a-9d21-5c8b0a1f2e34',
+    description: 'UUID du formateur (User Service)',
+  })
+  @IsUUID()
+  formateurId: string;
 
   @ApiPropertyOptional({
     type: () => [CreateChapterDto],
@@ -79,12 +81,13 @@ export class QueryCourseDto {
   @IsEnum(StatutCours)
   statut?: StatutCours;
 
-  @ApiPropertyOptional({ example: 1, description: 'Mes cours (Formateur)' })
+  @ApiPropertyOptional({
+    example: '3f2a9c1e-7b4d-4e6a-9d21-5c8b0a1f2e34',
+    description: 'Mes cours (UUID du formateur)',
+  })
   @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  formateurId?: number;
+  @IsUUID()
+  formateurId?: string;
 
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @IsOptional()
