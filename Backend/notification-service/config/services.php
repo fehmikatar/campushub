@@ -40,6 +40,13 @@ return [
         'issuer' => env('JWT_ISSUER', 'campushub-user-service'),
     ],
 
+    'eureka' => [
+        'host' => env('EUREKA_HOST', 'localhost'),
+        'port' => env('EUREKA_PORT', 8761),
+        'instance_host' => env('EUREKA_INSTANCE_HOST', 'localhost'),
+        'service_port' => env('SERVICE_PORT', 8085),
+    ],
+
     'internal' => [
         'key' => env('INTERNAL_API_KEY'),
     ],

@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\ForumEvent;
+
 /**
  * Transforme un événement du forum-service en notifications destinées aux bonnes personnes.
  */
@@ -10,8 +12,6 @@ class ForumNotifier
     public function __construct(private NotificationDispatcher $dispatcher)
     {
     }
-
-    public const EVENTS = ['post.created', 'post.liked', 'post.accepted', 'topic.locked', 'topic.resolved'];
 
     /**
      * @param  array<string,mixed>  $payload  événement validé
@@ -24,21 +24,21 @@ class ForumNotifier
         $post = $payload['post'] ?? null;
         $title = $topic['title'];
 
-        $recipients = match ($payload['event']) {
-            'post.created' => [
+        $recipients = match (ForumEvent::from($payload['event'])) {
+            ForumEvent::PostCreated => [
                 [$topic['authorId'], 'forum.reply', 'Nouvelle réponse', "Nouvelle réponse à votre sujet « $title »."],
                 [$post['parentAuthorId'] ?? null, 'forum.reply', 'Réponse à votre message', "Quelqu'un a répondu à votre message dans « $title »."],
             ],
-            'post.liked' => [
+            ForumEvent::PostLiked => [
                 [$post['authorId'] ?? null, 'forum.like', 'Votre réponse a été aimée', "Votre réponse dans « $title » a reçu un j'aime."],
             ],
-            'post.accepted' => [
+            ForumEvent::PostAccepted => [
                 [$post['authorId'] ?? null, 'forum.accepted', 'Réponse validée', "Votre réponse dans « $title » a été marquée comme solution."],
             ],
-            'topic.locked' => [
+            ForumEvent::TopicLocked => [
                 [$topic['authorId'], 'forum.locked', 'Sujet verrouillé', "Votre sujet « $title » a été verrouillé."],
             ],
-            'topic.resolved' => [
+            ForumEvent::TopicResolved => [
                 [$topic['authorId'], 'forum.resolved', 'Sujet résolu', "Votre sujet « $title » a été marqué comme résolu."],
             ],
         };

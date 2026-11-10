@@ -406,7 +406,11 @@
                     "example": "Le cours de demain est reporté."
                   },
                   "data": {
-                    "type": "object"
+                    "type": "object",
+                    "description": "Optionnel : infos supplémentaires",
+                    "example": {
+                      "courseId": "c1"
+                    }
                   }
                 }
               }
