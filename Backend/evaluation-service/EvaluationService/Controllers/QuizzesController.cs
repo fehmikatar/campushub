@@ -1,6 +1,8 @@
+using System.Globalization;
 using EvaluationService.Data;
 using EvaluationService.Dtos;
 using EvaluationService.Errors;
+using EvaluationService.Messaging;
 using EvaluationService.Models;
 using EvaluationService.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -21,10 +23,12 @@ public class QuizzesController : ControllerBase
     private const int ToleranceDelaiSecondes = 30;
 
     private readonly AppDbContext _context;
+    private readonly IEventPublisher _eventPublisher;
 
-    public QuizzesController(AppDbContext context)
+    public QuizzesController(AppDbContext context, IEventPublisher eventPublisher)
     {
         _context = context;
+        _eventPublisher = eventPublisher;
     }
 
     // GET api/quizzes/course/{courseId} : liste des quiz d'un cours.
@@ -95,6 +99,19 @@ public class QuizzesController : ControllerBase
 
         _context.Quizzes.Add(quiz);
         await _context.SaveChangesAsync();
+
+        await _eventPublisher.PublishAsync(
+            MessagingContract.Events.QuizCreated,
+            User.GetUserId(),
+            new
+            {
+                quizId = quiz.Id,
+                courseId = quiz.CourseId,
+                titre = quiz.Titre,
+                enseignantId = quiz.EnseignantId,
+                maxTentatives = quiz.MaxTentatives,
+                dureeMinutes = quiz.DureeMinutes
+            });
 
         return CreatedAtAction(nameof(GetById), new { id = quiz.Id }, ToQuizDto(quiz));
     }
@@ -327,6 +344,22 @@ public class QuizzesController : ControllerBase
 
         _context.Resultats.Add(resultat);
         await _context.SaveChangesAsync();
+
+        await _eventPublisher.PublishAsync(
+            MessagingContract.Events.QuizSubmitted,
+            etudiantId,
+            new
+            {
+                quizId = quiz.Id,
+                courseId = quiz.CourseId,
+                titre = quiz.Titre,
+                resultatId = resultat.Id,
+                etudiantId = resultat.EtudiantId,
+                enseignantId = quiz.EnseignantId,
+                score = resultat.Score,
+                datePassage = resultat.DatePassage.ToUniversalTime()
+                    .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)
+            });
 
         return Ok(ToResultatDto(resultat));
     }
