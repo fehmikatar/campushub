@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'node:path';
 import { AppModule } from './app.module.js';
 import { UPLOAD_ROOT } from './common/upload.js';
+import { registerWithEureka } from './config/eureka.js';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -26,6 +27,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 8082;
   await app.listen(port);
+  if (process.env.EUREKA_ENABLED !== 'false') registerWithEureka(port);
   console.log(`Course Service : http://localhost:${port}`);
   console.log(`Swagger        : http://localhost:${port}/api`);
 }
