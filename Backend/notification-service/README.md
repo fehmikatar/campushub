@@ -31,7 +31,7 @@ Tests : `php artisan test` (SQLite en mémoire, aucune base requise).
 
 ## API
 
-Authentification : `Authorization: Bearer <JWT>` (HS256, même secret et issuer que user-service / forum-service).
+Authentification : `Authorization: Bearer <JWT>` délivré par **Keycloak** (voir « Sécurité avec Keycloak » plus bas).
 
 | Méthode | Route | Description |
 |---|---|---|
@@ -129,6 +129,22 @@ Le notification-service est le **seul consommateur** : il déclare les 3 files d
 - Panne passagère (base indisponible) : le message est remis dans la file pour un nouvel essai.
 - Côté producteur : l'envoi doit être « best effort », une erreur RabbitMQ ne doit jamais faire échouer la requête.
 
+## Sécurité avec Keycloak
+
+Le service ne crée plus de token : il **vérifie** celui de Keycloak (RS256), à chaque requête, même derrière la Gateway.
+
+| Variable | Valeur |
+|---|---|
+| `KEYCLOAK_ISSUER_URI` | `http://localhost:8180/realms/campushub` (vide = ancien mode `JWT_SECRET`, transition) |
+| `KEYCLOAK_JWKS_URI` | optionnelle : adresse des clés si différente de l'issuer (Docker : `http://host.docker.internal:8180/realms/campushub/protocol/openid-connect/certs`) |
+
+- Identifiant : claim `sub`. Rôle : le plus élevé de `realm_access.roles` parmi `ETUDIANT`, `ENSEIGNANT`, `ADMIN` (les autres rôles sont ignorés). `aud` n'est pas vérifié.
+- Clés publiques (JWKS, uniquement `use: sig`) mises en cache 10 minutes ; rechargées une fois si la clé du token est inconnue.
+- Réponses : **401** (pas de token, mal formé, mauvaise signature, expiré, mauvais issuer, algorithme autre que RS256), **403** (aucun rôle CampusHub, ou rôle insuffisant sur une route `jwt:ROLE1,ROLE2`), **503** (Keycloak injoignable et clé inconnue du cache, jamais 500).
+- Token de test : `Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/campushub/protocol/openid-connect/token" -ContentType "application/x-www-form-urlencoded" -Body "grant_type=password&client_id=campushub-frontend&username=etudiant1&password=Test1234!"`, puis `Authorization: Bearer <access_token>`.
+- `php artisan token:make` ne produit que des tokens HS256 de l'ancien mode (inutiles quand `KEYCLOAK_ISSUER_URI` est renseigné).
+- Code : `app/Services/JwtService.php`, `app/Http/Middleware/AuthenticateJwt.php` ; tests : `tests/Feature/KeycloakAuthTest.php` (clés RSA de test et Keycloak simulé).
+
 ## Communication synchrone : Notification → User
 
 Seul appel HTTP sortant du service (règles communes du synchrone) : pour les notifications d'une ou deux personnes (forum, résultat d'évaluation), le prénom du destinataire est récupéré avec `GET /api/v1/users/{id}/public` sur user-service (sans token : `id`, `prenom`, `nom`) et la notification devient « Bonjour Alice, … ».
@@ -152,6 +168,6 @@ docker compose up --build
 | `rabbitmq` | broker | AMQP `localhost:5672`, interface http://localhost:15672 (`guest` / `guest`) |
 | `mysql` | base `campushub_notification` | `localhost:3307` (`root` / `root`) |
 
-Valeurs par défaut de développement : `JWT_SECRET=dev-secret`, `INTERNAL_API_KEY=dev-key` (modifiables avec des variables d'environnement avant `docker compose up`). La clé d'application Laravel est générée au démarrage, aucun secret n'est dans le dépôt. Le mail est en mode `log`. Pour arrêter : `docker compose down` (`-v` pour effacer aussi la base).
+Dans Docker, le service est en mode Keycloak par défaut (Keycloak sur la machine hôte, port 8180) ; pour l'ancien mode, lancer avec `KEYCLOAK_ISSUER_URI=` vide. Valeurs par défaut de développement : `JWT_SECRET=dev-secret`, `INTERNAL_API_KEY=dev-key` (modifiables avec des variables d'environnement avant `docker compose up`). La clé d'application Laravel est générée au démarrage, aucun secret n'est dans le dépôt. Le mail est en mode `log`. Pour arrêter : `docker compose down` (`-v` pour effacer aussi la base).
 
 L'enregistrement Eureka (`php artisan eureka:register`) n'est pas lancé dans Docker : à utiliser en local.
