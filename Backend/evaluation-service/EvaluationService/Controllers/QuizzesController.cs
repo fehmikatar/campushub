@@ -1,4 +1,3 @@
-using System.Globalization;
 using EvaluationService.Data;
 using EvaluationService.Dtos;
 using EvaluationService.Errors;
@@ -21,6 +20,9 @@ public class QuizzesController : ControllerBase
     private const int MaxQuestionLength = 500;
     private const int MaxReponseLength = 300;
     private const int ToleranceDelaiSecondes = 30;
+
+    // Limite imposée par le consommateur notification-service (quizTitle <= 150).
+    private const int MaxQuizTitleLengthForEvents = 150;
 
     private readonly AppDbContext _context;
     private readonly IEventPublisher _eventPublisher;
@@ -99,19 +101,6 @@ public class QuizzesController : ControllerBase
 
         _context.Quizzes.Add(quiz);
         await _context.SaveChangesAsync();
-
-        await _eventPublisher.PublishAsync(
-            MessagingContract.Events.QuizCreated,
-            User.GetUserId(),
-            new
-            {
-                quizId = quiz.Id,
-                courseId = quiz.CourseId,
-                titre = quiz.Titre,
-                enseignantId = quiz.EnseignantId,
-                maxTentatives = quiz.MaxTentatives,
-                dureeMinutes = quiz.DureeMinutes
-            });
 
         return CreatedAtAction(nameof(GetById), new { id = quiz.Id }, ToQuizDto(quiz));
     }
@@ -346,19 +335,13 @@ public class QuizzesController : ControllerBase
         await _context.SaveChangesAsync();
 
         await _eventPublisher.PublishAsync(
-            MessagingContract.Events.QuizSubmitted,
+            MessagingContract.Events.ResultPublished,
             etudiantId,
             new
             {
-                quizId = quiz.Id,
-                courseId = quiz.CourseId,
-                titre = quiz.Titre,
-                resultatId = resultat.Id,
-                etudiantId = resultat.EtudiantId,
-                enseignantId = quiz.EnseignantId,
-                score = resultat.Score,
-                datePassage = resultat.DatePassage.ToUniversalTime()
-                    .ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture)
+                studentId = resultat.EtudiantId.ToString(),
+                quizTitle = TronquerTitreEvenement(quiz.Titre),
+                score = Math.Round(resultat.Score, 2)
             });
 
         return Ok(ToResultatDto(resultat));
@@ -498,6 +481,12 @@ public class QuizzesController : ControllerBase
 
         return erreurs;
     }
+
+    // Le consommateur rejette un quizTitle de plus de 150 caractères : on tronque pour ne pas perdre l'événement.
+    private static string TronquerTitreEvenement(string titre)
+        => titre.Length <= MaxQuizTitleLengthForEvents
+            ? titre
+            : titre[..MaxQuizTitleLengthForEvents];
 
     private bool EstProprietaireOuAdmin(Quiz quiz)
         => User.IsAdmin() || quiz.EnseignantId == User.GetUserId();

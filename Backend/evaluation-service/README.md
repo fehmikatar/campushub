@@ -63,22 +63,29 @@ Le service est **producteur uniquement** : il publie dans la queue durable
 Il ne déclare ni queue ni exchange (exchange par défaut `""`, routing key =
 nom de la queue).
 
+Un seul événement est publié, à la création d'un résultat (soumission réussie) :
+
 | Événement | `actorId` | `data` |
 |---|---|---|
-| `quiz.created` | créateur du quiz (ENSEIGNANT/ADMIN) | `quizId`, `courseId`, `titre`, `enseignantId`, `maxTentatives`, `dureeMinutes` |
-| `quiz.submitted` | étudiant qui soumet | `quizId`, `courseId`, `titre`, `resultatId`, `etudiantId`, `enseignantId`, `score`, `datePassage` |
+| `result.published` | étudiant qui soumet | `studentId`, `quizTitle`, `score` |
 
 Enveloppe commune (JSON persistant, `content-type: application/json`) :
 
 ```json
 {
-  "event": "quiz.submitted",
+  "event": "result.published",
   "occurredAt": "2026-11-10T12:00:00Z",
   "actorId": "11111111-1111-1111-1111-111111111111",
-  "data": { "quizId": 1, "resultatId": 2, "score": 100 }
+  "data": {
+    "studentId": "11111111-1111-1111-1111-111111111111",
+    "quizTitle": "Quiz JWT",
+    "score": 85.0
+  }
 }
 ```
 
+- `quizTitle` est tronqué à 150 caractères (limite imposée par le consommateur) ;
+- `score` est le pourcentage arrondi à 2 décimales ;
 - `RABBITMQ_URL` vide ou invalide : publication désactivée, service normal.
 - Envoi **best effort** : broker indisponible -> warning journalisé, la requête
   HTTP n'échoue jamais ; nouvelle tentative après 30 s.

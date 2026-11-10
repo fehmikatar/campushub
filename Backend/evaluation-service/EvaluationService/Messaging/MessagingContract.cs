@@ -8,7 +8,6 @@ public static class MessagingContract
 
     public static class Events
     {
-        public const string QuizCreated = "quiz.created";
-        public const string QuizSubmitted = "quiz.submitted";
+        public const string ResultPublished = "result.published";
     }
 }
