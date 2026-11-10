@@ -8,6 +8,7 @@ public static class ErrorCodes
     public const string NotFound = "NOT_FOUND";
     public const string ValidationError = "VALIDATION_ERROR";
     public const string Conflict = "CONFLICT";
+    public const string ServiceUnavailable = "SERVICE_UNAVAILABLE";
     public const string InternalServerError = "INTERNAL_SERVER_ERROR";
 }
 
@@ -29,6 +30,10 @@ public static class ApiErrorFactory
 
     public static ApiError Conflict(string message = "The request conflicts with the current state of the resource")
         => Build(409, ErrorCodes.Conflict, message);
+
+    // Dépendance synchrone indisponible : message clair, sans adresse ni détail technique.
+    public static ApiError ServiceUnavailable(string message = "A required service is unavailable, please retry later")
+        => Build(503, ErrorCodes.ServiceUnavailable, message);
 
     // Message volontairement générique : aucun détail technique n'est exposé au client.
     public static ApiError InternalServerError(string message = "An unexpected error occurred")

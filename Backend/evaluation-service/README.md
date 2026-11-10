@@ -45,8 +45,10 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
   `appsettings.json` (surchargeable par `ASPNETCORE_URLS` ou `--urls`).
 - Port annoncé à Eureka : `Eureka:Instance:Port` = `8084`, cohérent avec
   l'écoute Kestrel.
-- Le registre n'est pas interrogé (`ShouldFetchRegistry=false`) : le service
-  ne dépend d'aucun autre service pour démarrer.
+- Le registre **est** interrogé (`ShouldFetchRegistry=true`) pour résoudre
+  `course-service` lors de la création d'un quiz. Si Eureka est arrêté ou si
+  l'instance est absente, le service démarre quand même : seule la création de
+  quiz renvoie alors `503` (voir « Communication synchrone »).
 - Si le serveur Eureka (8761) est arrêté, le service démarre quand même ;
   l'enregistrement est réessayé en arrière-plan.
 - `GET /health` est public et renvoie `{"status":"UP"}` (sans authentification),
@@ -55,6 +57,39 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
 - Côté gateway, router `/api/v1/evaluation/**` vers `lb://evaluation-service`
   avec une réécriture vers `/api/**` (la gateway n'est pas modifiée par ce
   dépôt).
+
+## Communication synchrone (course-service)
+
+Le service appelle **course-service** en HTTP, directement, pour vérifier
+qu'un cours existe **avant de créer un quiz** (`POST /api/quizzes`). C'est le
+seul appel synchrone du service (pas d'appel vers Notification : RabbitMQ).
+
+- **Route appelée** : `GET /courses/{courseId}` (sans préfixe `/api`).
+- **Découverte** : par nom `course-service` via Eureka, ou via
+  `COURSE_SERVICE_URL` si la variable est renseignée (utile en Docker ; elle
+  remplace alors Eureka). Jamais d'adresse en dur dans le code.
+- **Identité** : l'en-tête `Authorization: Bearer <jwt>` de la requête
+  d'origine est transmis tel quel. Aucun token technique, aucune clé interne ;
+  course-service revalide le token.
+- **Délai** : 3 secondes maximum, un seul essai (aucun retry).
+- **Pas de boucle** : un seul appel par création de quiz.
+
+| Réponse de course-service | Comportement de l'évaluation |
+|---|---|
+| `200` | le quiz est créé (`201`) |
+| `404` | `404` avec le message `Course not found` |
+| `401` / `403` | le même statut est renvoyé au client |
+| Timeout, connexion refusée, instance absente d'Eureka, `5xx` | `503` avec le message `Course service unavailable, please retry later.` |
+
+Une panne de course-service ne produit **jamais** de `500` côté évaluation.
+Le format d'erreur reste celui du service (voir « Format des erreurs ») ; le
+message ne contient ni adresse interne ni détail technique.
+
+Ordre de démarrage : Eureka, puis course-service, puis evaluation-service.
+Sans Eureka, renseigner `COURSE_SERVICE_URL` (par exemple
+`http://localhost:8082`). Juste après le démarrage, le registre peut mettre
+quelques secondes à être récupéré : les créations de quiz renvoient `503`
+tant que `course-service` n'est pas résolu.
 
 ## Événements RabbitMQ
 
@@ -145,6 +180,7 @@ Update-Database
 | `JWT_ISSUER` | Issuer exigé (claim `iss`) | aucune (obligatoire) |
 | `CORS_ALLOWED_ORIGINS` | Origines CORS autorisées, séparées par des virgules | `http://localhost:3000` |
 | `RABBITMQ_URL` | URL AMQP du broker ; vide = publication désactivée | aucune (désactivé) |
+| `COURSE_SERVICE_URL` | URL directe de course-service (remplace Eureka) ; vide = résolution Eureka | aucune (Eureka) |
 | `ConnectionStrings__DefaultConnection` | Chaîne de connexion SQL Server | valeur de `appsettings.json` |
 
 Sources possibles : fichier `.env` (copié depuis `.env.example`, non committé),
@@ -203,6 +239,7 @@ Identique au User Service :
 
 Codes : `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404),
 `VALIDATION_ERROR` (400, `fieldErrors` rempli), `CONFLICT` (409),
+`SERVICE_UNAVAILABLE` (503, dépendance synchrone indisponible),
 `INTERNAL_SERVER_ERROR` (500, message générique sans détail technique).
 
 Toute exception non gérée est journalisée côté serveur et renvoyée en `500`
@@ -304,6 +341,10 @@ Règles de validation (sinon `400 VALIDATION_ERROR` avec `fieldErrors`) :
 
 Les collections `null` sont rejetées proprement (aucune
 `NullReferenceException`).
+
+Avant l'insertion, le cours est vérifié auprès de course-service :
+`404` avec `Course not found` s'il n'existe pas, `503` si course-service est
+indisponible (voir « Communication synchrone »).
 
 ### Détail d'un quiz — `GET /api/quizzes/{id}`
 
@@ -420,6 +461,18 @@ résultat n'existe pas, `403` si le quiz appartient à un autre enseignant.
 
 ## Tests
 
+Les appels synchrones vers course-service sont couverts par des tests
+automatisés (`EvaluationService.Tests`, service Course simulé, aucun réseau) :
+
+```bash
+cd EvaluationService.Tests
+dotnet test
+```
+
+Cas couverts : cours existant (quiz créé en `201`), `404`, timeout ou service
+injoignable (`503`, jamais `500`), relais `401`/`403`, transmission du header
+`Authorization`, résolution par Eureka et par `COURSE_SERVICE_URL`.
+
 Le fichier `EvaluationService.http` contient les cas de test (200 / 201 / 204 /
 400 / 401 / 403 / 404 / 409), dont les tentatives et la durée (section 9).
 Pour un token du User Service :
@@ -442,7 +495,9 @@ evaluation-service/
 ├── .env.example            # Modèle de configuration locale (sans secret)
 ├── tools/
 │   └── generate-test-tokens.mjs
+├── EvaluationService.Tests/ # Tests xUnit (appels synchrones simulés)
 └── EvaluationService/
+    ├── Clients/            # Appel synchrone vers course-service (Eureka / COURSE_SERVICE_URL)
     ├── Controllers/        # QuizzesController, ResultatsController
     ├── Data/               # AppDbContext (EF Core)
     ├── Dtos/               # Objets d'échange (entrée / sortie de l'API)
