@@ -75,3 +75,28 @@ Générer un token : `php artisan token:make alice ETUDIANT`, puis *Authorize* d
 - Enregistrement dans Eureka (à lancer à côté de `php artisan serve`) : `php artisan eureka:register` (signal de vie toutes les 30 s ; `--once` pour un seul enregistrement). Réglages : `EUREKA_HOST`, `EUREKA_PORT`, `EUREKA_INSTANCE_HOST`, `SERVICE_PORT`.
 - Via la Gateway : `GET http://localhost:8080/api/v1/notifications` est redirigé vers `/api/notifications`. Les routes `/api/internal/**` ne sont pas exposées.
 - Si le port 8080 est déjà pris (ex. base Oracle), lancer la Gateway ailleurs : `./mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port=8090`.
+
+## Structure du code
+
+```
+notification-service/
+├── app/
+│   ├── Console/Commands/     eureka:register, token:make        (équivalent de scripts/)
+│   ├── Enums/                ForumEvent, BroadcastType          (valeurs autorisées)
+│   ├── Http/
+│   │   ├── Controllers/      Notification, Preference, ForumEvent, Broadcast
+│   │   ├── Middleware/       AuthenticateJwt, RequireInternalKey, RejectInvalidJson
+│   │   └── Requests/         validation des entrées             (équivalent de validate.js)
+│   ├── Mail/                 NotificationMail
+│   ├── Models/               Notification, NotificationPreference
+│   └── Services/             JwtService, EurekaClient, NotificationDispatcher, ForumNotifier   (logique métier)
+├── config/                   roles.php, services.php (jwt, eureka, clé interne)
+├── database/migrations/      tables notifications et notification_preferences
+├── routes/api.php            routes publiques (JWT) et internes (clé partagée)
+├── public/docs/              Swagger UI + openapi.json
+└── tests/
+    ├── Support/              helpers communs (tokens, payloads)
+    └── Feature/              AuthTest, NotificationsTest, ForumEventsTest, BroadcastTest, PreferencesTest
+```
+
+Règle : les contrôleurs restent fins (validation dans `Requests`, logique dans `Services`).
