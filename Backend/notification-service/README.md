@@ -100,3 +100,31 @@ notification-service/
 ```
 
 Règle : les contrôleurs restent fins (validation dans `Requests`, logique dans `Services`).
+
+## Communication asynchrone (RabbitMQ)
+
+Le notification-service est le **seul consommateur** : il déclare les 3 files durables `forum.events`, `evaluation.events` et `course.events`. Les autres services **publient seulement** (ils ne déclarent pas les files).
+
+- Variable d'environnement : `RABBITMQ_URL=amqp://guest:guest@localhost:5672` (vide = consommation désactivée, le service marche normalement).
+- Lancer RabbitMQ : `docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management` (interface : http://localhost:15672, `guest` / `guest`).
+- Lancer le consommateur, dans son propre terminal : `php artisan rabbitmq:consume`.
+- Ordre de démarrage : RabbitMQ, puis Notification, puis les producteurs.
+- Extension PHP requise : `sockets` (à activer dans `php.ini`).
+
+### Format des messages (JSON persistants, même enveloppe pour tous)
+
+```json
+{ "event": "nom.evenement", "occurredAt": "2026-11-10T12:00:00Z", "actorId": "<uuid>", "data": { } }
+```
+
+| File | `event` | `data` | Destinataire |
+|---|---|---|---|
+| `forum.events` | `post.created`, `post.liked`, `post.accepted`, `topic.locked`, `topic.resolved` | `{ "topic": {"id","title","authorId","courseId?"}, "post?": {"id","authorId","parentAuthorId?"} }` (`post` obligatoire pour `post.*`, `actorId` obligatoire) | auteur du sujet ou de la réponse |
+| `evaluation.events` | `result.published` | `{ "studentId", "quizTitle", "score?" }` | l'étudiant |
+| `course.events` | `course.published` | `{ "courseId", "title", "userIds": [...] }` | chaque utilisateur de `userIds` |
+
+### Comportement
+- Message traité : confirmé (ack) et retiré de la file. Les préférences de l'utilisateur (types coupés, email) sont appliquées comme pour l'API HTTP.
+- Message inutilisable (JSON invalide, enveloppe incomplète, événement ou file inconnus) : écarté sans bloquer les suivants, avec une ligne dans `storage/logs/laravel.log`.
+- Panne passagère (base indisponible) : le message est remis dans la file pour un nouvel essai.
+- Côté producteur : l'envoi doit être « best effort », une erreur RabbitMQ ne doit jamais faire échouer la requête.
