@@ -99,6 +99,7 @@ class EventMessageProcessor
             'Nouveau résultat',
             "Votre résultat pour « {$d['quizTitle']} » est disponible.$score",
             array_filter(['quizTitle' => $d['quizTitle'], 'score' => $d['score'] ?? null], fn ($v) => $v !== null),
+            greet: true,
         );
 
         return true;

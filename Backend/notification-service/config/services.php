@@ -47,6 +47,12 @@ return [
         'service_port' => env('SERVICE_PORT', 8085),
     ],
 
+    // user-service (appel synchrone pour le prénom du destinataire) ; url renseignée = remplace Eureka.
+    'user' => [
+        'app' => env('USER_SERVICE_NAME', 'user-service'),
+        'url' => env('USER_SERVICE_URL'),
+    ],
+
     'internal' => [
         'key' => env('INTERNAL_API_KEY'),
     ],

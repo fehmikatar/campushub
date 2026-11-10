@@ -59,7 +59,7 @@ class ForumNotifier
             }
             $seen[$userId] = true;
 
-            if ($this->dispatcher->send((string) $userId, $type, $heading, $message, $data)) {
+            if ($this->dispatcher->send((string) $userId, $type, $heading, $message, $data, greet: true)) {
                 $created++;
             }
         }

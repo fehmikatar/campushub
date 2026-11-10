@@ -129,6 +129,16 @@ Le notification-service est le **seul consommateur** : il déclare les 3 files d
 - Panne passagère (base indisponible) : le message est remis dans la file pour un nouvel essai.
 - Côté producteur : l'envoi doit être « best effort », une erreur RabbitMQ ne doit jamais faire échouer la requête.
 
+## Communication synchrone : Notification → User
+
+Seul appel HTTP sortant du service (règles communes du synchrone) : pour les notifications d'une ou deux personnes (forum, résultat d'évaluation), le prénom du destinataire est récupéré avec `GET /api/v1/users/{id}/public` sur user-service (sans token : `id`, `prenom`, `nom`) et la notification devient « Bonjour Alice, … ».
+
+- Service trouvé via Eureka (nom `user-service`) ; `USER_SERVICE_URL` le remplace (utile en Docker).
+- 3 secondes maximum, un seul essai, jamais de nouvelle tentative.
+- 404, 5xx, délai dépassé, service introuvable : la notification part quand même, sans prénom ; le consommateur n'échoue jamais pour cette raison.
+- Pas d'appel dans une boucle : les envois à une liste (`course.published`, `broadcast`) n'ajoutent pas de prénom, en attendant un endpoint « par lot » côté User.
+- Code : `app/Services/UserDirectory.php` ; tests : `tests/Feature/UserDirectoryTest.php`.
+
 ## Lancer avec Docker (Notification + RabbitMQ + MySQL)
 
 ```bash
