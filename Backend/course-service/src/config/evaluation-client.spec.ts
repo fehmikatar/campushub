@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { vi, describe, it, expect, beforeEach, afterEach, beforeAll, afterAll } from 'vitest';
 import { EvaluationClient } from './evaluation-client.js';
+import { setEurekaClient, getEurekaClient, EurekaClient } from './eureka.js';
 
 describe('EvaluationClient', () => {
   let client: EvaluationClient;
@@ -21,6 +22,8 @@ describe('EvaluationClient', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     (global.fetch as vi.Mock).mockReset();
+    // Reset shared Eureka client before each test
+    setEurekaClient(null);
 
     mockConfig = {
       get: vi.fn((key: string) => {
@@ -50,6 +53,8 @@ describe('EvaluationClient', () => {
 
   afterEach(async () => {
     await module.close();
+    // Reset shared Eureka client after each test
+    setEurekaClient(null);
   });
 
   describe('getQuizCount', () => {
@@ -205,6 +210,39 @@ describe('EvaluationClient', () => {
       expect(baseUrl).toBeNull();
 
       await noEurekaModule.close();
+    });
+
+    it('uses fake Eureka client getInstancesByAppId to discover evaluation-service', async () => {
+      // Create a fake Eureka client
+      const fakeEurekaClient = {
+        getInstancesByAppId: vi.fn().mockReturnValue([
+          {
+            hostName: 'eval-host',
+            ipAddr: '10.0.0.1',
+            port: { $: 8084 },
+          },
+        ]),
+      };
+
+      // Set the fake Eureka client
+      setEurekaClient(fakeEurekaClient as any);
+
+      // Create a fresh client with the fake Eureka client
+      const testModule = await Test.createTestingModule({
+        providers: [
+          EvaluationClient,
+          { provide: ConfigService, useValue: mockConfig },
+        ],
+      }).compile();
+
+      const testClient = testModule.get<EvaluationClient>(EvaluationClient);
+      const baseUrl = await (testClient as any).getBaseUrl();
+
+      // Verify the fake Eureka client was used
+      expect(fakeEurekaClient.getInstancesByAppId).toHaveBeenCalledWith('EVALUATION-SERVICE');
+      expect(baseUrl).toBe('http://eval-host:8084');
+
+      await testModule.close();
     });
   });
 });
