@@ -10,6 +10,7 @@ import { IMAGE_URL_PREFIX, StatutCours } from './course.enums.js';
 import { supprimerFichier } from '../common/upload.js';
 import { EventPublisher } from '../messaging/event-publisher.service.js';
 import { AuthUser, Role } from '../auth/auth.js';
+import { EvaluationClient } from '../config/evaluation-client.js';
 
 @Injectable()
 export class CourseService {
@@ -17,6 +18,7 @@ export class CourseService {
     @InjectRepository(Course) private repo: Repository<Course>,
     @InjectRepository(Chapter) private chapters: Repository<Chapter>,
     private events: EventPublisher,
+    private evaluationClient: EvaluationClient,
   ) {}
 
   // Evenement RabbitMQ (queue course.events) quand le statut passe a PUBLIE ou ARCHIVE
@@ -106,12 +108,18 @@ export class CourseService {
   }
 
   // Consultation : pour un etudiant, un cours non publie n'existe pas (404)
-  async findOneFor(id: number, user: AuthUser) {
+  async findOneFor(id: number, user: AuthUser, authHeader?: string) {
     const course = await this.findOne(id);
     if (user.role === Role.ETUDIANT) {
       if (course.statut !== StatutCours.PUBLIE) throw new NotFoundException(`Cours ${id} introuvable`);
       course.chapitres = course.chapitres.filter((c) => c.visible);
     }
+
+    // Appel synchrone vers evaluation-service pour nbQuiz
+    if (authHeader) {
+      course.nbQuiz = await this.evaluationClient.getQuizCount(id, authHeader);
+    }
+
     return course;
   }
 
