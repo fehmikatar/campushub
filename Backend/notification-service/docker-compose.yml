@@ -33,7 +33,8 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      # 127.0.0.1 (pas localhost) : localhost passe par le socket Unix, ouvert pendant l'init temporaire de MySQL.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -72,7 +73,9 @@ services:
       retries: 30
 
   notification-consumer:
+    build: .
     image: campushub/notification-service
+    pull_policy: never
     environment: *notification-env
     depends_on:
       notification-api:
@@ -80,6 +83,26 @@ services:
     command: >
       sh -c 'export APP_KEY=$$(php artisan key:generate --show) &&
              php artisan rabbitmq:consume'
+    restart: unless-stopped
+
+  # Enregistre le service dans Eureka (lancé sur la machine hôte) pour que la Gateway le trouve (lb://notification-service).
+  # L'instance est annoncée sur localhost:8085, port publié par notification-api.
+  notification-eureka:
+    build: .
+    image: campushub/notification-service
+    pull_policy: never
+    environment:
+      <<: *notification-env
+      EUREKA_HOST: host.docker.internal
+      EUREKA_INSTANCE_HOST: localhost
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      notification-api:
+        condition: service_healthy
+    command: >
+      sh -c 'export APP_KEY=$$(php artisan key:generate --show) &&
+             php artisan eureka:register'
     restart: unless-stopped
 
 volumes:
