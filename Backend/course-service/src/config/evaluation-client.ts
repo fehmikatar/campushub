@@ -1,56 +1,19 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, Inject, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import EurekaPkg from 'eureka-js-client';
-
-const Eureka = (EurekaPkg as any).Eureka ?? EurekaPkg;
+import { EUREKA_CLIENT, EurekaClient } from './eureka.js';
 
 @Injectable()
 export class EvaluationClient implements OnModuleInit {
   private readonly logger = new Logger(EvaluationClient.name);
   private readonly timeout = 3000; // 3s
-  private eurekaClient: any = null;
-  private evaluationServiceUrl: string | null = null;
 
-  constructor(private config: ConfigService) {}
+  constructor(
+    private config: ConfigService,
+    @Optional() @Inject(EUREKA_CLIENT) private eurekaClient: EurekaClient | null,
+  ) {}
 
   async onModuleInit() {
-    this.initEurekaClient();
-  }
-
-  private initEurekaClient() {
-    const eurekaHost = this.config.get('EUREKA_HOST') || 'localhost';
-    const eurekaPort = Number(this.config.get('EUREKA_PORT')) || 8761;
-
-    this.eurekaClient = new Eureka({
-      instance: {
-        app: 'course-service',
-        instanceId: `course-service:${this.config.get('EUREKA_INSTANCE_HOST') || 'localhost'}:${this.config.get('PORT') || 8082}`,
-        hostName: this.config.get('EUREKA_INSTANCE_HOST') || 'localhost',
-        ipAddr: '127.0.0.1',
-        port: { $: Number(this.config.get('PORT') || 8082), '@enabled': true },
-        vipAddress: 'course-service',
-        dataCenterInfo: {
-          '@class': 'com.netflix.appinfo.InstanceInfo$DefaultDataCenterInfo',
-          name: 'MyOwn',
-        },
-      },
-      eureka: {
-        host: eurekaHost,
-        port: eurekaPort,
-        servicePath: '/eureka/apps/',
-        maxRetries: 5,
-        requestRetryDelay: 2000,
-        fetchRegistry: true,
-      },
-    });
-
-    this.eurekaClient.start((error: unknown) => {
-      if (error) {
-        this.logger.warn(`Eureka client start failed: ${(error as Error).message}`);
-      } else {
-        this.logger.log(`Eureka client started for evaluation-service discovery (${eurekaHost}:${eurekaPort})`);
-      }
-    });
+    // No longer creates its own Eureka client - uses injected one
   }
 
   async getQuizCount(courseId: number, authHeader: string): Promise<number | null> {
@@ -121,11 +84,5 @@ export class EvaluationClient implements OnModuleInit {
 
     this.logger.warn('Evaluation service not found in Eureka and no EVALUATION_SERVICE_URL configured');
     return null;
-  }
-
-  async onModuleDestroy() {
-    if (this.eurekaClient) {
-      this.eurekaClient.stop();
-    }
   }
 }
