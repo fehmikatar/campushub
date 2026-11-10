@@ -2,6 +2,7 @@ using System.Text;
 using DotNetEnv;
 using EvaluationService.Data;
 using EvaluationService.Errors;
+using EvaluationService.Messaging;
 using EvaluationService.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Mvc;
@@ -36,6 +37,9 @@ if (string.IsNullOrWhiteSpace(jwtIssuer))
 }
 
 builder.Services.AddControllers();
+
+// Publication d'événements RabbitMQ (best effort) vers notification-service.
+builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
 
 // Erreurs de validation (400) au format CampusHub.
 builder.Services.Configure<ApiBehaviorOptions>(options =>

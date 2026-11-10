@@ -56,6 +56,38 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
   avec une réécriture vers `/api/**` (la gateway n'est pas modifiée par ce
   dépôt).
 
+## Événements RabbitMQ
+
+Le service est **producteur uniquement** : il publie dans la queue durable
+**`evaluation.events`**, déclarée par notification-service (seul consommateur).
+Il ne déclare ni queue ni exchange (exchange par défaut `""`, routing key =
+nom de la queue).
+
+| Événement | `actorId` | `data` |
+|---|---|---|
+| `quiz.created` | créateur du quiz (ENSEIGNANT/ADMIN) | `quizId`, `courseId`, `titre`, `enseignantId`, `maxTentatives`, `dureeMinutes` |
+| `quiz.submitted` | étudiant qui soumet | `quizId`, `courseId`, `titre`, `resultatId`, `etudiantId`, `enseignantId`, `score`, `datePassage` |
+
+Enveloppe commune (JSON persistant, `content-type: application/json`) :
+
+```json
+{
+  "event": "quiz.submitted",
+  "occurredAt": "2026-11-10T12:00:00Z",
+  "actorId": "11111111-1111-1111-1111-111111111111",
+  "data": { "quizId": 1, "resultatId": 2, "score": 100 }
+}
+```
+
+- `RABBITMQ_URL` vide ou invalide : publication désactivée, service normal.
+- Envoi **best effort** : broker indisponible -> warning journalisé, la requête
+  HTTP n'échoue jamais ; nouvelle tentative après 30 s.
+- Délai maximal de publication : 2 s. Connexion unique avec auto-recovery,
+  channel créé par publication.
+- Ordre de démarrage : RabbitMQ, puis notification-service (qui crée la queue),
+  puis les producteurs. Si la queue n'existe pas, le message est perdu
+  silencieusement (comportement de l'exchange par défaut).
+
 ## Tester avec Swagger
 
 En développement uniquement, l'interface Swagger UI est disponible sur
@@ -105,6 +137,7 @@ Update-Database
 | `JWT_SECRET` | Secret HS256, chaîne UTF-8 brute (pas de Base64), min. 32 octets | aucune (obligatoire) |
 | `JWT_ISSUER` | Issuer exigé (claim `iss`) | aucune (obligatoire) |
 | `CORS_ALLOWED_ORIGINS` | Origines CORS autorisées, séparées par des virgules | `http://localhost:3000` |
+| `RABBITMQ_URL` | URL AMQP du broker ; vide = publication désactivée | aucune (désactivé) |
 | `ConnectionStrings__DefaultConnection` | Chaîne de connexion SQL Server | valeur de `appsettings.json` |
 
 Sources possibles : fichier `.env` (copié depuis `.env.example`, non committé),
@@ -407,6 +440,7 @@ evaluation-service/
     ├── Data/               # AppDbContext (EF Core)
     ├── Dtos/               # Objets d'échange (entrée / sortie de l'API)
     ├── Errors/             # Format CampusHub + gestionnaire global des exceptions
+    ├── Messaging/          # Producteur RabbitMQ (enveloppe, événements, publisher)
     ├── Migrations/         # Migrations EF Core
     ├── Models/             # Entités : Quiz, Question, Reponse, Resultat, Tentative
     ├── Security/           # Rôles + accès aux claims (sub, role)
