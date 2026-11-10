@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CourseModule } from './course/course.module.js';
 import { ChapterModule } from './chapter/chapter.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ChapterModule } from './chapter/chapter.module.js';
         synchronize: true, // dev uniquement : cree les tables automatiquement
       }),
     }),
+    MessagingModule,
     CourseModule,
     ChapterModule,
   ],

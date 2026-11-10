@@ -35,9 +35,9 @@ export class Course {
   imageUrl: string | null;
 
   // Reference vers Utilisateur (User Service). Pas de cle etrangere : bases separees.
-  @ApiProperty({ example: 1 })
-  @Column()
-  formateurId: number;
+  @ApiProperty({ example: '3f2a9c1e-7b4d-4e6a-9d21-5c8b0a1f2e34' })
+  @Column({ type: 'uuid' })
+  formateurId: string;
 
   @ApiProperty()
   @CreateDateColumn()
