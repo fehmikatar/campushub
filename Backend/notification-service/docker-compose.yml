@@ -20,6 +20,9 @@ x-notification-env: &notification-env
   JWT_SECRET: ${JWT_SECRET:-dev-secret}
   JWT_ISSUER: campushub-user-service
   INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-key}
+  # Keycloak tourne sur la machine hôte : le token garde l'issuer localhost, les clés sont lues via host.docker.internal.
+  KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/campushub}
+  KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-http://host.docker.internal:8180/realms/campushub/protocol/openid-connect/certs}
   RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
   # Eureka tourne sur la machine hôte ; USER_SERVICE_URL (ex. http://host.docker.internal:8081) remplace Eureka.
   EUREKA_HOST: host.docker.internal
