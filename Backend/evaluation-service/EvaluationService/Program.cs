@@ -17,24 +17,33 @@ Env.TraversePath().Load();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- Secret JWT (HS256) : chaîne UTF-8 brute, jamais dans le code ni appsettings ---
-var jwtSecret = builder.Configuration["JWT_SECRET"];
-if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
-{
-    throw new InvalidOperationException(
-        "JWT_SECRET est absent ou trop court (minimum 32 octets). " +
-        "Définissez-le via la variable d'environnement JWT_SECRET, dotnet user-secrets ou un fichier .env local.");
-}
+// --- Authentification : Keycloak (RS256) si KEYCLOAK_ISSUER_URI est renseigné, sinon ancien mode HS256 ---
+var keycloakEnabled = KeycloakAuthentication.IsEnabled(builder.Configuration);
 
-// La clé est la chaîne UTF-8 brute (pas de décodage Base64).
-var jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+SymmetricSecurityKey? jwtKey = null;
+string? jwtIssuer = null;
 
-// Issuer exigé (claim "iss" du User Service).
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JWT_ISSUER"];
-if (string.IsNullOrWhiteSpace(jwtIssuer))
+if (!keycloakEnabled)
 {
-    throw new InvalidOperationException(
-        "L'issuer JWT est requis : renseignez Jwt:Issuer (configuration) ou JWT_ISSUER (variable d'environnement).");
+    // --- Secret JWT (HS256) : chaîne UTF-8 brute, jamais dans le code ni appsettings ---
+    var jwtSecret = builder.Configuration["JWT_SECRET"];
+    if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+    {
+        throw new InvalidOperationException(
+            "JWT_SECRET est absent ou trop court (minimum 32 octets). " +
+            "Définissez-le via la variable d'environnement JWT_SECRET, dotnet user-secrets ou un fichier .env local.");
+    }
+
+    // La clé est la chaîne UTF-8 brute (pas de décodage Base64).
+    jwtKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret));
+
+    // Issuer exigé (claim "iss" du User Service).
+    jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? builder.Configuration["JWT_ISSUER"];
+    if (string.IsNullOrWhiteSpace(jwtIssuer))
+    {
+        throw new InvalidOperationException(
+            "L'issuer JWT est requis : renseignez Jwt:Issuer (configuration) ou JWT_ISSUER (variable d'environnement).");
+    }
 }
 
 builder.Services.AddControllers();
@@ -88,58 +97,81 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// --- Authentification JWT : validation seule, le token est émis par le User Service ---
-builder.Services
-    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        // Conserve les noms de claims d'origine ("sub", "role") sans mapping automatique.
-        options.MapInboundClaims = false;
+// --- Authentification JWT : Keycloak (RS256) ou ancien mode HS256 (transition) ---
+if (keycloakEnabled)
+{
+    // IHttpContextAccessor : permet de marquer la requête en cours si Keycloak est injoignable (503).
+    builder.Services.AddHttpContextAccessor();
 
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
-            ValidateAudience = false, // pas de claim "aud"
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30),
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = jwtKey,
-            NameClaimType = "sub",
-            RoleClaimType = "role"
-        };
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer();
 
-        options.Events = new JwtBearerEvents
+    // Configuration DI-aware (l'accesseur HttpContext n'existe pas dans le délégué AddJwtBearer).
+    builder.Services
+        .AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+        .Configure<IServiceProvider>((options, services) => KeycloakAuthentication.Configure(
+            options,
+            services.GetRequiredService<IConfiguration>(),
+            services.GetService<IHttpContextAccessor>()));
+
+    // Un token Keycloak valide mais sans rôle CampusHub est refusé (403) sur tous les endpoints protégés.
+    builder.Services.AddAuthorization(options => options.DefaultPolicy = KeycloakAuthentication.DefaultPolicy);
+}
+else
+{
+    builder.Services
+        .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
         {
-            OnTokenValidated = context =>
+            // Conserve les noms de claims d'origine ("sub", "role") sans mapping automatique.
+            options.MapInboundClaims = false;
+
+            options.TokenValidationParameters = new TokenValidationParameters
             {
-                // Le contrat d'identité impose "sub" = Guid et "role" parmi les rôles connus.
-                var sub = context.Principal?.FindFirst("sub")?.Value;
-                var role = context.Principal?.FindFirst("role")?.Value;
+                ValidateIssuer = true,
+                ValidIssuer = jwtIssuer!,
+                ValidateAudience = false, // pas de claim "aud"
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromSeconds(30),
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = jwtKey!,
+                NameClaimType = "sub",
+                RoleClaimType = "role"
+            };
 
-                bool subValide = Guid.TryParse(sub, out _);
-                bool roleValide = role is CampusHubRoles.Etudiant or CampusHubRoles.Enseignant or CampusHubRoles.Admin;
-
-                if (!subValide || !roleValide)
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = context =>
                 {
-                    context.Fail("Token invalide : claims sub/role non conformes au contrat CampusHub.");
-                }
+                    // Le contrat d'identité impose "sub" = Guid et "role" parmi les rôles connus.
+                    var sub = context.Principal?.FindFirst("sub")?.Value;
+                    var role = context.Principal?.FindFirst("role")?.Value;
 
-                return Task.CompletedTask;
-            },
-            // 401 : pas de token, token invalide, expiré, mauvais secret ou mauvais issuer.
-            OnChallenge = async context =>
-            {
-                context.HandleResponse(); // supprime la réponse 401 par défaut
-                await ApiErrorWriter.WriteAsync(context.HttpContext, ApiErrorFactory.Unauthorized());
-            },
-            // 403 : token valide mais droits insuffisants.
-            OnForbidden = context =>
-                ApiErrorWriter.WriteAsync(context.HttpContext, ApiErrorFactory.Forbidden())
-        };
-    });
+                    bool subValide = Guid.TryParse(sub, out _);
+                    bool roleValide = role is CampusHubRoles.Etudiant or CampusHubRoles.Enseignant or CampusHubRoles.Admin;
 
-builder.Services.AddAuthorization();
+                    if (!subValide || !roleValide)
+                    {
+                        context.Fail("Token invalide : claims sub/role non conformes au contrat CampusHub.");
+                    }
+
+                    return Task.CompletedTask;
+                },
+                // 401 : pas de token, token invalide, expiré, mauvais secret ou mauvais issuer.
+                OnChallenge = async context =>
+                {
+                    context.HandleResponse(); // supprime la réponse 401 par défaut
+                    await ApiErrorWriter.WriteAsync(context.HttpContext, ApiErrorFactory.Unauthorized());
+                },
+                // 403 : token valide mais droits insuffisants.
+                OnForbidden = context =>
+                    ApiErrorWriter.WriteAsync(context.HttpContext, ApiErrorFactory.Forbidden())
+            };
+        });
+
+    builder.Services.AddAuthorization();
+}
 
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -189,3 +221,8 @@ app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "UP" })).AllowAnonymous();
 
 app.Run();
+
+// Exposé aux tests d'intégration (WebApplicationFactory).
+public partial class Program
+{
+}
