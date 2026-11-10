@@ -18,7 +18,9 @@ export class EventPublisher implements OnModuleDestroy {
 
   publish(event: string, actorId: string | null, data: Record<string, unknown>): void {
     if (!process.env.RABBITMQ_URL?.trim()) return;
-    const message = { event, occurredAt: new Date().toISOString(), actorId, data };
+    // Date ISO sans millisecondes, comme dans le contrat : 2026-11-10T12:00:00Z
+    const occurredAt = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+    const message = { event, occurredAt, actorId, data };
     void this.send(message).catch((err: Error) =>
       this.log.warn(`Evenement ${event} non envoye : ${err.message}`),
     );

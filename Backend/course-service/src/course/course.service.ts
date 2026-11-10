@@ -20,11 +20,13 @@ export class CourseService {
   private emettreChangementStatut(course: Course, ancien: StatutCours | null) {
     if (course.statut === ancien) return;
     if (course.statut === StatutCours.PUBLIE) {
+      // Format attendu par le Notification Service : courseId en texte, title, userIds (>= 1).
+      // Destinataire pour l'instant : le formateur du cours. Quand l'Enrollment Service
+      // sera pret, userIds pourra contenir les etudiants concernes.
       this.events.publish('course.published', course.formateurId, {
-        courseId: course.id,
-        titre: course.titre,
-        categorie: course.categorie,
-        formateurId: course.formateurId,
+        courseId: String(course.id),
+        title: course.titre,
+        userIds: [course.formateurId],
       });
     } else if (course.statut === StatutCours.ARCHIVE) {
       this.events.publish('course.archived', course.formateurId, {
