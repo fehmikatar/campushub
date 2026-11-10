@@ -56,8 +56,8 @@ class RabbitMqConsumer
     }
 
     /**
-     * Écoute toutes les files. $handler reçoit (nom de la file, corps du message)
-     * et renvoie true (traité : ack), ou false (écarté : rejeté sans remise en file).
+     * Écoute toutes les files. $handler reçoit (nom de la file, corps du message) ;
+     * son résultat (true = traité, false = invalide et journalisé) n'a pas d'effet sur l'ack : toujours confirmé.
      * Une exception remet le message en file pour un nouvel essai.
      *
      * @param  Closure(string,string):bool  $handler
@@ -68,12 +68,13 @@ class RabbitMqConsumer
             $this->channel->basic_consume($queue, '', false, false, false, false,
                 function (AMQPMessage $message) use ($queue, $handler) {
                     try {
-                        $handled = $handler($queue, $message->getBody());
+                        $handler($queue, $message->getBody());
                     } catch (\Throwable $e) {
                         $message->nack(true); // panne passagère (ex. base) : on retentera
                         throw $e;
                     }
-                    $handled ? $message->ack() : $message->nack(false);
+                    // Traité ou invalide : dans les deux cas ack, sinon un message invalide reviendrait en boucle.
+                    $message->ack();
                 });
         }
 
