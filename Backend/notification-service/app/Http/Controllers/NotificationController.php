@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ListNotificationsRequest;
 use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,13 +10,8 @@ use Illuminate\Http\Response;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request): JsonResponse
+    public function index(ListNotificationsRequest $request): JsonResponse
     {
-        $request->validate([
-            'unread' => ['nullable', 'boolean'],
-            'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
-        ]);
-
         $query = Notification::forUser($this->userId($request))->latest('id');
         if ($request->boolean('unread')) {
             $query->unread();
@@ -53,11 +49,6 @@ class NotificationController extends Controller
         $this->findOwned($request, $id)->delete();
 
         return response()->noContent();
-    }
-
-    private function userId(Request $request): string
-    {
-        return $request->attributes->get('user')['id'];
     }
 
     private function findOwned(Request $request, int $id): Notification
