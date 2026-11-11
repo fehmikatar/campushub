@@ -1,0 +1,25 @@
+{
+  "description": "Retrieval test set for the ESPRIT 2026-2027 regulation. Expected items are what a correct retrieval must surface (written from the rules/pages files; extend it with real student questions).",
+  "questions": [
+    {"q": "Mon PFE doit durer 26 ou 28 semaines ?", "pages": [12, 14], "rules": ["PFE002"], "ambiguities": ["C01"]},
+    {"q": "J'ai une moyenne générale de 11 et une UE non-projet à 8.5. C'est validé ?", "pages": [7], "rules": ["VAL001"], "ambiguities": []},
+    {"q": "Je peux passer si j'ai 12 de moyenne mais 17 ECTS de l'année précédente non validés ?", "pages": [7], "rules": ["PAS003", "PAS005"], "ambiguities": []},
+    {"q": "Je devrais suivre quel cours de machine learning ?", "pages": [], "rules": [], "ambiguities": ["C06"]},
+    {"q": "Je peux sortir de la salle pendant l'examen ?", "pages": [9], "rules": ["EXM007", "EXM008"], "ambiguities": ["C10"]},
+    {"q": "Combien de fois je peux redoubler ?", "pages": [8], "rules": ["REP001"], "ambiguities": []},
+    {"q": "Quelle est la date limite de fin de stage PFE pour 2026/27 ?", "pages": [12], "rules": ["PFE003"], "ambiguities": ["C08"]},
+    {"q": "Quel est le taux de plagiat maximum accepté pour le rapport de PFE ?", "pages": [14], "rules": ["PFE007"], "ambiguities": []},
+    {"q": "Comment est calculée la moyenne d'un module avec CC, TP et examen ?", "pages": [7], "rules": ["GRD003"], "ambiguities": []},
+    {"q": "Quelles sont les conditions pour obtenir le diplôme d'ingénieur ?", "pages": [15], "rules": ["DIP001", "DIP004"], "ambiguities": []},
+    {"q": "J'ai raté l'examen final, mon certificat médical est-il un justificatif valable ?", "pages": [11], "rules": ["EXM014"], "ambiguities": []},
+    {"q": "Jusqu'à quand je peux demander un report d'inscription avec remboursement ?", "pages": [3], "rules": ["INS006"], "ambiguities": []},
+    {"q": "Si j'annule mon inscription en janvier, je suis remboursé ?", "pages": [4], "rules": ["INS010"], "ambiguities": []},
+    {"q": "Combien d'ECTS vaut le stage ingénieur et combien de semaines dure-t-il ?", "pages": [12], "rules": ["INT007"], "ambiguities": []},
+    {"q": "J'arrive 25 minutes en retard à l'examen, je peux entrer ?", "pages": [9], "rules": ["EXM005"], "ambiguities": []},
+    {"q": "Quel niveau faut-il en anglais et en français pour avoir le diplôme ?", "pages": [15], "rules": ["DIP003"], "ambiguities": []},
+    {"q": "Les projets intégrés sont-ils rattrapables ?", "pages": [8], "rules": ["RET004"], "ambiguities": []},
+    {"q": "Quel est le seuil de crédits antérieurs pour commencer le PFE ?", "pages": [12], "rules": ["PFE001"], "ambiguities": ["C05"]},
+    {"q": "Combien de stages je dois faire pendant mes études ?", "pages": [5, 11], "rules": ["PRO004", "INT001"], "ambiguities": ["C03"]},
+    {"q": "What happens if a UE stays below 8/20 in both the main and the retake session?", "pages": [7], "rules": ["VAL004"], "ambiguities": []}
+  ]
+}
