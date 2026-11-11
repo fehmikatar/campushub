@@ -33,6 +33,16 @@ class AuthTest extends TestCase
         $bearer($expired)->getJson('/api/notifications')->assertStatus(401)->assertJson(['message' => 'Token expiré']);
     }
 
+    public function test_service_adds_no_cors_headers_because_the_gateway_handles_them(): void
+    {
+        $response = $this->withHeader('Origin', 'http://localhost:4200')
+            ->asUser('a')
+            ->getJson('/api/notifications');
+
+        $response->assertOk();
+        $this->assertFalse($response->headers->has('Access-Control-Allow-Origin'));
+    }
+
     public function test_valid_token_is_accepted(): void
     {
         $this->asUser('a')->getJson('/api/notifications')->assertOk();

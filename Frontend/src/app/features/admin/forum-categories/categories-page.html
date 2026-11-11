@@ -1,0 +1,88 @@
+<header class="head">
+  <h1>Catégories du forum</h1>
+  <button type="button" class="btn btn-primary" (click)="openNew()">
+    <app-icon [name]="icons.plus" [size]="16" /> Nouvelle catégorie
+  </button>
+</header>
+
+@if (editing() !== null) {
+  <form class="card form" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <h2>{{ editing() === 'new' ? 'Nouvelle catégorie' : 'Modifier la catégorie' }}</h2>
+
+    @if (formError(); as message) {
+      <div class="alert" role="alert">{{ message }}</div>
+    }
+
+    <label class="field">
+      <span>Nom</span>
+      <input type="text" formControlName="name" maxlength="80" [class.invalid]="form.controls.name.touched && form.controls.name.invalid" />
+      @if (form.controls.name.touched && form.controls.name.invalid) {
+        <small class="error">Le nom est obligatoire (2 à 80 caractères).</small>
+      }
+    </label>
+
+    <label class="field">
+      <span>Description <small class="muted">{{ descriptionLength() }}/300</small></span>
+      <input type="text" formControlName="description" maxlength="300" />
+    </label>
+
+    <label class="field narrow">
+      <span>Ordre d'affichage</span>
+      <input type="number" formControlName="order" min="0" />
+    </label>
+
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" (click)="closeForm()">Annuler</button>
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">{{ saving() ? 'Enregistrement...' : 'Enregistrer' }}</button>
+    </div>
+  </form>
+}
+
+@if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger les catégories.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading() && categories().length === 0) {
+  <p class="muted">Chargement...</p>
+} @else if (categories().length === 0) {
+  <div class="empty card">
+    <h2>Aucune catégorie</h2>
+    <p class="muted">Créez la première catégorie pour organiser les discussions du forum.</p>
+  </div>
+} @else {
+  <div class="card table-wrap">
+    <table>
+      <thead>
+        <tr><th class="num">Ordre</th><th>Nom</th><th>Description</th><th class="actions-col">Actions</th></tr>
+      </thead>
+      <tbody>
+        @for (category of categories(); track category._id) {
+          <tr>
+            <td class="num">{{ category.order }}</td>
+            <td><strong>{{ category.name }}</strong></td>
+            <td class="muted">{{ category.description || '—' }}</td>
+            <td class="actions-col">
+              <button type="button" class="icon-btn" [attr.aria-label]="'Modifier ' + category.name" (click)="openEdit(category)">
+                <app-icon [name]="icons.pencil" [size]="16" />
+              </button>
+              <button type="button" class="icon-btn danger" [attr.aria-label]="'Supprimer ' + category.name" (click)="askDelete(category)">
+                <app-icon [name]="icons.trash" [size]="16" />
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
+
+@if (toDelete(); as category) {
+  <app-confirm-dialog
+    title="Supprimer cette catégorie ?"
+    [message]="'La catégorie « ' + category.name + ' » sera supprimée définitivement.'"
+    [busy]="deleting()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="toDelete.set(null)"
+  />
+}

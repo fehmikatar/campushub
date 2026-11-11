@@ -14,7 +14,7 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'accueil' },
       // Écrans des lots suivants : pages provisoires avec le bon contrôle d'accès.
-      { path: 'accueil', loadComponent: placeholder, data: { title: 'Accueil' } },
+      { path: 'accueil', loadComponent: () => import('./features/home/home-page').then((m) => m.HomePage) },
       {
         path: 'mes-cours',
         canActivate: [roleGuard('ETUDIANT', 'ENSEIGNANT')],
@@ -29,10 +29,30 @@ export const routes: Routes = [
         loadComponent: placeholder,
         data: { title: 'Évaluations' },
       },
-      { path: 'notifications', loadComponent: placeholder, data: { title: 'Notifications' } },
-      { path: 'utilisateurs', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Utilisateurs' } },
-      { path: 'cours', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Cours' } },
-      { path: 'categories', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Catégories' } },
+      {
+        path: 'notifications',
+        loadComponent: () => import('./features/notifications/notifications-page').then((m) => m.NotificationsPage),
+      },
+      {
+        path: 'notifications/preferences',
+        loadComponent: () => import('./features/notifications/preferences-page').then((m) => m.PreferencesPage),
+      },
+      {
+        path: 'utilisateurs',
+        canActivate: [roleGuard('ADMIN')],
+        loadComponent: () => import('./features/admin/users/users-page').then((m) => m.UsersPage),
+      },
+      {
+        path: 'cours',
+        canActivate: [roleGuard('ADMIN')],
+        loadComponent: () => import('./features/admin/courses/admin-courses-page').then((m) => m.AdminCoursesPage),
+      },
+      {
+        path: 'categories',
+        canActivate: [roleGuard('ADMIN')],
+        loadComponent: () =>
+          import('./features/admin/forum-categories/categories-page').then((m) => m.CategoriesPage),
+      },
     ],
   },
   { path: '**', redirectTo: '' },

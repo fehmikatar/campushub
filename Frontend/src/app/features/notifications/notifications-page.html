@@ -1,0 +1,55 @@
+<header class="head">
+  <h1>Notifications</h1>
+  <div class="actions">
+    <a class="btn btn-secondary" routerLink="/notifications/preferences">
+      <app-icon [name]="icons.settings" [size]="16" /> Préférences
+    </a>
+    <button type="button" class="btn btn-primary" (click)="markAllRead()">
+      <app-icon [name]="icons.checkCheck" [size]="16" /> Tout marquer comme lu
+    </button>
+  </div>
+</header>
+
+<div class="tabs" role="tablist">
+  <button type="button" role="tab" [class.active]="tab() === 'all'" [attr.aria-selected]="tab() === 'all'" (click)="setTab('all')">Toutes</button>
+  <button type="button" role="tab" [class.active]="tab() === 'unread'" [attr.aria-selected]="tab() === 'unread'" (click)="setTab('unread')">Non lues</button>
+</div>
+
+@if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger les notifications.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading() && !result()) {
+  <p class="muted">Chargement...</p>
+} @else if (result(); as page) {
+  @if (page.data.length === 0) {
+    <div class="empty">
+      <span class="empty-icon"><app-icon [name]="icons.bellOff" [size]="40" /></span>
+      <h2>Aucune notification pour le moment</h2>
+      <p class="muted">
+        {{ tab() === 'unread' ? 'Vous avez tout lu.' : 'Vos notifications apparaîtront ici.' }}
+      </p>
+    </div>
+  } @else {
+    <ul class="list">
+      @for (notification of page.data; track notification.id) {
+        <li>
+          <app-notification-item [notification]="notification" (selected)="open($event)" (removed)="remove($event)" />
+        </li>
+      }
+    </ul>
+
+    @if (page.last_page > 1) {
+      <nav class="pager" aria-label="Pagination">
+        <button type="button" class="btn btn-secondary" [disabled]="page.current_page <= 1" (click)="goTo(page.current_page - 1)">
+          <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+        </button>
+        <span class="muted">Page {{ page.current_page }} sur {{ page.last_page }}</span>
+        <button type="button" class="btn btn-secondary" [disabled]="page.current_page >= page.last_page" (click)="goTo(page.current_page + 1)">
+          Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+        </button>
+      </nav>
+    }
+  }
+}

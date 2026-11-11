@@ -1,0 +1,93 @@
+<header class="head">
+  <h1>Utilisateurs</h1>
+  <form class="search" (ngSubmit)="submitSearch()">
+    <input type="search" name="search" [(ngModel)]="search" placeholder="Nom, identifiant ou e-mail" aria-label="Rechercher un utilisateur" />
+    <button type="submit" class="btn btn-secondary">Rechercher</button>
+  </form>
+</header>
+
+@if (failed(); as message) {
+  <div class="alert" role="alert">
+    {{ message }}
+    <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading() && users().length === 0) {
+  <p class="muted">Chargement...</p>
+} @else {
+  <label class="pending">
+    <input type="checkbox" [checked]="onlyPending()" (change)="onlyPending.set(!onlyPending())" />
+    Afficher seulement les demandes d'enseignant en attente
+    @if (pendingCount() > 0) {
+      <span class="pill warning">{{ pendingCount() }}</span>
+    }
+  </label>
+
+  @if (shown().length === 0) {
+    <div class="empty card">
+      <h2>{{ onlyPending() ? 'Aucune demande en attente' : 'Aucun utilisateur' }}</h2>
+      <p class="muted">{{ onlyPending() ? 'Aucun compte de cette page ne demande le rôle enseignant.' : 'Aucun compte ne correspond à la recherche.' }}</p>
+    </div>
+  } @else {
+    <div class="card table-card">
+      <table>
+        <thead>
+          <tr><th>Nom</th><th>Identifiant</th><th>E-mail</th><th>Rôle</th><th>Rôle souhaité</th><th>Créé le</th><th class="right">Actions</th></tr>
+        </thead>
+        <tbody>
+          @for (user of shown(); track user.id) {
+            <tr>
+              <td><strong>{{ fullName(user) }}</strong></td>
+              <td>{{ user.username }}</td>
+              <td class="muted">{{ user.email || '—' }}</td>
+              <td><span class="pill" [class.info]="user.role !== 'ETUDIANT'">{{ roleLabels[user.role] }}</span></td>
+              <td>
+                @if (isPending(user)) {
+                  <span class="pill warning">Enseignant (à valider)</span>
+                } @else if (user.requestedRole) {
+                  <span class="muted">{{ roleLabels[user.requestedRole] }}</span>
+                } @else {
+                  <span class="muted">—</span>
+                }
+              </td>
+              <td class="muted">{{ user.createdTimestamp | date: 'dd/MM/yyyy' }}</td>
+              <td class="right">
+                @if (user.role === 'ETUDIANT') {
+                  <button type="button" class="btn btn-secondary small" [disabled]="busy()" (click)="grant(user)">
+                    <app-icon [name]="icons.userCheck" [size]="14" /> Valider enseignant
+                  </button>
+                } @else if (user.role === 'ENSEIGNANT') {
+                  <button type="button" class="btn btn-secondary small" [disabled]="busy()" (click)="toRevoke.set(user)">
+                    <app-icon [name]="icons.userX" [size]="14" /> Retirer enseignant
+                  </button>
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages > 1) {
+      <nav class="pager" aria-label="Pagination">
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() <= 1" (click)="goTo(currentPage() - 1)">
+          <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+        </button>
+        <span class="muted">Page {{ currentPage() }} sur {{ totalPages }} ({{ total() }} comptes)</span>
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() >= totalPages" (click)="goTo(currentPage() + 1)">
+          Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+        </button>
+      </nav>
+    }
+  }
+}
+
+@if (toRevoke(); as user) {
+  <app-confirm-dialog
+    title="Retirer le rôle enseignant ?"
+    [message]="fullName(user) + ' redeviendra étudiant et ne pourra plus gérer de cours ni modérer le forum.'"
+    confirmLabel="Retirer"
+    [busy]="busy()"
+    (confirmed)="confirmRevoke()"
+    (cancelled)="toRevoke.set(null)"
+  />
+}
