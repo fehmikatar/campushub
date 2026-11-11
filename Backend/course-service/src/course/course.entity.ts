@@ -56,4 +56,8 @@ export class Course {
   // Calcule dans la liste (GET /courses), pas stocke en base
   @ApiPropertyOptional({ example: 3 })
   nbChapitres?: number;
+
+  // Rempli par appel synchrone vers evaluation-service (GET /courses/{id})
+  @ApiPropertyOptional({ example: 5, description: 'Nombre de quiz pour ce cours' })
+  nbQuiz?: number | null;
 }
