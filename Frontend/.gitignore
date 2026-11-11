@@ -42,3 +42,6 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Réglages locaux de l'adresse de l'API (voir src/app/core/config/app-config.ts)
+/public/config.local.json

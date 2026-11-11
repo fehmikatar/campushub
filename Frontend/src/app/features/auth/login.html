@@ -1,0 +1,46 @@
+<div class="page">
+  <section class="hero">
+    <div class="brand">
+      <app-icon [name]="icons.graduationCap" [size]="32" />
+      <span>CampusHub</span>
+    </div>
+    <h1>Votre plateforme d'apprentissage universitaire</h1>
+    <p>Cours, forum, évaluations et notifications au même endroit.</p>
+  </section>
+
+  <section class="panel">
+    <form class="card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <h2>Connexion</h2>
+      <p class="hint">Connectez-vous avec votre compte universitaire.</p>
+
+      @if (error(); as message) {
+        <div class="alert" role="alert">{{ message }}</div>
+      }
+
+      <label class="field">
+        <span>Identifiant ou e-mail</span>
+        <input type="text" formControlName="username" autocomplete="username" [class.invalid]="form.controls.username.touched && form.controls.username.invalid" />
+        @if (form.controls.username.touched && form.controls.username.invalid) {
+          <small class="error">L'identifiant est obligatoire.</small>
+        }
+      </label>
+
+      <label class="field">
+        <span>Mot de passe</span>
+        <span class="password">
+          <input [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" [class.invalid]="form.controls.password.touched && form.controls.password.invalid" />
+          <button type="button" class="toggle" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Masquer le mot de passe' : 'Afficher le mot de passe'">
+            <app-icon [name]="showPassword() ? icons.eyeOff : icons.eye" [size]="18" />
+          </button>
+        </span>
+        @if (form.controls.password.touched && form.controls.password.invalid) {
+          <small class="error">Le mot de passe est obligatoire.</small>
+        }
+      </label>
+
+      <button type="submit" class="btn btn-primary" [disabled]="loading()">
+        {{ loading() ? 'Connexion...' : 'Se connecter' }}
+      </button>
+    </form>
+  </section>
+</div>
