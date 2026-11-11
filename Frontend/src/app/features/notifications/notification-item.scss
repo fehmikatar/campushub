@@ -1,0 +1,26 @@
+:host { display: block; }
+.item { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+.item.unread { background: var(--indigo-soft); }
+.item.compact { border: 0; border-radius: 0; border-bottom: 1px solid var(--border); }
+.main {
+  display: flex; align-items: flex-start; gap: 12px; flex: 1; min-width: 0; padding: 12px 8px 12px 14px;
+  border: 0; background: transparent; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.dot { flex: none; width: 8px; height: 8px; margin-top: 16px; border-radius: 50%; background: transparent; }
+.dot.on { background: var(--indigo); }
+.badge { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; }
+.badge.indigo { background: #e0e7ff; color: var(--indigo); }
+.badge.amber { background: var(--warning-bg); color: #b45309; }
+.badge.green { background: var(--success-bg); color: #15803d; }
+.badge.slate { background: #f1f5f9; color: var(--text-muted); }
+.text { display: grid; gap: 2px; min-width: 0; }
+.item:not(.unread) strong { font-weight: 500; }
+.message { color: var(--text-muted); }
+.compact .message { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.time { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); }
+.remove {
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; margin-right: 10px;
+  border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--danger); cursor: pointer;
+}
+.remove:hover { background: var(--danger-bg); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }

@@ -12,8 +12,9 @@ public static class ClaimsPrincipalExtensions
     public static Guid GetUserId(this ClaimsPrincipal user)
         => Guid.Parse(user.FindFirst(SubClaim)!.Value);
 
+    // Rôle CampusHub : claim mappé depuis Keycloak (realm_access.roles) ou ancien claim "role".
     public static string? GetRole(this ClaimsPrincipal user)
-        => user.FindFirst(RoleClaim)?.Value;
+        => user.FindFirst(ClaimTypes.Role)?.Value ?? user.FindFirst(RoleClaim)?.Value;
 
     public static bool IsAdmin(this ClaimsPrincipal user)
         => user.GetRole() == CampusHubRoles.Admin;

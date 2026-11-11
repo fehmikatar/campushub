@@ -1,0 +1,53 @@
+<a class="back" routerLink="/notifications">
+  <app-icon [name]="icons.chevronLeft" [size]="16" /> Notifications
+</a>
+<h1>Préférences</h1>
+
+@if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger vos préférences.
+    <button type="button" class="link" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading()) {
+  <p class="muted">Chargement...</p>
+} @else {
+  <form class="card panel" [formGroup]="form" (ngSubmit)="save()" novalidate>
+    <h2>Notifications reçues</h2>
+    @for (group of groups; track group.key) {
+      <div class="row">
+        <div>
+          <strong>{{ group.label }}</strong>
+          <p class="muted">{{ group.description }}</p>
+        </div>
+        <button type="button" class="switch" role="switch" [class.on]="enabled()[group.key]" [attr.aria-checked]="enabled()[group.key]" [attr.aria-label]="group.label" (click)="toggle(group.key)"></button>
+      </div>
+    }
+
+    <h2>Alertes par e-mail</h2>
+    <div class="row">
+      <div>
+        <strong>Recevoir aussi mes notifications par e-mail</strong>
+        <p class="muted">Un e-mail est envoyé pour chaque notification reçue.</p>
+      </div>
+      <button type="button" class="switch" role="switch" [class.on]="form.controls.emailEnabled.value" [attr.aria-checked]="form.controls.emailEnabled.value" aria-label="Alertes par e-mail" (click)="form.controls.emailEnabled.setValue(!form.controls.emailEnabled.value)"></button>
+    </div>
+
+    @if (form.controls.emailEnabled.value) {
+      <label class="field">
+        <span>Adresse e-mail</span>
+        <input type="email" formControlName="email" autocomplete="email" placeholder="prenom.nom@universite.tn" [class.invalid]="form.controls.email.touched && form.controls.email.invalid" />
+        @if (form.controls.email.touched && form.controls.email.invalid) {
+          <small class="error">Adresse e-mail invalide.</small>
+        } @else if (!form.controls.email.value) {
+          <small class="muted">Sans adresse, aucun e-mail n'est envoyé.</small>
+        }
+      </label>
+    }
+
+    <div class="footer">
+      <button type="submit" class="btn btn-primary" [disabled]="saving()">
+        {{ saving() ? 'Enregistrement...' : 'Enregistrer' }}
+      </button>
+    </div>
+  </form>
+}

@@ -112,6 +112,11 @@ export class CourseService {
       if (course.statut !== StatutCours.PUBLIE) throw new NotFoundException(`Cours ${id} introuvable`);
       course.chapitres = course.chapitres.filter((c) => c.visible);
     }
+
+    // Ne pas rappeler Evaluation : cette route sert a verifier l'existence du cours.
+    // Le compteur reste indisponible en attendant la decision sur son alimentation.
+    course.nbQuiz = null;
+
     return course;
   }
 

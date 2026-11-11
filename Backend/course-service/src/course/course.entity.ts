@@ -56,4 +56,8 @@ export class Course {
   // Calcule dans la liste (GET /courses), pas stocke en base
   @ApiPropertyOptional({ example: 3 })
   nbChapitres?: number;
+
+  // Aucun appel a Evaluation : alimentation du compteur a definir avec l'equipe.
+  @ApiPropertyOptional({ example: null, nullable: true, description: 'Nombre de quiz indisponible : null' })
+  nbQuiz?: number | null;
 }

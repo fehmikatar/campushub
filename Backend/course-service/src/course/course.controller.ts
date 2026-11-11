@@ -53,10 +53,13 @@ export class CourseController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Consulter un cours avec ses chapitres' })
+  @ApiOperation({ summary: 'Consulter un cours avec ses chapitres (sans appel a Evaluation)' })
   @ApiOkResponse({ type: Course })
   @ApiNotFoundResponse({ description: 'Cours introuvable (ou non publie pour un etudiant)' })
-  findOne(@Param('id', ParseIntPipe) id: number, @CurrentUser() user: AuthUser) {
+  findOne(
+    @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: AuthUser,
+  ) {
     return this.service.findOneFor(id, user);
   }
 

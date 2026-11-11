@@ -1,0 +1,6 @@
+:host { display: grid; place-items: center; min-height: 100vh; padding: 24px; background: var(--bg); }
+.status { display: grid; justify-items: center; gap: 12px; max-width: 440px; text-align: center; }
+.badge { display: grid; place-items: center; width: 96px; height: 96px; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo); }
+h1 { margin: 12px 0 0; }
+p { margin: 0; color: var(--text-muted); }
+.actions { display: flex; gap: 12px; margin-top: 12px; }
