@@ -5,8 +5,11 @@ HTTP; the business rules are in services.py. Students only ever see their own re
 (filtered queryset): another student's reclamation is a 404, like a missing one.
 """
 
+from urllib.parse import urlsplit
+
 from bson import ObjectId
 from bson.errors import InvalidId
+from django.conf import settings
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
@@ -37,6 +40,23 @@ DEFAULT_PERMISSIONS = (READERS,)
 
 class ReclamationPagination(PageNumberPagination):
     page_size = 20
+
+    def get_next_link(self):
+        return public_link(super().get_next_link())
+
+    def get_previous_link(self):
+        return public_link(super().get_previous_link())
+
+
+def public_link(url: str | None) -> str | None:
+    """Behind the API Gateway, http://<this service>/api/... becomes settings.PUBLIC_API_URL + ...
+    (query kept), so a page link never exposes or bypasses the Gateway. Unchanged when unset."""
+    base = settings.PUBLIC_API_URL
+    if not url or not base:
+        return url
+    parts = urlsplit(url)
+    path = parts.path[len("/api"):] if parts.path.startswith("/api/") else parts.path
+    return base + path + (f"?{parts.query}" if parts.query else "")
 
 
 class ReclamationViewSet(viewsets.ModelViewSet):

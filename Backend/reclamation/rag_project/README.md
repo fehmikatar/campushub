@@ -67,6 +67,8 @@ python manage.py ingest_regulation      # imports the 3 JSON files from data/reg
 python manage.py eval_rag               # retrieval quality on 20 test questions
 python manage.py test                   # see "Commands" (MongoDB tests need a MongoDB server)
 python manage.py runserver              # API on http://127.0.0.1:8000/api/...
+# With Eureka (team port 8087): runserver 8087 + manage.py eureka_register, see "Eureka" below
+# Behind the API Gateway: serve with waitress instead of runserver, see "API Gateway" below
 ```
 
 The two `migrate` commands are both needed: each database only receives its own tables /
@@ -88,13 +90,16 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `ask "question" [--evidence] [--year 2026-2027]` | Ask in the terminal; `--evidence` shows retrieval only |
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
-| `test` | 217 tests: no Ollama/API/Keycloak needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
+| `test` | 246 tests: no Ollama/API/Keycloak/Eureka/Gateway needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
 | `test tests.test_auth` | the 39 shared/RAG Keycloak authentication / security tests |
 | `test tests.test_reclamations_auth` | 25 DRF Keycloak security tests, no MongoDB required |
 | `test tests.test_reclamations_identity` | 9 real MongoDB ownership and migration tests |
 | `test tests.test_conversation_ownership` | 10 private-conversation tests (RAG), no MongoDB required |
+| `test tests.test_eureka` | 21 Eureka registration tests against a local fake Eureka (no real Eureka) |
 
 ## Configuration
 
@@ -115,6 +120,12 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
 | `KEYCLOAK_JWKS_URI` | empty (= derived from the issuer) | `http://keycloak:8080/realms/campushub/protocol/openid-connect/certs` |
 | `MONGODB_URI` | `mongodb://localhost:27017` | e.g. `mongodb://mongo:27017` (a connection string: may contain credentials, so it is a secret) |
 | `MONGODB_NAME` | `campushub` | to be agreed (Forum uses `campushub_forum`; `campushub_reclamations` would follow the same convention) |
+| `EUREKA_ENABLED` | `true` (only `false`/`0`/`no`/`off` disable) | `true` |
+| `EUREKA_HOST`, `EUREKA_PORT` | `localhost`, `8761` | `eureka-server`, `8761` |
+| `EUREKA_APP_NAME` | `reclamation-service` (registered as `RECLAMATION-SERVICE`) | the same |
+| `EUREKA_INSTANCE_HOST`, `EUREKA_INSTANCE_PORT` | `localhost`, `8087` | the service's Docker host name, `8087` |
+| `EUREKA_INSTANCE_IP` | `127.0.0.1` (like Forum / Notification) | to be decided with the Dockerfile |
+| `PUBLIC_API_URL` | empty (page links use the address the request was sent to) | the Gateway address of `/api`, e.g. `http://localhost:8080/api/v1/reclamation` |
 
 - With DEBUG off, the service **refuses to start** if `DJANGO_SECRET_KEY` is missing or weak (the
   rule of `manage.py check --deploy`). Generate one with
@@ -132,6 +143,10 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
   `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 8`.
   One worker because Chroma's local storage and the in-memory keyword index belong to one process;
   threads because an answer mostly waits 4–15 s for the LLM. The port is not decided yet.
+  **To verify with the Dockerfile:** behind the API Gateway, request bodies arrive chunked (see
+  "API Gateway"); Django only reads bodies that have a `Content-Length`. waitress is verified to
+  handle this; Gunicorn is not verified yet (if it passes chunked bodies through, every POST gets
+  the 411 of `config/middleware.py`), so the container may have to use waitress too.
 
 ## Reclamations API (MongoDB)
 
@@ -372,7 +387,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 217 total with MongoDB: 172 offline + 45 integration
+python manage.py test --noinput                       # 246 total with MongoDB: 200 offline + 46 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -405,6 +420,103 @@ python manage.py test tests.test_reclamations tests.test_reclamations_identity -
 - `search` is a case-insensitive regular-expression scan (input escaped) and `priority` ordering is
   computed: neither uses an index. Fine at this scale; a text or Atlas Search index would replace it.
 - The priority can only change together with a status change (`change-status` requires `status`).
+
+## Eureka (service discovery)
+
+The service registers in the team's existing Eureka server (`Backend/eureka-server`, port 8761)
+as **`RECLAMATION-SERVICE`** (vipAddress `reclamation-service`), instance
+`reclamation-service:<EUREKA_INSTANCE_HOST>:<EUREKA_INSTANCE_PORT>`, port **8087**, health and
+status page `GET /api/health` (public). Same REST protocol and payload as Forum and Notification.
+
+Registration is a separate, explicitly started process, like Notification's
+`php artisan eureka:register`: **starting Django never contacts Eureka** (no thread at startup,
+so tests, migrations and the runserver autoreloader never register anything).
+
+```powershell
+python manage.py runserver 8087          # terminal 1: the service, on the team port
+python manage.py eureka_register         # terminal 2: register + heartbeat; Ctrl+C deregisters
+python manage.py eureka_register --once  # register once and exit (Eureka drops it after ~90 s)
+```
+
+- **Only while the service is up:** the agent checks `http://127.0.0.1:8087/api/health` first and
+  advertises the instance only while it answers `UP`; if Django stops, it deregisters, and it
+  registers again when Django is back. Start the server (`runserver`, or waitress behind the
+  Gateway) on the same port as `EUREKA_INSTANCE_PORT`.
+- **Heartbeat** every 30 s (lease 90 s). A heartbeat answered `404` (Eureka restarted) triggers a
+  new registration.
+- **Eureka down:** nothing fails. The agent retries after 5, 10, 20, then every 30 s; every call has
+  a 3 s timeout. Django keeps serving normally: it does not depend on the agent.
+- **Graceful shutdown:** Ctrl+C, Ctrl+Break or SIGTERM -> deregistration, then exit.
+- **Without Eureka:** just don't start the agent (or set `EUREKA_ENABLED=false`, which makes it
+  exit at once).
+- **One agent per instance.** In a container, the agent will run next to Gunicorn (decided with the
+  Dockerfile).
+
+Check the registration: open the Eureka dashboard <http://localhost:8761> (section *Instances
+currently registered with Eureka*), or
+`Invoke-RestMethod http://localhost:8761/eureka/apps/RECLAMATION-SERVICE -Headers @{Accept="application/json"}`.
+The automated tests (`python manage.py test tests.test_eureka`) use a local fake Eureka.
+
+## API Gateway
+
+**Proposed, not applied yet:** the team Gateway (`Backend/api-gateway`, Spring Cloud Gateway
+Server WebMVC) belongs to its owner, who has to approve the prefix `/api/v1/reclamation/**`. The
+ready-to-apply change is [`docs/gateway/01-reclamation-route.patch`](docs/gateway/01-reclamation-route.patch)
+(6 lines in `src/main/resources/application.properties`, same pattern as Notification):
+
+```properties
+spring.cloud.gateway.server.webmvc.routes[6].id=reclamation-service
+spring.cloud.gateway.server.webmvc.routes[6].uri=lb://reclamation-service
+spring.cloud.gateway.server.webmvc.routes[6].predicates[0]=Path=/api/v1/reclamation/**
+spring.cloud.gateway.server.webmvc.routes[6].filters[0]=RewritePath=/api/v1/reclamation(?<segment>/?.*), /api$\{segment}
+```
+
+| Through the Gateway (port 8080) | In this service |
+|---|---|
+| `/api/v1/reclamation/reclamations/[{id}/[change-status/]]`, `…/reclamations/stats/` | `/api/reclamations/…` |
+| `/api/v1/reclamation/academic-assistant/ask` | `/api/academic-assistant/ask` |
+| `/api/v1/reclamation/conversations[/{id}]` | `/api/conversations[/{id}]` |
+| `/api/v1/reclamation/academic-rules[/{rule_id}]`, `…/ambiguities[/{id}]` | `/api/academic-rules…`, `/api/ambiguities…` |
+| `/api/v1/reclamation/documents[/{id}]` | `/api/documents…` |
+| `/api/v1/reclamation/health` | `/api/health` (a token is still required at the Gateway) |
+
+Trailing slashes stay optional, and methods and query strings are kept. `/api/v1/reclamation/api/…`
+becomes `/api/api/…` (JSON 404): no doubled or stripped `/api`.
+
+**Run the service with waitress behind the Gateway, not runserver:**
+
+```powershell
+python -m waitress --listen=127.0.0.1:8087 config.wsgi:application   # terminal 1
+python manage.py eureka_register                                     # terminal 2
+```
+
+The Gateway forwards request bodies chunked, without `Content-Length`. Django reads exactly
+`Content-Length` bytes, so under `runserver` every POST / PUT / PATCH / upload would arrive empty.
+waitress turns chunked bodies into normal ones. A chunked body that cannot be read now gets `411`
+with an explanation (`config/middleware.py`) instead of being processed as empty. Direct calls
+(curl, Postman, tests) send `Content-Length` and work with both servers.
+
+What the Gateway does (measured 2026-11-11 on a scratch copy with this route, the real
+`eureka_register` agent and a local stub Keycloak/Eureka; not yet with the team's live servers):
+
+- **Authentication:** the Gateway checks the token (signature, issuer, expiry) and forwards the
+  `Authorization` header unchanged; this service checks it again and applies roles and ownership.
+  A missing, invalid or expired token gets `401` from the Gateway, and the service is not called.
+  Service answers (`400`, `403`, `404`, `409`, `411`, `413`, `422`, `503`…) come back unchanged.
+- `OPTIONS` without a token is let through by the Gateway (CORS); the service answers it `401`.
+  CORS preflights are answered by the Gateway itself.
+- **Pagination links:** the Gateway sends the service's own `Host` and no `X-Forwarded-*`, so
+  set `PUBLIC_API_URL=http://localhost:8080/api/v1/reclamation`; `next` / `previous` then go
+  through the Gateway instead of exposing `http://localhost:8087/…`.
+- **Bodies and queries:** JSON and multipart bodies (25 MB tested) arrive byte for byte; the Gateway adds
+  `;charset=UTF-8` to the request `Content-Type` and re-encodes `+` as `%20` in queries (same meaning).
+- **No read timeout** at the Gateway (a slow RAG answer is waited for).
+- **Service down:** the Gateway answers **500** (both while the stopped instance is still listed
+  and once it is deregistered). The optional, Gateway-wide
+  [`docs/gateway/02-optional-service-unavailable-503.patch`](docs/gateway/02-optional-service-unavailable-503.patch)
+  makes it `503` (tested). Stop `eureka_register` **before** the server: it deregisters at once;
+  otherwise the stopped instance stays listed for up to ~30 s (agent) + the Gateway's caches.
+- In Docker, `Host` will be the advertised `EUREKA_INSTANCE_HOST`: add it to `DJANGO_ALLOWED_HOSTS`.
 
 ## Authentication (Keycloak)
 
@@ -581,6 +693,12 @@ Add real student questions to `data/regulation/eval_questions.json`.
 
 ## Not done yet (needs input)
 
+- API Gateway route: prepared and tested on a scratch copy (see "API Gateway"); waiting for the
+  Gateway owner's approval of `/api/v1/reclamation/**`, then a live test with the team's Keycloak,
+  Eureka and Gateway.
+- Role rules for `/api/documents` writes: today every authenticated role (students included) can
+  upload, replace or delete regulation PDFs, also through the Gateway. To decide (ADMIN only?).
+
 - Reclamations: suggested related regulation rules on creation — deferred. The hybrid retriever
   would send the student's (private) reclamation text to the external embedding provider inside
   the create request (latency, rate-limit waits). Keyword-only (BM25) suggestions work offline and
@@ -588,6 +706,5 @@ Add real student questions to `data/regulation/eval_questions.json`.
   they first need a relevance threshold evaluated on labelled examples.
 - `POST /api/recommendations/` — needs `campushub_recommendation_engine.py` (referenced by the
   guide, not in this repo) and an authorized student snapshot from the Enrollment/Evaluation services.
-- Role rules — e.g. whether `/api/documents` writes are restricted to `ADMIN` (not decided yet).
-- Gateway route + Eureka registration + Dockerfile.
+- Dockerfile (with the Gunicorn / waitress check of "Configuration").
 - Reranking with a cross-encoder (e.g. bge-reranker) — RRF is the current ranking step.

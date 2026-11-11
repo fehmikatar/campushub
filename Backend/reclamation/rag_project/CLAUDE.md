@@ -18,6 +18,14 @@ Cloud API Gateway). Two functionalities:
   `ingest_regulation`, `eval_rag`, the read-only rules/ambiguities API, French search keywords.
 - `documents/` owns `Document`, PDF ingestion (`ingest_pdfs`, `/api/documents` upload/replace/delete),
   `rebuild_index`, `ask`.
+- `discovery/` = Eureka registration only (`discovery/eureka.py`, `manage.py eureka_register`), as
+  RECLAMATION-SERVICE on port 8087, health `/api/health`. Never start it from `AppConfig.ready()`
+  or any import: it is a separate process; Django must keep working without Eureka.
+- API Gateway (route `/api/v1/reclamation/**` -> `/api/**`, `lb://reclamation-service`, owned by the
+  Gateway team): it forwards bodies chunked without Content-Length, which Django reads as empty.
+  Behind it, serve with waitress (README "API Gateway"); `config/middleware.RejectUnreadableBody`
+  (first middleware) answers 411 instead of processing an empty body. Keep both. Page links go
+  through `reclamations.views.public_link` (`PUBLIC_API_URL`), never the service's own address.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
   Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
   goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
@@ -100,7 +108,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 217 tests (172 offline + 45 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 246 tests (200 offline + 46 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

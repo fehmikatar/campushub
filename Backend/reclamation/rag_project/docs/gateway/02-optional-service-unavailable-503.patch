@@ -1,0 +1,33 @@
+diff --git a/Backend/api-gateway/src/main/java/com/campushub/apigateway/config/ServiceUnavailableHandler.java b/Backend/api-gateway/src/main/java/com/campushub/apigateway/config/ServiceUnavailableHandler.java
+new file mode 100644
+index 0000000..30d6aff
+--- /dev/null
++++ b/Backend/api-gateway/src/main/java/com/campushub/apigateway/config/ServiceUnavailableHandler.java
+@@ -0,0 +1,27 @@
++package com.campushub.apigateway.config;
++
++import org.springframework.http.HttpStatus;
++import org.springframework.http.ProblemDetail;
++import org.springframework.web.bind.annotation.ExceptionHandler;
++import org.springframework.web.bind.annotation.RestControllerAdvice;
++import org.springframework.web.client.HttpServerErrorException;
++import org.springframework.web.client.ResourceAccessException;
++
++/**
++ * Un service route indisponible repond 503 (et non 500) : aucune instance dans Eureka,
++ * ou instance encore listee mais injoignable (connexion refusee, timeout).
++ * Les reponses d'erreur des services eux-memes (4xx/5xx) ne passent pas ici : elles sont relayees telles quelles.
++ */
++@RestControllerAdvice
++public class ServiceUnavailableHandler {
++
++    @ExceptionHandler(ResourceAccessException.class)
++    public ProblemDetail unreachable(ResourceAccessException e) {
++        return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable.");
++    }
++
++    @ExceptionHandler(HttpServerErrorException.class)
++    public ProblemDetail noInstance(HttpServerErrorException e) {
++        return ProblemDetail.forStatusAndDetail(e.getStatusCode(), "Service temporarily unavailable.");
++    }
++}

@@ -18,3 +18,7 @@ PyJWT[crypto]>=2.15,<3
 # Production WSGI server for the Linux container. Unix only, so it is skipped on Windows, where
 # local development keeps using `manage.py runserver`.
 gunicorn>=26.2,<27; sys_platform != "win32"
+# Server to use behind the API Gateway (Windows and Linux). The Gateway forwards request bodies
+# chunked, without Content-Length; waitress turns them into normal bodies. runserver does not
+# (Django would read them as empty; config/middleware.py answers 411 instead).
+waitress>=3,<4

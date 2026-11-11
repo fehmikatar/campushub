@@ -7,6 +7,7 @@ All environment-specific values (secrets, model names, paths) come from a
 
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
@@ -78,10 +79,12 @@ INSTALLED_APPS = [
     "rag",           # Pure service layer: chunk -> embed -> store -> hybrid retrieve -> generate -> verify
     "chat",          # Conversations + /api/academic-assistant/ask
     "reclamations",  # Student reclamations (MongoDB) + /api/reclamations
+    "discovery",     # Eureka registration: `manage.py eureka_register` only, nothing at startup
 ]
 
 # Bearer-only APIs do not authenticate with cookies.
 MIDDLEWARE = [
+    "config.middleware.RejectUnreadableBody",  # chunked body without Content-Length -> 411, never "empty"
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -152,6 +155,47 @@ KEYCLOAK_ISSUER_URI = (env("KEYCLOAK_ISSUER_URI") or "").strip()
 # In Docker: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
 KEYCLOAK_JWKS_URI = (env("KEYCLOAK_JWKS_URI") or "").strip()
 
+
+# --------------------------------------------------------------------------
+# Eureka (service discovery). Registration is done ONLY by `python manage.py eureka_register`,
+# run next to the web server (like Notification's `php artisan eureka:register`): starting
+# Django, tests or migrations never contact Eureka. See discovery/eureka.py.
+# --------------------------------------------------------------------------
+def env_text(key, default):
+    return (env(key) or "").strip() or default
+
+
+def env_port(key, default):
+    value = env_text(key, str(default))
+    if not value.isdigit() or not 1 <= int(value) <= 65535:
+        raise ImproperlyConfigured(f"{key} must be a TCP port number (1-65535).")
+    return int(value)
+
+
+EUREKA = {
+    # Like Forum (EUREKA_ENABLED !== 'false'): on unless explicitly switched off
+    "ENABLED": env_text("EUREKA_ENABLED", "true").lower() not in {"false", "0", "no", "off"},
+    "HOST": env_text("EUREKA_HOST", "localhost"),           # Docker later: eureka-server
+    "PORT": env_port("EUREKA_PORT", 8761),
+    "APP_NAME": env_text("EUREKA_APP_NAME", "reclamation-service"),  # registered as RECLAMATION-SERVICE
+    "INSTANCE_HOST": env_text("EUREKA_INSTANCE_HOST", "localhost"),  # the name other services call
+    "INSTANCE_PORT": env_port("EUREKA_INSTANCE_PORT", 8087),        # where this service listens
+    "INSTANCE_IP": env_text("EUREKA_INSTANCE_IP", "127.0.0.1"),
+}
+
+# --------------------------------------------------------------------------
+# API Gateway. The address clients use for this service's /api, i.e. the Gateway route, e.g.
+# http://localhost:8080/api/v1/reclamation. The pagination links (next / previous) are built with
+# it, so they never point at this service's own address. Empty = the address the request was sent
+# to (direct access, tests). The Gateway sends no X-Forwarded-* headers to rebuild it from.
+# --------------------------------------------------------------------------
+PUBLIC_API_URL = env_text("PUBLIC_API_URL", "").rstrip("/")
+if PUBLIC_API_URL:
+    _public = urlsplit(PUBLIC_API_URL)
+    if _public.scheme not in ("http", "https") or not _public.netloc or _public.query or _public.fragment:
+        raise ImproperlyConfigured("PUBLIC_API_URL must be an http(s) URL without query, "
+                                   "e.g. http://localhost:8080/api/v1/reclamation (or empty).")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -159,6 +203,7 @@ LOGGING = {
     "loggers": {
         "rag": {"handlers": ["console"], "level": env("RAG_LOG_LEVEL", "INFO")},
         "reclamations": {"handlers": ["console"], "level": env("RECLAMATIONS_LOG_LEVEL", "INFO")},
+        "discovery": {"handlers": ["console"], "level": env("EUREKA_LOG_LEVEL", "INFO")},
     },
 }
 
