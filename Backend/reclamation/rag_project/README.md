@@ -53,14 +53,18 @@ Changing `EMBED_MODEL` requires `python manage.py rebuild_index --yes`.
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-copy .env.example .env
+copy .env.example .env                  # turns DJANGO_DEBUG on for local development
 python manage.py migrate
 python manage.py ingest_regulation      # imports the 3 JSON files from data/regulation/
 python manage.py eval_rag               # retrieval quality on 20 test questions
+python manage.py test                   # offline tests: fake providers, temporary index
 python manage.py runserver              # API on http://127.0.0.1:8000/api/...
 ```
 
 Linux / macOS: `source .venv/bin/activate` and `cp .env.example .env`.
+
+The `.env` matters: without it (or without `DJANGO_DEBUG=True`) the settings start in production
+mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configuration](#configuration)).
 
 ## Commands
 
@@ -71,7 +75,40 @@ Linux / macOS: `source .venv/bin/activate` and `cp .env.example .env`.
 | `rebuild_index --yes` | Wipe all vectors and re-import everything (**after changing `EMBED_MODEL`**) |
 | `ask "question" [--evidence] [--year 2026-2027]` | Ask in the terminal; `--evidence` shows retrieval only |
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
-| `test` | 43 tests, no Ollama/API needed |
+| `test` | 55 tests, offline: no Ollama/API needed; never touches `db.sqlite3` or `data/chroma` |
+
+## Configuration
+
+Everything comes from environment variables (the `.env` file locally). Paths: relative = inside
+this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
+
+| Variable | Local default | Container (Dockerfile comes later) |
+|---|---|---|
+| `DJANGO_DEBUG` | `True`, set by `.env.example` (**off** when missing or empty) | `False` |
+| `DJANGO_SECRET_KEY` | `change-me`, accepted only while DEBUG is on | random, 50+ characters (required when DEBUG is off) |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | the service's Docker host name, `localhost`, `127.0.0.1` |
+| `DJANGO_DB_PATH` | `db.sqlite3` in this folder | `/app/data/db.sqlite3` |
+| `RAG_CHROMA_DIR` | `data/chroma` | `/app/data/chroma` |
+| `RAG_PDF_DIR` | `data/pdfs` | `/app/data/pdfs` |
+| `RAG_REGULATION_DIR` | `data/regulation` | the dataset shipped in the image, outside the volume |
+| `EMBED_*`, `LLM_*` | see [Models](#1-models) | passed by the deployment (the API key is a secret) |
+
+- With DEBUG off, the service **refuses to start** if `DJANGO_SECRET_KEY` is missing or weak (the
+  rule of `manage.py check --deploy`). Generate one with
+  `python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"`.
+- Keep SQLite, Chroma and the uploaded PDFs in **one** volume. The database records what is indexed
+  (`ingest_regulation` skips files it already imported), so losing one without the other leaves an
+  empty index that is not rebuilt automatically (fix: `ingest_regulation --force`).
+- SQLite does not create folders: the folder of `DJANGO_DB_PATH` must exist (a Docker volume does).
+  The Chroma and PDF folders are created when needed.
+- The regulation dataset is read-only and versioned with the code. A volume mounted at `/app/data`
+  would hide the image's `/app/data/regulation`, so `RAG_REGULATION_DIR` must then point elsewhere
+  (decided with the Dockerfile).
+- Production server: Gunicorn (Linux only; `requirements.txt` skips it on Windows, where
+  `runserver` stays the local command):
+  `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 8`.
+  One worker because Chroma's local storage and the in-memory keyword index belong to one process;
+  threads because an answer mostly waits 4–15 s for the LLM. The port is not decided yet.
 
 ## REST API
 

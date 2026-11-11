@@ -8,6 +8,7 @@ All environment-specific values (secrets, model names, paths) come from a
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -30,12 +31,38 @@ def env_float(key, default):
     return float(env(key, default))
 
 
+def env_path(key, default):
+    """A file or folder setting. Unset or empty -> `default`. Relative paths are resolved against
+    BASE_DIR; absolute ones (e.g. a Docker volume such as /app/data) are used as they are."""
+    return BASE_DIR / ((env(key) or "").strip() or default)
+
+
+# Same threshold as Django's own deployment check (`manage.py check --deploy`, security.W009)
+SECRET_KEY_MIN_LENGTH = 50
+
+
+def is_strong_secret_key(value: str) -> bool:
+    return (len(value) >= SECRET_KEY_MIN_LENGTH and len(set(value)) >= 5
+            and not value.startswith("django-insecure-"))
+
+
 # --------------------------------------------------------------------------
 # Core Django
 # --------------------------------------------------------------------------
-SECRET_KEY = env("DJANGO_SECRET_KEY", "django-insecure-change-me-in-production")
-DEBUG = env_bool("DJANGO_DEBUG", True)
-ALLOWED_HOSTS = [h for h in env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if h]
+# Secure by default: with no .env (e.g. in a container) DEBUG is off and a real secret key is
+# required. Local development switches DEBUG on in .env (see .env.example).
+DEBUG = env_bool("DJANGO_DEBUG", False)
+SECRET_KEY = (env("DJANGO_SECRET_KEY") or "").strip()
+if not DEBUG and not is_strong_secret_key(SECRET_KEY):
+    raise ImproperlyConfigured(
+        f"DJANGO_SECRET_KEY must be a random value of at least {SECRET_KEY_MIN_LENGTH} characters "
+        "when DJANGO_DEBUG is off. Generate one with: python -c \"from django.core.management.utils "
+        "import get_random_secret_key; print(get_random_secret_key())\". "
+        "For local development, copy .env.example to .env (it sets DJANGO_DEBUG=True)."
+    )
+SECRET_KEY = SECRET_KEY or "django-insecure-change-me-in-production"  # DEBUG on: local development only
+ALLOWED_HOSTS = [h.strip() for h in (env("DJANGO_ALLOWED_HOSTS") or "localhost,127.0.0.1").split(",")
+                 if h.strip()]
 
 # REST API only: no admin, templates, sessions or static files. Callers authenticate with a
 # JWT at the API Gateway (stateless), so there is no cookie session and no CSRF middleware.
@@ -57,10 +84,12 @@ APPEND_SLASH = False
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# SQLite file. Default: db.sqlite3 in the project folder. In Docker: DJANGO_DB_PATH=/app/data/db.sqlite3
+# (same volume as Chroma and the uploaded PDFs). SQLite does not create missing folders.
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": env_path("DJANGO_DB_PATH", "db.sqlite3"),
     }
 }
 
@@ -86,12 +115,12 @@ LOGGING = {
 # Just change BASE_URL / API_KEY / MODEL in .env.
 RAG = {
     # Extra PDFs (syllabus, guides…) for `ingest_pdfs` and POST /api/documents
-    "PDF_DIR": BASE_DIR / env("RAG_PDF_DIR", "data/pdfs"),
+    "PDF_DIR": env_path("RAG_PDF_DIR", "data/pdfs"),
     "MAX_UPLOAD_MB": env_int("RAG_MAX_UPLOAD_MB", 20),
     # Prepared regulation dataset (page chunks, rules, ambiguities) for `ingest_regulation`
-    "REGULATION_DIR": BASE_DIR / env("RAG_REGULATION_DIR", "data/regulation"),
+    "REGULATION_DIR": env_path("RAG_REGULATION_DIR", "data/regulation"),
     # ChromaDB persistent storage: 3 collections
-    "CHROMA_DIR": BASE_DIR / env("RAG_CHROMA_DIR", "data/chroma"),
+    "CHROMA_DIR": env_path("RAG_CHROMA_DIR", "data/chroma"),
     "COLLECTION_PAGES": env("RAG_COLLECTION_PAGES", "source_chunks"),
     "COLLECTION_RULES": env("RAG_COLLECTION_RULES", "academic_rules"),
     "COLLECTION_AMBIGUITIES": env("RAG_COLLECTION_AMBIGUITIES", "ambiguities"),
