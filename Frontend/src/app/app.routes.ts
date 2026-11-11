@@ -1,12 +1,25 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard, roleGuard } from './core/auth/auth.guards';
 
+const courseWorkspace = () =>
+  import('./features/courses/course-workspace').then((m) => m.CourseWorkspace);
+
 const placeholder = () => import('./features/placeholder/placeholder').then((m) => m.Placeholder);
 
 export const routes: Routes = [
-  { path: 'login', canActivate: [guestGuard], loadComponent: () => import('./features/auth/login').then((m) => m.Login) },
-  { path: 'forbidden', loadComponent: () => import('./features/auth/status-page').then((m) => m.Forbidden) },
-  { path: 'session-expired', loadComponent: () => import('./features/auth/status-page').then((m) => m.SessionExpired) },
+  {
+    path: 'login',
+    canActivate: [guestGuard],
+    loadComponent: () => import('./features/auth/login').then((m) => m.Login),
+  },
+  {
+    path: 'forbidden',
+    loadComponent: () => import('./features/auth/status-page').then((m) => m.Forbidden),
+  },
+  {
+    path: 'session-expired',
+    loadComponent: () => import('./features/auth/status-page').then((m) => m.SessionExpired),
+  },
   {
     path: '',
     canActivate: [authGuard],
@@ -14,14 +27,27 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'accueil' },
       // Écrans des lots suivants : pages provisoires avec le bon contrôle d'accès.
-      { path: 'accueil', loadComponent: () => import('./features/home/home-page').then((m) => m.HomePage) },
+      {
+        path: 'accueil',
+        loadComponent: () => import('./features/home/home-page').then((m) => m.HomePage),
+      },
       {
         path: 'mes-cours',
         canActivate: [roleGuard('ETUDIANT', 'ENSEIGNANT')],
-        loadComponent: placeholder,
-        data: { title: 'Mes cours' },
+        loadComponent: courseWorkspace,
+        data: { view: 'mine' },
       },
-      { path: 'catalogue', canActivate: [roleGuard('ETUDIANT')], loadComponent: placeholder, data: { title: 'Catalogue' } },
+      {
+        path: 'catalogue',
+        canActivate: [roleGuard('ETUDIANT')],
+        loadComponent: courseWorkspace,
+        data: { view: 'catalogue' },
+      },
+      {
+        path: 'courses',
+        canActivate: [authGuard],
+        loadChildren: () => import('./features/courses/course.routes').then((m) => m.COURSE_ROUTES),
+      },
       { path: 'forum', loadComponent: placeholder, data: { title: 'Forum' } },
       {
         path: 'evaluations',
@@ -31,11 +57,13 @@ export const routes: Routes = [
       },
       {
         path: 'notifications',
-        loadComponent: () => import('./features/notifications/notifications-page').then((m) => m.NotificationsPage),
+        loadComponent: () =>
+          import('./features/notifications/notifications-page').then((m) => m.NotificationsPage),
       },
       {
         path: 'notifications/preferences',
-        loadComponent: () => import('./features/notifications/preferences-page').then((m) => m.PreferencesPage),
+        loadComponent: () =>
+          import('./features/notifications/preferences-page').then((m) => m.PreferencesPage),
       },
       {
         path: 'utilisateurs',
@@ -45,7 +73,8 @@ export const routes: Routes = [
       {
         path: 'cours',
         canActivate: [roleGuard('ADMIN')],
-        loadComponent: () => import('./features/admin/courses/admin-courses-page').then((m) => m.AdminCoursesPage),
+        loadComponent: () =>
+          import('./features/admin/courses/admin-courses-page').then((m) => m.AdminCoursesPage),
       },
       {
         path: 'categories',
