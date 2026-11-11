@@ -1,0 +1,28 @@
+.page { display: grid; grid-template-columns: 1fr 1fr; min-height: 100vh; }
+
+.hero {
+  display: flex; flex-direction: column; justify-content: center; gap: 16px; padding: 64px;
+  background: linear-gradient(135deg, var(--sidebar), var(--indigo)); color: #fff;
+}
+.brand { display: flex; align-items: center; gap: 12px; font-size: 24px; font-weight: 600; }
+.hero h1 { margin: 24px 0 0; max-width: 420px; font-size: 32px; line-height: 1.25; }
+.hero p { margin: 0; color: #c7d2fe; max-width: 420px; font-size: 16px; }
+
+.panel { display: grid; place-items: center; padding: 32px; background: var(--bg); }
+.card { width: 100%; max-width: 400px; display: grid; gap: 16px; padding: 32px; }
+.card h2 { margin: 0; }
+.hint { margin: -8px 0 0; color: var(--text-muted); }
+.register { margin: 0; text-align: center; color: var(--text-muted); }
+.link { border: 0; background: transparent; padding: 0; font: inherit; font-weight: 500; color: var(--indigo); cursor: pointer; }
+.link:hover { text-decoration: underline; }
+.password { position: relative; display: block; }
+.password input { padding-right: 44px; }
+.toggle {
+  position: absolute; right: 4px; top: 4px; width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; background: transparent; color: var(--text-muted); cursor: pointer; border-radius: 6px;
+}
+
+@media (max-width: 900px) {
+  .page { grid-template-columns: 1fr; }
+  .hero { display: none; }
+}

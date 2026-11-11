@@ -1,0 +1,86 @@
+<header class="head">
+  <h1>Cours</h1>
+  <div class="filters">
+    <select [(ngModel)]="statut" (ngModelChange)="filter()" aria-label="Filtrer par statut">
+      <option value="">Tous les statuts</option>
+      @for (status of statuses; track status) {
+        <option [value]="status">{{ labels[status] }}</option>
+      }
+    </select>
+    <select [(ngModel)]="categorie" (ngModelChange)="filter()" aria-label="Filtrer par catégorie">
+      <option value="">Toutes les catégories</option>
+      @for (name of categories(); track name) {
+        <option [value]="name">{{ name }}</option>
+      }
+    </select>
+  </div>
+</header>
+
+@if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger les cours.
+    <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading() && !result()) {
+  <p class="muted">Chargement...</p>
+} @else if (result(); as page) {
+  @if (page.data.length === 0) {
+    <div class="empty card">
+      <h2>Aucun cours</h2>
+      <p class="muted">{{ statut || categorie ? 'Aucun cours ne correspond à ces filtres.' : 'Les cours créés par les enseignants apparaîtront ici.' }}</p>
+    </div>
+  } @else {
+    <div class="card table-card">
+      <table>
+        <thead>
+          <tr><th>Titre</th><th>Catégorie</th><th>Formateur</th><th>Chapitres</th><th>Statut</th><th>Créé le</th><th class="right">Actions</th></tr>
+        </thead>
+        <tbody>
+          @for (course of page.data; track course.id) {
+            <tr>
+              <td><strong>{{ course.titre }}</strong></td>
+              <td>{{ course.categorie }}</td>
+              <td class="muted" [title]="course.formateurId">{{ shortId(course.formateurId) }}…</td>
+              <td>{{ course.nbChapitres }}</td>
+              <td><span class="pill" [class]="'pill ' + tones[course.statut]">{{ labels[course.statut] }}</span></td>
+              <td class="muted">{{ course.createdAt | date: 'dd/MM/yyyy' }}</td>
+              <td class="right">
+                <button type="button" class="icon-btn" [disabled]="!canPublish(course) || busy()" [attr.title]="publishTitle(course)" [attr.aria-label]="publishTitle(course)" (click)="publish(course)">
+                  <app-icon [name]="icons.send" [size]="16" />
+                </button>
+                <button type="button" class="icon-btn" [disabled]="course.statut !== 'PUBLIE' || busy()" title="Archiver" aria-label="Archiver" (click)="archive(course)">
+                  <app-icon [name]="icons.archive" [size]="16" />
+                </button>
+                <button type="button" class="icon-btn danger" [disabled]="busy()" title="Supprimer" aria-label="Supprimer" (click)="toDelete.set(course)">
+                  <app-icon [name]="icons.trash" [size]="16" />
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (totalPages > 1) {
+      <nav class="pager" aria-label="Pagination">
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() <= 1" (click)="goTo(currentPage() - 1)">
+          <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+        </button>
+        <span class="muted">Page {{ currentPage() }} sur {{ totalPages }} ({{ page.total }} cours)</span>
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() >= totalPages" (click)="goTo(currentPage() + 1)">
+          Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+        </button>
+      </nav>
+    }
+  }
+}
+
+@if (toDelete(); as course) {
+  <app-confirm-dialog
+    title="Supprimer ce cours ?"
+    [message]="'Le cours « ' + course.titre + ' » et ses chapitres seront supprimés définitivement.'"
+    [busy]="busy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="toDelete.set(null)"
+  />
+}

@@ -1,0 +1,17 @@
+:host { display: block; max-width: 860px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.head h1 { margin: 0; }
+.actions { display: flex; gap: 8px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+.tabs button {
+  height: 36px; padding: 0 16px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--card); font: inherit; color: var(--text); cursor: pointer;
+}
+.tabs button.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+.list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.muted { margin: 0; color: var(--text-muted); }
+.empty { display: grid; justify-items: center; gap: 8px; padding: 64px 16px; text-align: center; }
+.empty h2 { margin: 8px 0 0; }
+.empty-icon { display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo); }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 20px; }
+.link { border: 0; background: transparent; color: var(--indigo); font: inherit; text-decoration: underline; cursor: pointer; }

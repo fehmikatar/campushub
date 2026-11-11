@@ -1,0 +1,26 @@
+# Tout ce qui est déjà produit localement (reconstruit dans l'image)
+bin/
+obj/
+**/bin/
+**/obj/
+*.user
+
+# Tests et outils locaux : inutiles au runtime et à l'image de migration
+EvaluationService.Tests/
+tools/
+
+# Configuration et secrets locaux (jamais dans l'image)
+.env
+.env.*
+!.env.example
+
+# Divers
+.git/
+.gitignore
+.qoder/
+.vs/
+.vscode/
+.idea/
+README.md
+Dockerfile
+.dockerignore
