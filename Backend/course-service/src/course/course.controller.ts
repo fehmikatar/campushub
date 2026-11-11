@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Put, Query, Req,
+  Body, Controller, Delete, Get, HttpCode, Param, ParseIntPipe, Patch, Post, Put, Query,
   UploadedFile, UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -8,7 +8,6 @@ import {
   ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation,
   ApiPayloadTooLargeResponse, ApiTags, ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { CourseService } from './course.service.js';
 import { Course } from './course.entity.js';
 import {
@@ -54,16 +53,14 @@ export class CourseController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Consulter un cours avec ses chapitres (inclut nbQuiz depuis evaluation-service)' })
+  @ApiOperation({ summary: 'Consulter un cours avec ses chapitres (sans appel a Evaluation)' })
   @ApiOkResponse({ type: Course })
   @ApiNotFoundResponse({ description: 'Cours introuvable (ou non publie pour un etudiant)' })
   findOne(
     @Param('id', ParseIntPipe) id: number,
     @CurrentUser() user: AuthUser,
-    @Req() req: Request,
   ) {
-    const authHeader = req.headers.authorization;
-    return this.service.findOneFor(id, user, authHeader);
+    return this.service.findOneFor(id, user);
   }
 
   @Put(':id')

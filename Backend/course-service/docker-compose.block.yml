@@ -1,0 +1,39 @@
+  course-service:
+    build: ./Backend/course-service
+    depends_on:
+      course-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      PORT: "8082"
+      DB_HOST: course-db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_NAME: course_db
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      EUREKA_ENABLED: "true"
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: "8761"
+      EUREKA_INSTANCE_HOST: course-service
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    restart: unless-stopped
+
+  course-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: course_db
+    volumes:
+      - course_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d course_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped

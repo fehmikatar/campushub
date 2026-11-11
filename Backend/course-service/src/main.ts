@@ -19,8 +19,11 @@ async function bootstrap() {
   // 2. Créer l'app Nest normalement (plus de wrapper module)
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // Meme secret que le User Service (HS256) : sans lui, aucun token ne peut etre verifie
-  if (Buffer.byteLength(process.env.JWT_SECRET ?? '', 'utf8') < 32) {
+  // Validation selon le mode d'authentification :
+  // - Mode Keycloak (RS256) : KEYCLOAK_ISSUER_URI defini -> pas de JWT_SECRET requis
+  // - Mode Legacy (HS256)    : KEYCLOAK_ISSUER_URI non defini -> JWT_SECRET obligatoire (min 32 octets)
+  const isKeycloakMode = !!process.env.KEYCLOAK_ISSUER_URI;
+  if (!isKeycloakMode && Buffer.byteLength(process.env.JWT_SECRET ?? '', 'utf8') < 32) {
     throw new Error('JWT_SECRET est absent ou trop court (minimum 32 octets) : voir .env.example');
   }
   app.enableCors();
