@@ -13,6 +13,9 @@
       <h2>Connexion</h2>
       <p class="hint">Connectez-vous avec votre compte universitaire.</p>
 
+      @if (justRegistered()) {
+        <div class="notice" role="status">Votre compte est créé. Connectez-vous avec vos identifiants.</div>
+      }
       @if (error(); as message) {
         <div class="alert" role="alert">{{ message }}</div>
       }
@@ -41,6 +44,11 @@
       <button type="submit" class="btn btn-primary" [disabled]="loading()">
         {{ loading() ? 'Connexion...' : 'Se connecter' }}
       </button>
+
+      <p class="register">
+        Pas encore de compte ?
+        <button type="button" class="link" (click)="register()">Créer un compte</button>
+      </p>
     </form>
   </section>
 </div>

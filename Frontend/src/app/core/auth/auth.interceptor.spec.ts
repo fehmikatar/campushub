@@ -75,6 +75,16 @@ describe('authInterceptor', () => {
     expect(navigate).toHaveBeenCalledWith(['/forbidden']);
   });
 
+  it("ajoute le token à l'API d'administration de Keycloak et laisse l'écran gérer un 403", () => {
+    const url = 'http://localhost:8180/admin/realms/campushub/users';
+    client.get(url).subscribe({ error: () => undefined });
+
+    const request = http.expectOne(url);
+    expect(request.request.headers.get('Authorization')).toBe('Bearer old-token');
+    request.flush({}, { status: 403, statusText: 'Forbidden' });
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
   it('sur 503 affiche un message de service indisponible', () => {
     client.get(API).subscribe({ error: () => undefined });
     http.expectOne(API).flush({}, { status: 503, statusText: 'Service Unavailable' });

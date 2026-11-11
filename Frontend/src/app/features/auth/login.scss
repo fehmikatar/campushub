@@ -12,6 +12,9 @@
 .card { width: 100%; max-width: 400px; display: grid; gap: 16px; padding: 32px; }
 .card h2 { margin: 0; }
 .hint { margin: -8px 0 0; color: var(--text-muted); }
+.register { margin: 0; text-align: center; color: var(--text-muted); }
+.link { border: 0; background: transparent; padding: 0; font: inherit; font-weight: 500; color: var(--indigo); cursor: pointer; }
+.link:hover { text-decoration: underline; }
 .password { position: relative; display: block; }
 .password input { padding-right: 44px; }
 .toggle {

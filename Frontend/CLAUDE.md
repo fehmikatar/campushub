@@ -111,7 +111,8 @@ Les erreurs ne sont pas au même format selon le service : lire `message` s'il e
   changement de mot de passe = lien vers la console de compte Keycloak.
 
 ## Écarts maquettes / API (décisions déjà prises)
-1. Connexion : un seul formulaire, sans bouton Keycloak, sans « Créer un compte », sans « Mot de passe oublié ».
+1. Connexion : un seul formulaire, sans bouton Keycloak, sans « Mot de passe oublié ». Le lien « Créer un compte » ouvre la page
+   d'inscription de Keycloak (`registrationAllowed` dans le realm ; les nouveaux comptes ont le rôle ETUDIANT par défaut).
 2. En-tête : prénom, nom, rôle (jamais de matricule). Cartes de cours : image, titre, catégorie, nb chapitres, formateur
    (nom du formateur indisponible → afficher « Formateur » tant que `UserDirectoryService` renvoie null). Pas d'étoiles.
 3. Écran 4 « Détail d'un cours » : « S'inscrire » inactif (Enrollment absent). Surligner « Catalogue » dans le menu.

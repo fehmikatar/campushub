@@ -1,4 +1,5 @@
 import {
+  Archive,
   Award,
   Bell,
   BellOff,
@@ -20,18 +21,26 @@ import {
   LogOut,
   Megaphone,
   MessageSquare,
+  Pencil,
+  Plus,
+  RefreshCw,
   Search,
+  Send,
   Settings,
   ShieldAlert,
   Tags,
   Trash2,
+  UserCheck,
+  UserX,
   Users,
+  X,
 } from 'lucide';
 import { IconData } from './icon';
 
 const icon = (data: unknown) => data as IconData;
 
 export const Icons = {
+  archive: icon(Archive),
   award: icon(Award),
   bell: icon(Bell),
   bellOff: icon(BellOff),
@@ -53,10 +62,17 @@ export const Icons = {
   logOut: icon(LogOut),
   megaphone: icon(Megaphone),
   messageSquare: icon(MessageSquare),
+  pencil: icon(Pencil),
+  plus: icon(Plus),
+  refresh: icon(RefreshCw),
   search: icon(Search),
+  send: icon(Send),
   settings: icon(Settings),
   shieldAlert: icon(ShieldAlert),
   tags: icon(Tags),
   trash: icon(Trash2),
+  userCheck: icon(UserCheck),
+  userX: icon(UserX),
   users: icon(Users),
+  x: icon(X),
 };
