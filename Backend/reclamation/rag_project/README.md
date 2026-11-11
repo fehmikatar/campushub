@@ -91,7 +91,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
 | `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
-| `test` | 246 tests: no Ollama/API/Keycloak/Eureka/Gateway needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 283 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
@@ -100,6 +100,8 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `test tests.test_reclamations_identity` | 9 real MongoDB ownership and migration tests |
 | `test tests.test_conversation_ownership` | 10 private-conversation tests (RAG), no MongoDB required |
 | `test tests.test_eureka` | 21 Eureka registration tests against a local fake Eureka (no real Eureka) |
+| `test tests.test_course_client` | 20 Course check tests against local fake Course / Eureka servers (5 need MongoDB) |
+| `test tests.test_events` | 17 RabbitMQ event tests with a fake broker connection (7 need MongoDB) |
 
 ## Configuration
 
@@ -126,6 +128,9 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
 | `EUREKA_INSTANCE_HOST`, `EUREKA_INSTANCE_PORT` | `localhost`, `8087` | the service's Docker host name, `8087` |
 | `EUREKA_INSTANCE_IP` | `127.0.0.1` (like Forum / Notification) | to be decided with the Dockerfile |
 | `PUBLIC_API_URL` | empty (page links use the address the request was sent to) | the Gateway address of `/api`, e.g. `http://localhost:8080/api/v1/reclamation` |
+| `COURSE_SERVICE_URL` | empty = Eureka lookup of `COURSE-SERVICE` | `http://course-service:8082` |
+| `RABBITMQ_URL` | empty = no event published | `amqp://guest:guest@rabbitmq:5672` (a secret if it holds a real password) |
+| `RECLAMATION_EVENTS_ENABLED`, `RECLAMATION_EVENTS_QUEUE` | `false`, `reclamation.events` (not approved yet) | `true` only once Notification consumes the queue |
 
 - With DEBUG off, the service **refuses to start** if `DJANGO_SECRET_KEY` is missing or weak (the
   rule of `manage.py check --deploy`). Generate one with
@@ -258,7 +263,7 @@ Every path works with or without the trailing slash. JSON in, JSON out (`charset
 | Method | Endpoint | Who | Body / params | Success |
 |---|---|---|---|---|
 | `GET` | `/api/reclamations/` | student (own), admin (all) | `status`, `category`, `priority`, `academic_year`, `search`, `ordering`, `page` | 200 `{count, next, previous, results}` |
-| `POST` | `/api/reclamations/` | student | `category`, `subject`, `description`, `module` (optional), `academic_year` (optional) | 201 reclamation |
+| `POST` | `/api/reclamations/` | student | `category`, `subject`, `description`, `module` (optional), `course_id` (optional, checked with Course), `academic_year` (optional) | 201 reclamation |
 | `GET` | `/api/reclamations/{id}/` | student (own), admin | | 200 reclamation |
 | `PUT` | `/api/reclamations/{id}/` | author, status `new` | `category`, `subject`, `description` (+ `module`) | 200 reclamation |
 | `PATCH` | `/api/reclamations/{id}/` | author, status `new` | any of `category`, `subject`, `description`, `module` | 200 reclamation |
@@ -268,6 +273,7 @@ Every path works with or without the trailing slash. JSON in, JSON out (`charset
 
 - **Fields:** `category` ∈ `grade`, `exam`, `absence`, `registration`, `internship`,
   `administrative`, `other` · `subject` 5–150 characters · `description` 20–5000 · `module` ≤ 100 ·
+  `course_id` a JSON integer 1–2147483647, creation only (see [Course Service](#course-service-synchronous)) ·
   `academic_year` `YYYY-YYYY` with consecutive years (default: `RAG_ACADEMIC_YEAR`, 2026-2027) ·
   `status` ∈ `new`, `in_progress`, `resolved`, `rejected` · `priority` ∈ `low`, `normal` (default), `high`.
   Text is trimmed before the length checks.
@@ -387,7 +393,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 246 total with MongoDB: 200 offline + 46 integration
+python manage.py test --noinput                       # 283 total with MongoDB: 225 offline + 58 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -517,6 +523,66 @@ What the Gateway does (measured 2026-11-11 on a scratch copy with this route, th
   makes it `503` (tested). Stop `eureka_register` **before** the server: it deregisters at once;
   otherwise the stopped instance stays listed for up to ~30 s (agent) + the Gateway's caches.
 - In Docker, `Host` will be the advertised `EUREKA_INSTANCE_HOST`: add it to `DJANGO_ALLOWED_HOSTS`.
+
+## Course Service (synchronous)
+
+Reclamation -> Course, `GET /courses/{id}`, **only when a student creates a reclamation with a
+`course_id`** (optional), following the team's rules for synchronous calls
+(`reclamations/course_client.py`):
+
+- Course is found in Eureka (`COURSE-SERVICE`), or at `COURSE_SERVICE_URL` when it is set
+  (Docker); never through the Gateway.
+- The student's own `Authorization: Bearer …` header is forwarded unchanged. Course checks the
+  Keycloak token itself (RS256, Keycloak mode when its `KEYCLOAK_ISSUER_URI` is set, as in its
+  `.env.example`) and answers 404 to a student for a course that is not published.
+- 3 s at most (Eureka lookup + call together), one attempt, no retry, no redirect followed.
+
+| Course answers | This service answers | Saved |
+|---|---|---|
+| 200 | 201, `course_id` stored | yes |
+| 404 (missing course, or not published for a student) | 404 `{"detail": "Course not found."}` | no |
+| 401 / 403 | the same status | no |
+| timeout, connection refused, not in Eureka, 5xx, anything else | 503 `{"detail": "Course service unavailable, please retry later."}` | no |
+
+Order: token and role (student) -> fields (`course_id` must be a JSON integer 1–2147483647) ->
+Course -> MongoDB. A refused or unavailable course writes nothing (no reclamation, no reference
+number used). `course_id` is set at creation only: PUT / PATCH refuse it, so no other request
+calls Course. Existing reclamations read `course_id: null` (migration `0003` changes no document);
+the free-text `module` stays.
+
+- Not yet in the team's fixed table of synchronous calls: "Reclamation -> Course, refuse (503) if
+  Course is down" has to be added.
+- Live test pending: Course running in Keycloak mode, a published and a draft course, a student token.
+
+## Notification events (RabbitMQ)
+
+Producer only (`reclamations/events.py`, library `pika`), with the team's conventions: default
+exchange, routing key = queue name, persistent JSON (`application/json`), envelope
+`{"event", "occurredAt" (UTC, "2026-11-11T18:00:00Z"), "actorId", "data"}`. Notification is the only
+consumer and declares the queues: this service never declares one.
+
+| Event | Published | `data` | For |
+|---|---|---|---|
+| `reclamation.created` | after the insert | `reclamationId`, `reference`, `studentSub`, `category` | administrators |
+| `reclamation.status_changed` | after the atomic status update | `reclamationId`, `reference`, `studentSub`, `oldStatus`, `newStatus` | the student (`studentSub`) |
+
+- `actorId` = the token's `sub`; `studentSub` = the stored owner (`author_sub`), never a request
+  field. No token, no secret and no free text (subject, description, response) in a message.
+- Nothing is published for a refused request, a failed write, an invalid transition, a 409
+  conflict, student edits / deletions, or a legacy reclamation without a verified owner.
+- **Best effort:** a RabbitMQ failure is logged (never the URL) and never fails the request, which
+  waits 3 s at most for RabbitMQ. Not a transactional outbox: an event can be lost (broker down,
+  process stopped right after the write); this code never sends one twice.
+- **Off by default.** The queue `reclamation.events` and these events are a proposal: Notification
+  consumes only `forum.events`, `evaluation.events` and `course.events`. Publishing needs
+  `RECLAMATION_EVENTS_ENABLED=true` **and** `RABBITMQ_URL`; otherwise no network call is made. Enable
+  it only once Notification declares and consumes the queue (RabbitMQ drops a message sent to a
+  missing queue; this service logs it).
+- Prepared for the Notification owner, not applied:
+  [`docs/notification/01-reclamation-events-consumer.patch`](docs/notification/01-reclamation-events-consumer.patch)
+  declares `reclamation.events`, notifies the student of each status change and, for new
+  reclamations, the administrators listed in `RECLAMATION_ADMIN_IDS` (Keycloak subs): how
+  administrators are found is still to decide.
 
 ## Authentication (Keycloak)
 
@@ -696,8 +762,15 @@ Add real student questions to `data/regulation/eval_questions.json`.
 - API Gateway route: prepared and tested on a scratch copy (see "API Gateway"); waiting for the
   Gateway owner's approval of `/api/v1/reclamation/**`, then a live test with the team's Keycloak,
   Eureka and Gateway.
-- Role rules for `/api/documents` writes: today every authenticated role (students included) can
-  upload, replace or delete regulation PDFs, also through the Gateway. To decide (ADMIN only?).
+- **Security, before any production exposure:** `/api/documents` has no role check. Every
+  authenticated role (students included) can upload, replace or delete knowledge-base PDFs, which
+  changes the answers of the assistant for everyone and spends the embedding provider's quota.
+  Recommended: reads for every role, `POST` / `PUT` / `DELETE` for `ADMIN` only (decision pending);
+  then add 403 tests for ETUDIANT and ENSEIGNANT (refused before any file is read or embedded) and
+  move the existing upload tests, which use a student token, to an admin token.
+- Course check: add "Reclamation -> Course" to the team's table of synchronous calls; live test.
+- RabbitMQ: approval of the queue `reclamation.events`, the two events and the administrator
+  recipients; the Notification patch applied by its owner; only then `RECLAMATION_EVENTS_ENABLED=true`.
 
 - Reclamations: suggested related regulation rules on creation — deferred. The hybrid retriever
   would send the student's (private) reclamation text to the external embedding provider inside

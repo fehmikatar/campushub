@@ -189,12 +189,36 @@ EUREKA = {
 # it, so they never point at this service's own address. Empty = the address the request was sent
 # to (direct access, tests). The Gateway sends no X-Forwarded-* headers to rebuild it from.
 # --------------------------------------------------------------------------
-PUBLIC_API_URL = env_text("PUBLIC_API_URL", "").rstrip("/")
-if PUBLIC_API_URL:
-    _public = urlsplit(PUBLIC_API_URL)
-    if _public.scheme not in ("http", "https") or not _public.netloc or _public.query or _public.fragment:
-        raise ImproperlyConfigured("PUBLIC_API_URL must be an http(s) URL without query, "
-                                   "e.g. http://localhost:8080/api/v1/reclamation (or empty).")
+def env_http_url(key, example):
+    value = env_text(key, "").rstrip("/")
+    if value:
+        parts = urlsplit(value)
+        if parts.scheme not in ("http", "https") or not parts.netloc or parts.query or parts.fragment:
+            raise ImproperlyConfigured(f"{key} must be an http(s) URL without query, e.g. {example} (or empty).")
+    return value
+
+
+PUBLIC_API_URL = env_http_url("PUBLIC_API_URL", "http://localhost:8080/api/v1/reclamation")
+
+# --------------------------------------------------------------------------
+# Synchronous call Reclamation -> Course (reclamations/course_client.py, team rules
+# "communication synchrone"): GET /courses/{id} with the caller's own token, one attempt, 3 s.
+# COURSE_SERVICE_URL (e.g. http://course-service:8082 in Docker) replaces the Eureka lookup of
+# COURSE-SERVICE (EUREKA_HOST / EUREKA_PORT above). Never through the Gateway.
+# --------------------------------------------------------------------------
+COURSE_SERVICE_URL = env_http_url("COURSE_SERVICE_URL", "http://localhost:8082")
+
+# --------------------------------------------------------------------------
+# Asynchronous events Reclamation -> Notification (reclamations/events.py): best effort, published
+# after the MongoDB write, never declares a queue (Notification does). OFF until the team approves
+# the queue and Notification consumes it: RECLAMATION_EVENTS_ENABLED=true AND a RABBITMQ_URL are both
+# needed. Empty RABBITMQ_URL = no publishing (team rule).
+# --------------------------------------------------------------------------
+RABBITMQ_URL = env_text("RABBITMQ_URL", "")
+RECLAMATION_EVENTS = {
+    "ENABLED": env_bool("RECLAMATION_EVENTS_ENABLED", False),
+    "QUEUE": env_text("RECLAMATION_EVENTS_QUEUE", "reclamation.events"),
+}
 
 LOGGING = {
     "version": 1,
@@ -204,6 +228,8 @@ LOGGING = {
         "rag": {"handlers": ["console"], "level": env("RAG_LOG_LEVEL", "INFO")},
         "reclamations": {"handlers": ["console"], "level": env("RECLAMATIONS_LOG_LEVEL", "INFO")},
         "discovery": {"handlers": ["console"], "level": env("EUREKA_LOG_LEVEL", "INFO")},
+        # RabbitMQ client: failures are reported once by reclamations.events (without the URL)
+        "pika": {"level": "CRITICAL"},
     },
 }
 

@@ -13,7 +13,7 @@ import re
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import MinLengthValidator
+from django.core.validators import MaxValueValidator, MinLengthValidator, MinValueValidator
 from django.db import models
 from django_mongodb_backend.fields import EmbeddedModelArrayField, ObjectIdAutoField
 from django_mongodb_backend.models import EmbeddedModel
@@ -21,6 +21,7 @@ from django_mongodb_backend.models import EmbeddedModel
 SUBJECT_MIN_LENGTH, SUBJECT_MAX_LENGTH = 5, 150
 DESCRIPTION_MIN_LENGTH, DESCRIPTION_MAX_LENGTH = 20, 5000
 MODULE_MAX_LENGTH = 100
+COURSE_ID_MAX = 2**31 - 1  # Course ids are PostgreSQL serials (Course Service)
 ADMIN_RESPONSE_MAX_LENGTH = 5000
 COMMENT_MAX_LENGTH = 1000
 USERNAME_MAX_LENGTH = 150  # same as django.contrib.auth
@@ -88,6 +89,10 @@ class Reclamation(models.Model):
     description = models.TextField(max_length=DESCRIPTION_MAX_LENGTH,
                                    validators=[MinLengthValidator(DESCRIPTION_MIN_LENGTH)])
     module = models.CharField(max_length=MODULE_MAX_LENGTH, blank=True, default="")
+    # Optional id of a Course Service course, checked with GET /courses/{id} at creation (no
+    # cross-service foreign key). Set at creation only. Missing in older documents = null.
+    course_id = models.PositiveIntegerField(null=True, blank=True,
+                                            validators=[MinValueValidator(1), MaxValueValidator(COURSE_ID_MAX)])
     academic_year = models.CharField(max_length=9, default=default_academic_year,
                                      validators=[validate_academic_year])
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW, editable=False)

@@ -26,6 +26,20 @@ Cloud API Gateway). Two functionalities:
   Behind it, serve with waitress (README "API Gateway"); `config/middleware.RejectUnreadableBody`
   (first middleware) answers 411 instead of processing an empty body. Keep both. Page links go
   through `reclamations.views.public_link` (`PUBLIC_API_URL`), never the service's own address.
+- Reclamation -> Course (`reclamations/course_client.py`, team rules "communication synchrone"): only
+  in `create`, only when `course_id` is given, AFTER auth + serializer validation and BEFORE any
+  MongoDB write. Forward the caller's Authorization header unchanged; COURSE_SERVICE_URL else Eureka
+  COURSE-SERVICE (never the Gateway); 3 s total, one attempt, no retry, no redirect. 404 -> 404,
+  401/403 -> same, everything else -> 503; never 500, never an internal address in a message.
+  `course_id` is creation-only (not in STUDENT_EDITABLE_FIELDS). No foreign key to Course.
+- Reclamation -> Notification (`reclamations/events.py`, pika): producer only; default exchange,
+  routing key = queue name, never declare a queue (Notification does). Emitted by the services right
+  after the successful insert / compare-and-set, never on a refusal or 409. Best effort (never
+  raises, waits 3 s at most). actorId = verified sub, studentSub = stored author_sub; no token,
+  secret or free text in events. OFF unless RECLAMATION_EVENTS_ENABLED=true and RABBITMQ_URL: the
+  queue `reclamation.events` is not approved yet (patch for Notification in docs/notification/).
+- `/api/documents` has NO role check today (any authenticated role can upload/replace/delete);
+  ADMIN-only writes are recommended but not decided: do not change the policy without the team.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
   Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
   goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
@@ -108,7 +122,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 246 tests (200 offline + 46 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 283 tests (225 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

@@ -31,6 +31,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from .permissions import ADMIN, ETUDIANT, user_role
 
+from . import events
 from .models import Category, HistoryEntry, Priority, Reclamation, Status
 
 log = logging.getLogger("reclamations")
@@ -49,6 +50,8 @@ FINAL_STATUSES = frozenset({Status.RESOLVED, Status.REJECTED})
 
 # The only fields a student may change, and only while the reclamation is new
 STUDENT_EDITABLE_FIELDS = ("category", "subject", "description", "module")
+# Also settable at creation only (course_id is checked with the Course Service at that moment)
+CREATION_FIELDS = (*STUDENT_EDITABLE_FIELDS, "academic_year", "course_id")
 
 # ?ordering= values -> order_by(). Priority is ranked low < normal < high (not alphabetically).
 PRIORITY_RANK = Case(*(When(priority=value, then=Value(rank)) for rank, value in enumerate(Priority.values)),
@@ -139,10 +142,11 @@ def create_reclamation(user, data: dict) -> Reclamation:
     """A new reclamation by `user` (a student): status new, priority normal, first history entry.
 
     `data` holds already validated student fields (category, subject, description, module,
-    academic_year); the author always comes from the authenticated user.
+    academic_year, course_id: already checked with the Course Service); the author always comes
+    from the authenticated user.
     """
     require_role(user, ETUDIANT)
-    unexpected = set(data) - {*STUDENT_EDITABLE_FIELDS, "academic_year"}
+    unexpected = set(data) - set(CREATION_FIELDS)
     if unexpected:
         raise WorkflowError(f"These fields cannot be set by a student: {', '.join(sorted(unexpected))}.")
     created_at = now()
@@ -158,7 +162,6 @@ def create_reclamation(user, data: dict) -> Reclamation:
         reclamation.full_clean(validate_unique=False)  # the unique index checks the reference
         try:
             reclamation.save(force_insert=True)
-            return reclamation
         except IntegrityError:
             # Only `reference` is unique: the counter is behind the data (lost or restored).
             if attempt == REFERENCE_ATTEMPTS:
@@ -166,6 +169,9 @@ def create_reclamation(user, data: dict) -> Reclamation:
             highest = resync_counter(year)
             log.warning("Reference %s was already used: counter of %s moved to %s.",
                         reclamation.reference, year, highest)
+        else:
+            events.emit(events.created_event, reclamation, user)  # once, only after the insert succeeded
+            return reclamation
 
 
 def require_role(user, role):
@@ -259,7 +265,8 @@ def change_status(reclamation: Reclamation, user, *, status: str, comment: str =
     reclamation.full_clean(validate_unique=False)
     if not Reclamation.objects.filter(pk=reclamation.pk, status=current).update(**changes):
         _reload(reclamation)  # 404 if it was deleted meanwhile
-        raise ConcurrentUpdate()
+        raise ConcurrentUpdate()  # no event: this change did not happen
+    events.emit(events.status_changed_event, reclamation, user)  # after the compare-and-set succeeded
     return reclamation
 
 

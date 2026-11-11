@@ -18,6 +18,7 @@ from rest_framework.response import Response
 
 from . import services
 from .authentication import KeycloakAuthentication
+from .course_client import check_course
 from .models import Reclamation
 from .permissions import ADMIN, NOT_FOUND, IsAdministrateur, IsEtudiant, user_role
 from .serializers import (ChangeStatusSerializer, ReclamationCreateSerializer, ReclamationListQuerySerializer,
@@ -97,7 +98,12 @@ class ReclamationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = ReclamationCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        reclamation = services.create_reclamation(request.user, dict(serializer.validated_data))
+        data = dict(serializer.validated_data)
+        if data.get("course_id") is not None:
+            # The student and the fields are valid: Course decides with the caller's own token,
+            # before anything is written (404 / 401 / 403 / 503 -> no reclamation, no reference).
+            check_course(data["course_id"], request.META.get("HTTP_AUTHORIZATION", ""))
+        reclamation = services.create_reclamation(request.user, data)
         return Response(ReclamationSerializer(reclamation).data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):

@@ -13,11 +13,11 @@ from django_mongodb_extensions.rest_framework import EmbeddedModelSerializer, Mo
 from rest_framework import serializers
 
 from . import services
-from .models import (ADMIN_RESPONSE_MAX_LENGTH, COMMENT_MAX_LENGTH, Category, HistoryEntry, Priority,
+from .models import (ADMIN_RESPONSE_MAX_LENGTH, COMMENT_MAX_LENGTH, COURSE_ID_MAX, Category, HistoryEntry, Priority,
                      Reclamation, Status, validate_academic_year)
 
 READ_FIELDS = ["id", "reference", "author_id", "author_sub", "author_username", "category", "subject", "description",
-               "module", "academic_year", "status", "priority", "admin_response", "history",
+               "module", "course_id", "academic_year", "status", "priority", "admin_response", "history",
                "created_at", "updated_at", "closed_at"]
 ADMIN_FIELDS = {"status", "priority", "admin_response"}
 SEARCH_MAX_LENGTH = 100
@@ -30,6 +30,8 @@ class StrictInput:
         if name in ADMIN_FIELDS:
             return ("Only an administrator can change this field, with "
                     "POST /api/reclamations/{id}/change-status/.")
+        if name == "course_id":
+            return "The course can only be given when the reclamation is created."
         if name in READ_FIELDS:
             return "This field is set by the service and cannot be changed."
         return "Unknown field."
@@ -61,12 +63,24 @@ class ReclamationSerializer(MongoModelSerializer):
         read_only_fields = [name for name in READ_FIELDS if name != "history"]
 
 
+class CourseIdField(serializers.IntegerField):
+    """A JSON integer only: "7", 7.0 or true are refused (DRF would convert them)."""
+
+    def to_internal_value(self, data):
+        if isinstance(data, bool) or not isinstance(data, int):
+            self.fail("invalid")
+        return super().to_internal_value(data)
+
+
 class ReclamationCreateSerializer(StrictInput, MongoModelSerializer):
-    """POST by a student. academic_year is optional (default: the RAG academic year)."""
+    """POST by a student. academic_year is optional (default: the RAG academic year); course_id is
+    optional and, when given, checked with the Course Service before anything is saved."""
+
+    course_id = CourseIdField(required=False, allow_null=True, min_value=1, max_value=COURSE_ID_MAX)
 
     class Meta:
         model = Reclamation
-        fields = ["category", "subject", "description", "module", "academic_year"]
+        fields = ["category", "subject", "description", "module", "course_id", "academic_year"]
 
 
 class ReclamationUpdateSerializer(StrictInput, MongoModelSerializer):

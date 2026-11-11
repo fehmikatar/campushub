@@ -22,3 +22,5 @@ gunicorn>=26.2,<27; sys_platform != "win32"
 # chunked, without Content-Length; waitress turns them into normal bodies. runserver does not
 # (Django would read them as empty; config/middleware.py answers 411 instead).
 waitress>=3,<4
+# RabbitMQ producer (reclamations/events.py): Reclamation -> Notification events, best effort.
+pika>=1.3,<2

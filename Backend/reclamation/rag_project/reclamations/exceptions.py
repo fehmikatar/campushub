@@ -17,6 +17,7 @@ from rest_framework.views import exception_handler as drf_exception_handler
 from config.auth import AuthError
 
 from . import services
+from .course_client import CourseCheckError
 from .permissions import NOT_FOUND
 
 log = logging.getLogger("reclamations")
@@ -36,6 +37,9 @@ def _mongodb_unreachable(exc: BaseException) -> bool:
 def exception_handler(exc, context):
     if isinstance(exc, AuthError):
         headers = {"WWW-Authenticate": exc.challenge} if exc.challenge else {}
+        return Response({"detail": exc.message}, status=exc.status, headers=headers)
+    if isinstance(exc, CourseCheckError):  # Course said 404 / 401 / 403, or is unavailable (503)
+        headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else {}
         return Response({"detail": exc.message}, status=exc.status, headers=headers)
     if isinstance(exc, services.WorkflowError):
         body = {exc.field: [exc.message]} if exc.field else {"detail": exc.message}
