@@ -1,11 +1,18 @@
-# Campus Hub — ESPRIT regulation assistant (Django + ChromaDB RAG, REST API)
+# Campus Hub — Reclamation service (Django REST API)
 
-Students ask questions about the **ESPRIT Règlement de scolarité 2026-2027**. Answers are grounded
-only in the regulation, cite article + page (+ rule ID), flag the document's known ambiguities,
-and are never presented as official decisions.
+Two functionalities in one Django service:
+
+1. **Reclamations (main functionality)**: ESPRIT students submit academic or administrative
+   reclamations (grade, exam, absence, registration, internship…) and administrators process them
+   through a status workflow. Django REST Framework + **MongoDB**. See [Reclamations API](#reclamations-api-mongodb).
+2. **Regulation assistant (RAG)**: students ask questions about the **ESPRIT Règlement de scolarité
+   2026-2027**. Answers are grounded only in the regulation, cite article + page (+ rule ID), flag the
+   document's known ambiguities, and are never presented as official decisions. SQLite + ChromaDB.
 
 This service is a **JSON REST API only** (no HTML pages, no Django admin). It is meant to be called
-by the Campus Hub frontend through the API Gateway.
+by the Campus Hub frontend through the API Gateway. RAG and Reclamations both require
+`Authorization: Bearer <Keycloak access token>`; only `GET /api/health` is public. See
+[Authentication](#authentication-keycloak). Local Django accounts do not authorize either API.
 
 ```
 INGESTION   data/regulation/*.json ──► pages collection   (22 pages → sub-chunks, article + page metadata)
@@ -54,12 +61,17 @@ python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 copy .env.example .env                  # turns DJANGO_DEBUG on for local development
-python manage.py migrate
+python manage.py migrate                         # SQLite: RAG apps + users, groups, sessions
+python manage.py migrate --database mongodb      # MongoDB: the reclamations collection + indexes
 python manage.py ingest_regulation      # imports the 3 JSON files from data/regulation/
 python manage.py eval_rag               # retrieval quality on 20 test questions
-python manage.py test                   # offline tests: fake providers, temporary index
+python manage.py test                   # see "Commands" (MongoDB tests need a MongoDB server)
 python manage.py runserver              # API on http://127.0.0.1:8000/api/...
 ```
+
+The two `migrate` commands are both needed: each database only receives its own tables /
+collections (`config/db_router.py`). MongoDB must be running for the second one and for the
+reclamations API (see [Local MongoDB](#local-mongodb)); the RAG endpoints work without it.
 
 Linux / macOS: `source .venv/bin/activate` and `cp .env.example .env`.
 
@@ -75,7 +87,13 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `rebuild_index --yes` | Wipe all vectors and re-import everything (**after changing `EMBED_MODEL`**) |
 | `ask "question" [--evidence] [--year 2026-2027]` | Ask in the terminal; `--evidence` shows retrieval only |
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
-| `test` | 55 tests, offline: no Ollama/API needed; never touches `db.sqlite3` or `data/chroma` |
+| `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
+| `test` | 207 tests: no Ollama/API/Keycloak needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
+| `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
+| `test tests.test_auth` | the 39 shared/RAG Keycloak authentication / security tests |
+| `test tests.test_reclamations_auth` | 25 DRF Keycloak security tests, no MongoDB required |
+| `test tests.test_reclamations_identity` | 9 real MongoDB ownership and migration tests |
 
 ## Configuration
 
@@ -92,6 +110,10 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
 | `RAG_PDF_DIR` | `data/pdfs` | `/app/data/pdfs` |
 | `RAG_REGULATION_DIR` | `data/regulation` | the dataset shipped in the image, outside the volume |
 | `EMBED_*`, `LLM_*` | see [Models](#1-models) | passed by the deployment (the API key is a secret) |
+| `KEYCLOAK_ISSUER_URI` | `http://localhost:8180/realms/campushub` | the same (see [Authentication](#authentication-keycloak)) |
+| `KEYCLOAK_JWKS_URI` | empty (= derived from the issuer) | `http://keycloak:8080/realms/campushub/protocol/openid-connect/certs` |
+| `MONGODB_URI` | `mongodb://localhost:27017` | e.g. `mongodb://mongo:27017` (a connection string: may contain credentials, so it is a secret) |
+| `MONGODB_NAME` | `campushub` | to be agreed (Forum uses `campushub_forum`; `campushub_reclamations` would follow the same convention) |
 
 - With DEBUG off, the service **refuses to start** if `DJANGO_SECRET_KEY` is missing or weak (the
   rule of `manage.py check --deploy`). Generate one with
@@ -110,9 +132,340 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
   One worker because Chroma's local storage and the in-memory keyword index belong to one process;
   threads because an answer mostly waits 4–15 s for the LLM. The port is not decided yet.
 
-## REST API
+## Reclamations API (MongoDB)
 
-JSON in, JSON out. Every path works **with or without** a trailing slash.
+### Architecture
+
+```
+HTTP ─► reclamations/urls.py   DRF router: /api/reclamations/…
+     ─► reclamations/views.py  ModelViewSet: who may call what (permissions.py), input validation
+                               (serializers.py), HTTP status codes (exceptions.py)
+     ─► reclamations/services.py  business rules: references, workflow, history, statistics
+     ─► MongoDB  collection `reclamations` (+ `counters`), official django-mongodb-backend
+
+Users, role groups, sessions ─► SQLite (django.contrib.auth), like the RAG data
+```
+
+| Database | Alias | Holds |
+|---|---|---|
+| SQLite | `default` | RAG apps (chat, documents, regulation), `auth` users and groups, sessions, content types |
+| MongoDB | `mongodb` | only the `reclamations` app: the `reclamations` collection and the `counters` collection |
+
+`config/db_router.py` sends every `reclamations` model to `mongodb` and everything else to
+`default`, for reads, writes **and migrations**; relations between the two databases are refused
+(a reclamation stores the Keycloak UUID string, not a foreign key; legacy integer IDs remain).
+`django_mongodb_backend.routers.MongoRouter` runs first so the embedded history entries get no
+collection of their own. Versions: Django 6.1.3, django-mongodb-backend 6.1.0 (its major.minor
+must match Django's), django-mongodb-extensions 0.3.0 (`MongoModelSerializer`), DRF 3.18.3,
+PyMongo 4.19.0; tested with MongoDB 8.2 (standalone).
+
+### Local MongoDB
+
+Any MongoDB 7+ server on `MONGODB_URI` works. An already installed Windows MongoDB service on
+`localhost:27017` is used as is. Otherwise, with Docker:
+
+```powershell
+docker run -d --name campushub-mongo -p 27017:27017 -v campushub-mongo-data:/data/db mongo:8.0
+python manage.py shell -c "from django.db import connections; print(connections['mongodb'].database.command('ping'))"
+```
+
+(The root `docker-compose.yml` already has a `mongo` service, deliberately without a published
+port; this service is not in the compose file yet.)
+
+### Roles and authentication
+
+DRF `reclamations.authentication.KeycloakAuthentication` calls the existing
+`config.auth.authenticate(request)`. RAG and CRUD use the same RS256 verification, issuer and
+required-claim checks, role extraction, JWKS cache and outage rules. DRF receives a lightweight
+immutable principal as `request.user` and `request.principal` (`sub`, `role`, `roles`, `username`,
+`is_authenticated`); `request.auth` is `None`. No Django user is created, no groups are queried,
+and no raw JWT is retained on the principal. BasicAuthentication and SessionAuthentication have
+been removed from CRUD. Sessions, passwords, local groups and superuser flags confer no API access.
+
+Only `realm_access.roles` supplies roles; the highest recognized role wins:
+`ADMIN` > `ENSEIGNANT` > `ETUDIANT`. Legacy `role` and unrelated Keycloak roles are ignored.
+Multiple roles do not combine student and administrator privileges.
+
+| Role | Can |
+|---|---|
+| `ETUDIANT` | create; list/read own; edit `subject`, `description`, `category`, `module` and delete only while `new` |
+| `ADMIN` | list/read all including legacy records; change status, priority and `admin_response` through `change-status`; statistics. Cannot create, edit student fields or delete |
+| `ENSEIGNANT` | nothing: 403 on every routed reclamations endpoint |
+| valid token without a CampusHub role | 403 |
+| anonymous | 401 with `WWW-Authenticate: Bearer`; 503 if authentication is unconfigured |
+
+Another student's reclamation answers **404**. Ownership is enforced in the filtered queryset,
+object permissions, mutation services and conditional student writes. `setup_roles [--demo]`
+remains available only for legacy local accounts; it does not grant Keycloak roles or API access.
+
+### Identity and existing-data migration
+
+- `author_sub` is the lowercase, validated Keycloak `sub` UUID string and the sole ownership key.
+  All new reclamations store it; the client cannot submit it.
+- Every new history entry, including creation, stores the actor's UUID in `by_sub`.
+- `author_username` / `by_username` are display snapshots from the verified `preferred_username`
+  claim. Missing, blank, non-string or oversized names fall back to the validated `sub`. Names
+  are never used for authorization; two users with the same name remain separate.
+- `author_id` / `by_user_id` retain legacy local Django integers. They are nullable for new records,
+  never derived from UUIDs, and never used for authorization. Existing history is retained with
+  no invented `by_sub` values. APIs expose both the new and legacy fields during transition.
+
+Migration `reclamations/0002_keycloak_identity.py` adds nullable UUID fields to the model state,
+allows nullable legacy IDs, and adds `(author_sub, -created_at)` index `reclamation_sub_recent`.
+ObjectIds, the unique reference index and all existing indexes remain. The backend's ordinary
+`AddField` writes a default to every document, so the nullable `author_sub` uses
+`SeparateDatabaseAndState` with no document write: absent fields read as `None`. Embedded fields
+are recorded explicitly in migration state, with no separate collection or history rewrite.
+See [Django migration operations](https://docs.djangoproject.com/en/6.1/ref/migration-operations/)
+and [MongoDB model documentation](https://www.mongodb.com/docs/languages/python/django-mongodb/current/model-data/models/).
+
+**Deployment:** back up MongoDB and review the migration, then apply it deliberately with
+`python manage.py migrate --database mongodb`. This implementation only applied it in isolated
+test databases; the real development database and `.env` were not changed. No SQLite schema
+migration is needed. Do not run the old local-auth application against newly created UUID-owned
+records. A schema rollback does not convert UUID owners into local IDs.
+
+Legacy records without `author_sub` remain visible to administrators only. A later ownership
+mapping requires an explicitly verified relation between the legacy account and a Keycloak UUID:
+export an inventory, establish identity using authoritative account records and human review,
+record evidence and approval, back up, then apply an audited conditional update only where the
+legacy ID matches and `author_sub` is absent/null. Rehearse on a restored isolated copy, verify
+counts and cross-user isolation, and retain a rollback audit. Never infer this relation from
+matching usernames, emails, integer-to-UUID conversion or a student's request body. Do not change
+historical actor identities without separate verified evidence. No mapping/backfill runs here;
+unmapped records may safely remain administrative-only indefinitely.
+
+### Endpoints
+
+Every path works with or without the trailing slash. JSON in, JSON out (`charset=utf-8`).
+
+| Method | Endpoint | Who | Body / params | Success |
+|---|---|---|---|---|
+| `GET` | `/api/reclamations/` | student (own), admin (all) | `status`, `category`, `priority`, `academic_year`, `search`, `ordering`, `page` | 200 `{count, next, previous, results}` |
+| `POST` | `/api/reclamations/` | student | `category`, `subject`, `description`, `module` (optional), `academic_year` (optional) | 201 reclamation |
+| `GET` | `/api/reclamations/{id}/` | student (own), admin | | 200 reclamation |
+| `PUT` | `/api/reclamations/{id}/` | author, status `new` | `category`, `subject`, `description` (+ `module`) | 200 reclamation |
+| `PATCH` | `/api/reclamations/{id}/` | author, status `new` | any of `category`, `subject`, `description`, `module` | 200 reclamation |
+| `DELETE` | `/api/reclamations/{id}/` | author, status `new` | | 204 |
+| `POST` | `/api/reclamations/{id}/change-status/` | admin | `status`, `comment`, `admin_response`, `priority` (last three optional) | 200 reclamation |
+| `GET` | `/api/reclamations/stats/` | admin | `academic_year` (optional) | 200 counts |
+
+- **Fields:** `category` ∈ `grade`, `exam`, `absence`, `registration`, `internship`,
+  `administrative`, `other` · `subject` 5–150 characters · `description` 20–5000 · `module` ≤ 100 ·
+  `academic_year` `YYYY-YYYY` with consecutive years (default: `RAG_ACADEMIC_YEAR`, 2026-2027) ·
+  `status` ∈ `new`, `in_progress`, `resolved`, `rejected` · `priority` ∈ `low`, `normal` (default), `high`.
+  Text is trimmed before the length checks.
+- **Set by the service only:** `id` (24 hexadecimal characters), `reference`, `author_id`, `author_sub`,
+  `author_username`, `status`, `priority`, `admin_response`, `history`, `created_at`, `updated_at`,
+  `closed_at`. Sending one of them (or an unknown field) is refused with 400 instead of being
+  silently ignored.
+- **List:** 20 per page (`?page=2`); filters are exact matches; `search` is a case-insensitive
+  substring of `subject`, `description` or `reference` (plain text, not a regex, max 100);
+  `ordering` ∈ `created_at`, `-created_at` (default), `updated_at`, `-updated_at`, `priority`
+  (low → high), `-priority`. An invalid value is a 400; an empty value means "not given".
+- **References:** `REC-<year>-<00001>`, numbered per calendar year (Africa/Tunis) by an atomic
+  counter (`counters` collection, `find_one_and_update` + `$inc` + upsert): unique even for
+  simultaneous creations, never reused after a deletion. The unique index on `reference` is a
+  second safeguard: if the counter was lost, it is moved past the highest existing number and
+  the creation is retried (logged as a warning).
+- **Errors** (DRF format): `400` `{"field": ["message"]}` or `{"detail": "..."}` (invalid input,
+  invalid transition, edit after processing started) · `401` not authenticated · `403` role not
+  allowed · `404` `{"detail": "Reclamation not found."}` (unknown, another student's) or, for an id
+  that is not 24 hexadecimal characters, the service's `{"error": "No endpoint …"}` ·
+  `409` changed by someone else in the meantime (reload and retry) · `415` not JSON ·
+  `503` MongoDB unreachable, Keycloak signing keys unavailable, or missing Keycloak configuration. No stack trace, host name or connection string is ever returned.
+
+### Status workflow
+
+```
+            ┌──────────► rejected (final)
+            │
+  new ──────┼──────────► in_progress ──────► resolved (final)
+                               │
+                               └───────────► rejected (final)
+```
+
+- Only an administrator changes the status, with `POST /api/reclamations/{id}/change-status/`
+  (`status` required; `priority`, `admin_response` and `comment` can be set in the same call).
+- Any other transition (e.g. `new → resolved`, anything from a final status) is a **400**.
+- `resolved` and `rejected` need a non-empty `admin_response` (given now or earlier) and set
+  `closed_at`.
+- Every change appends a history entry `{from_status, to_status, by_sub, by_username, comment, at} (plus nullable legacy `by_user_id`)`;
+  creation writes the first one (`from_status: null → new`). Editing the student's fields is not a
+  status change and adds no entry.
+- Concurrency: every write is a single-document conditional update on the status that was read
+  ("compare and set"), atomic in MongoDB. Two administrators changing the same reclamation, or a
+  student editing while an administrator starts processing, can never overwrite each other: the
+  late request gets 409 (or 400 "processing has started").
+
+### Examples
+
+curl (bash; obtain student/admin access tokens from Keycloak first):
+
+```bash
+API=http://127.0.0.1:8000/api/reclamations
+curl -H "Authorization: Bearer $STUDENT_TOKEN" -X POST $API/ -H "Content-Type: application/json" \
+     -d '{"category": "grade", "subject": "Note de l examen final", "description": "Ma note de mathématiques semble erronée.", "module": "Mathématiques"}'
+curl -H "Authorization: Bearer $STUDENT_TOKEN" "$API/?status=new&search=examen"
+curl -H "Authorization: Bearer $STUDENT_TOKEN" -X PATCH $API/<id>/ -H "Content-Type: application/json" -d '{"subject": "Note de l examen de juin"}'
+curl -H "Authorization: Bearer $ADMIN_TOKEN" -X POST $API/<id>/change-status/ -H "Content-Type: application/json" \
+     -d '{"status": "in_progress", "priority": "high", "comment": "Vérification auprès de l enseignant"}'
+curl -H "Authorization: Bearer $ADMIN_TOKEN" -X POST $API/<id>/change-status/ -H "Content-Type: application/json" \
+     -d '{"status": "resolved", "admin_response": "La note a été corrigée."}'
+curl -H "Authorization: Bearer $ADMIN_TOKEN" $API/stats/
+```
+
+Windows PowerShell (keep `charset=utf-8` so accents are sent as UTF-8):
+
+```powershell
+$api = "http://127.0.0.1:8000/api/reclamations"
+# Obtain tokens as shown in "Authentication (Keycloak)" below, once for each role.
+$studentHeaders = @{ Authorization = "Bearer $studentToken" }
+$adminHeaders = @{ Authorization = "Bearer $adminToken" }
+$teacherHeaders = @{ Authorization = "Bearer $teacherToken" }
+$json = "application/json; charset=utf-8"
+$body = @{ category = "grade"; subject = "Note de l'examen final"; description = "Ma note de mathématiques semble erronée."; module = "Mathématiques" } | ConvertTo-Json
+$r = Invoke-RestMethod -Method Post "$api/" -Headers $studentHeaders -ContentType $json -Body $body
+$r.reference; $r.history
+Invoke-RestMethod "$api/?search=examen" -Headers $studentHeaders
+Invoke-RestMethod -Method Post "$api/$($r.id)/change-status/" -Headers $adminHeaders -ContentType $json -Body (@{ status = "in_progress"; priority = "high" } | ConvertTo-Json)
+Invoke-RestMethod -Method Post "$api/$($r.id)/change-status/" -Headers $adminHeaders -ContentType $json -Body (@{ status = "resolved"; admin_response = "La note a été corrigée." } | ConvertTo-Json)
+Invoke-RestMethod "$api/stats/" -Headers $adminHeaders
+try { Invoke-RestMethod "$api/" -Headers $teacherHeaders } catch { $_.ErrorDetails.Message }   # 403
+```
+
+Postman: *Authorization* tab → *Basic Auth* (`etudiant1` / `campushub123`); *Body* → *raw* → *JSON*.
+
+A reclamation:
+
+```json
+{
+  "id": "6553f1a2b3c4d5e6f7a8b9c0",
+  "reference": "REC-2026-00001",
+  "author_id": null,
+  "author_sub": "11111111-1111-4111-8111-111111111111",
+  "author_username": "etudiant1",
+  "category": "grade",
+  "subject": "Note de l'examen final",
+  "description": "Ma note de mathématiques semble erronée.",
+  "module": "Mathématiques",
+  "academic_year": "2026-2027",
+  "status": "resolved",
+  "priority": "high",
+  "admin_response": "La note a été corrigée.",
+  "history": [
+    {"from_status": null, "to_status": "new", "by_user_id": null, "by_sub": "11111111-1111-4111-8111-111111111111", "by_username": "etudiant1", "comment": "", "at": "2026-11-11T17:50:08.590000+01:00"},
+    {"from_status": "new", "to_status": "in_progress", "by_user_id": null, "by_sub": "99999999-9999-4999-8999-999999999999", "by_username": "admin1", "comment": "", "at": "2026-11-11T17:52:30.104000+01:00"},
+    {"from_status": "in_progress", "to_status": "resolved", "by_user_id": null, "by_sub": "99999999-9999-4999-8999-999999999999", "by_username": "admin1", "comment": "", "at": "2026-11-11T18:03:12.877000+01:00"}
+  ],
+  "created_at": "2026-11-11T17:50:08.590000+01:00",
+  "updated_at": "2026-11-11T18:03:12.877000+01:00",
+  "closed_at": "2026-11-11T18:03:12.877000+01:00"
+}
+```
+
+`GET /api/reclamations/stats/` returns `{"academic_year": null, "total": 4, "by_status": {...},
+"by_category": {...}, "by_priority": {...}}`, every known value listed (0 when none), computed by
+one MongoDB aggregation (`$facet`).
+
+### Tests
+
+```powershell
+python manage.py test --noinput                       # 207 total with MongoDB: 162 offline + 45 integration
+python manage.py check
+# Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
+python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
+# Real MongoDB CRUD, concurrency, ownership, and old-to-new migration
+python manage.py test tests.test_reclamations tests.test_reclamations_identity --noinput
+```
+
+- Django's runner uses the official MongoDB backend's database creation/teardown support and
+  `TransactionTestCase` (standalone MongoDB cannot roll back transactions). Tests create and clean
+  `test_<MONGODB_NAME>` (`test_campushub`), never the configured development database. The integration
+  base class refuses to run against any other database. Do not use that test name for valuable data.
+- Without MongoDB, the 45 integration tests are **skipped with a reason**, not counted as passed.
+  The 162 offline tests still run. To exercise that path without stopping your MongoDB service,
+  temporarily set `MONGODB_URI` to an unused local port in the test process only.
+- The offline reclamation tests forbid MongoDB access. Tokens are verified through actual DRF
+  requests; tests never contact real Keycloak and never use `force_authenticate`.
+- Coverage includes 401/403/503, cache sharing/outages/rotation, local-auth rejection, role priority,
+  forged fields, same-name users, legacy isolation, trusted history, migration/index preservation,
+  atomic references, status conflicts, filters, search, pagination, statistics and RAG regressions.
+
+### MongoDB-specific limitations
+
+- **No multi-document transactions** (they need a replica set; `select_for_update()` is a no-op on
+  MongoDB): every operation is one atomic single-document update, with the status check above.
+- Datetimes are stored with **millisecond** precision (the service truncates them before writing,
+  so a value returned right after a write equals the value read back later).
+- `migrate --fake-initial`, `dumpdata` / `loaddata` and `inspectdb` are not supported for the
+  MongoDB database. Review generated embedded-model migrations explicitly: the history field
+  changes must appear in migration state, and embedded models must not get their own collection.
+- `search` is a case-insensitive regular-expression scan (input escaped) and `priority` ordering is
+  computed: neither uses an index. Fine at this scale; a text or Atlas Search index would replace it.
+- The priority can only change together with a status change (`change-status` requires `status`).
+
+## Authentication (Keycloak)
+
+Keycloak (realm `campushub`) is the identity provider: this service never issues tokens and has no
+login, registration or password endpoint. Every RAG and Reclamations endpoint except
+`GET /api/health` needs the header
+`Authorization: Bearer <access token>`, and checks it itself, also behind the API Gateway
+(`config/auth.py`; team rules: `Documentation/regles-communes-keycloak.txt`).
+
+| Variable | Local | Docker |
+|---|---|---|
+| `KEYCLOAK_ISSUER_URI` | `http://localhost:8180/realms/campushub` | the same: tokens keep the browser-side issuer |
+| `KEYCLOAK_JWKS_URI` | empty = `<issuer>/protocol/openid-connect/certs` | `http://keycloak:8080/realms/campushub/protocol/openid-connect/certs` |
+
+- **Checks:** RS256 only (HS256, unsigned `none` and any other algorithm are refused), signature
+  with the realm's public key, exact issuer, expiry, required `exp` / `iat` / `iss` / `sub`.
+  The audience (`account`) is not checked.
+- **Identity and role:** `sub` (a UUID) is the user id. The role is the highest CampusHub role in
+  `realm_access.roles`: `ADMIN` > `ENSEIGNANT` > `ETUDIANT`; other Keycloak roles and the old
+  `role` claim are ignored. Views read `request.principal` (`sub`, `role`, `roles`); the identity
+  never comes from the request body or query string.
+- **Public keys:** downloaded from the JWKS address (3 s timeout) and cached 10 minutes. A token
+  signed with a new key id triggers a refresh (key rotation), at most one download every 10 s.
+  If Keycloak is down, keys already downloaded keep working for up to 1 hour.
+- **Not configured = closed:** with an empty `KEYCLOAK_ISSUER_URI`, every protected endpoint
+  answers 503. There is no anonymous or DEBUG bypass and no legacy token mode. An existing `.env`
+  needs the `KEYCLOAK_ISSUER_URI` line from `.env.example`.
+
+| Status | When | `error` |
+|---|---|---|
+| 401 | no token, malformed header (+ `WWW-Authenticate: Bearer`) | `Authentication required: …` / `The Authorization header must be 'Bearer <token>'.` |
+| 401 | bad signature, wrong issuer, HS256 / unsigned, missing claim, invalid `sub` | `Invalid token.` |
+| 401 | expired token | `The token has expired.` |
+| 403 | valid token without a CampusHub role | `Access denied: this account has no CampusHub role.` |
+| 503 | Keycloak unreachable and the signing key not cached | `Authentication service unavailable, please retry later.` |
+| 503 | `KEYCLOAK_ISSUER_URI` empty | `Authentication is not configured on this service.` |
+
+The table uses the RAG `error` key; CRUD returns the same safe messages under DRF's `detail` key.
+Error bodies never contain tokens, keys, host names or technical details.
+
+**Known limitation until conversation ownership is added:** any authenticated user can list, read,
+rename and delete every conversation.
+
+Local test token (PowerShell). Start Keycloak as in section 8 of
+`Documentation/regles-communes-keycloak.txt`; the test users and their password are in section 7.
+Tokens last 30 minutes.
+
+```powershell
+$kc = "http://localhost:8180/realms/campushub/protocol/openid-connect/token"
+$tok = Invoke-RestMethod -Method Post $kc -ContentType "application/x-www-form-urlencoded" `
+       -Body "grant_type=password&client_id=campushub-frontend&username=etudiant1&password=<test password>"
+$h = @{ Authorization = "Bearer $($tok.access_token)" }
+Invoke-RestMethod "http://127.0.0.1:8000/api/conversations" -Headers $h
+```
+
+The offline security tests (`python manage.py test tests.test_auth`) use test RSA keys and a local
+fake Keycloak: localhost JWKS only, no external network or real Keycloak.
+
+## REST API (regulation assistant)
+
+JSON in, JSON out. Every path works **with or without** a trailing slash. The reclamations
+endpoints are described in [Reclamations API](#reclamations-api-mongodb).
 
 | Method | Endpoint | Body / params | Success |
 |---|---|---|---|
@@ -131,43 +484,48 @@ JSON in, JSON out. Every path works **with or without** a trailing slash.
 | `GET` | `/api/academic-rules/{rule_id}` | | 200 rule + ambiguities on the same pages |
 | `GET` | `/api/ambiguities` | | 200 the 11 flagged ambiguities |
 | `GET` | `/api/ambiguities/{amb_id}` | | 200 ambiguity + rules on the same pages |
-| `GET` | `/api/health` | | 200 `{"status": "UP", "indexed": true, "index": {...}}` |
+| `GET` | `/api/health` | no token needed | 200 `{"status": "UP", "indexed": true, "index": {...}}` |
 
 - **Rules and ambiguities are read-only**: they are paraphrases of the official PDF, loaded and
   embedded by `ingest_regulation`. The regulation document itself cannot be replaced or deleted
   through `/api/documents` (409); only uploaded PDFs can.
-- **Errors** always look like `{"error": "message"}`:
-  `400` invalid input · `404` unknown id or URL · `405` method not allowed (with `Allow` header) ·
+- **Errors** of these endpoints always look like `{"error": "message"}`:
+  `400` invalid input · `401` / `403` authentication (see [Authentication](#authentication-keycloak)) ·
+  `404` unknown id or URL · `405` method not allowed (with `Allow` header) ·
   `409` conflict (file name exists, regulation is read-only) · `413` file too large ·
-  `422` unusable PDF (not a PDF, encrypted, no text) · `503` embedding/LLM provider unavailable or
-  nothing indexed yet · `500` unexpected (logged).
-- **No CSRF / cookies**: callers authenticate with a JWT at the API Gateway (stateless).
+  `422` unusable PDF (not a PDF, encrypted, no text) · `503` embedding/LLM provider unavailable,
+  nothing indexed yet, or Keycloak unavailable · `500` unexpected (logged).
+- **No CSRF / cookies**: callers send a Keycloak Bearer token (stateless). Local Django credentials
+  (Basic or a session) are accepted by neither RAG nor Reclamations.
 
-Examples:
+Examples (`$TOKEN` = a Keycloak access token, see [Authentication](#authentication-keycloak)):
 
 ```bash
-curl -X POST localhost:8000/api/academic-assistant/ask -H "Content-Type: application/json" \
+AUTH="Authorization: Bearer $TOKEN"
+curl -X POST localhost:8000/api/academic-assistant/ask -H "$AUTH" -H "Content-Type: application/json" \
      -d '{"question": "Mon PFE doit durer 26 ou 28 semaines ?"}'
-curl -X POST localhost:8000/api/documents -F "file=@syllabus.pdf"
-curl -X PUT  localhost:8000/api/documents/2 -F "file=@syllabus-v2.pdf"
-curl -X PUT  localhost:8000/api/conversations/3 -H "Content-Type: application/json" -d '{"title": "PFE"}'
-curl -X DELETE localhost:8000/api/conversations/3
+curl -X POST localhost:8000/api/documents -H "$AUTH" -F "file=@syllabus.pdf"
+curl -X PUT  localhost:8000/api/documents/2 -H "$AUTH" -F "file=@syllabus-v2.pdf"
+curl -X PUT  localhost:8000/api/conversations/3 -H "$AUTH" -H "Content-Type: application/json" -d '{"title": "PFE"}'
+curl -X DELETE localhost:8000/api/conversations/3 -H "$AUTH"
 ```
 
-Windows PowerShell (in a second terminal, while `runserver` is running). Keep `charset=utf-8` in the
-content type, otherwise accents (é, è…) are not sent as UTF-8:
+Windows PowerShell (in a second terminal, while `runserver` is running; `$h` = the header built in
+[Authentication](#authentication-keycloak)). Keep `charset=utf-8` in the content type, otherwise
+accents (é, è…) are not sent as UTF-8:
 
 ```powershell
 $api = "http://127.0.0.1:8000/api"
-Invoke-RestMethod "$api/health"
+Invoke-RestMethod "$api/health"                                     # public: no token
 $body = @{ question = "Mon PFE doit durer 26 ou 28 semaines ?" } | ConvertTo-Json
-$r = Invoke-RestMethod -Method Post "$api/academic-assistant/ask" -ContentType "application/json; charset=utf-8" -Body $body
+$r = Invoke-RestMethod -Method Post "$api/academic-assistant/ask" -Headers $h -ContentType "application/json; charset=utf-8" -Body $body
 $r.answer; $r.evidence.ambiguities; $r.citation_check
-Invoke-RestMethod "$api/conversations/$($r.conversation_id)"
-Invoke-RestMethod -Method Put "$api/conversations/$($r.conversation_id)" -ContentType "application/json; charset=utf-8" -Body (@{ title = "PFE" } | ConvertTo-Json)
-Invoke-RestMethod -Method Delete "$api/conversations/$($r.conversation_id)"
-curl.exe -X POST "$api/documents" -F "file=@C:\path\to\guide.pdf"     # curl.exe, not curl (alias)
-try { Invoke-RestMethod "$api/conversations/999" } catch { $_.ErrorDetails.Message }   # see an error body
+Invoke-RestMethod "$api/conversations/$($r.conversation_id)" -Headers $h
+Invoke-RestMethod -Method Put "$api/conversations/$($r.conversation_id)" -Headers $h -ContentType "application/json; charset=utf-8" -Body (@{ title = "PFE" } | ConvertTo-Json)
+Invoke-RestMethod -Method Delete "$api/conversations/$($r.conversation_id)" -Headers $h
+curl.exe -X POST "$api/documents" -H "Authorization: Bearer $($tok.access_token)" -F "file=@C:\path\to\guide.pdf"   # curl.exe, not curl (alias)
+try { Invoke-RestMethod "$api/conversations/999" -Headers $h } catch { $_.ErrorDetails.Message }   # see an error body
+try { Invoke-RestMethod "$api/conversations" } catch { $_.ErrorDetails.Message }   # no token -> 401
 ```
 
 Look inside ChromaDB, and see what the search retrieves without calling the LLM:
@@ -216,10 +574,15 @@ Add real student questions to `data/regulation/eval_questions.json`.
 
 ## Not done yet (needs input)
 
+- Reclamations: suggested related regulation rules on creation — deferred. The hybrid retriever
+  would send the student's (private) reclamation text to the external embedding provider inside
+  the create request (latency, rate-limit waits). Keyword-only (BM25) suggestions work offline and
+  are relevant for typical reclamations, but also return unrelated rules for an off-topic one, so
+  they first need a relevance threshold evaluated on labelled examples.
 - `POST /api/recommendations/` — needs `campushub_recommendation_engine.py` (referenced by the
   guide, not in this repo) and an authorized student snapshot from the Enrollment/Evaluation services.
-- Authentication — in Campus Hub the API Gateway validates the JWT. This service does not check it
-  yet: conversations are not tied to a user, and `/api/documents` writes should be restricted to
-  the `ADMIN` role. Next step: validate the Keycloak JWT here (like the Evaluation Service).
+- Conversation ownership — tokens are checked, but conversations are not tied to their user yet
+  (`request.principal.sub`), so every authenticated user sees all of them.
+- Role rules — e.g. whether `/api/documents` writes are restricted to `ADMIN` (not decided yet).
 - Gateway route + Eureka registration + Dockerfile.
 - Reranking with a cross-encoder (e.g. bge-reranker) — RRF is the current ranking step.

@@ -1,8 +1,11 @@
 """Small REST toolkit shared by every app: JSON responses, errors, parsing, routing.
 
 Every endpoint is a subclass of ApiView, so all of them behave the same way:
+  - a valid Keycloak token is required (config.auth) unless the view sets `public = True`;
+    the caller is then available as `request.principal` (sub, role, roles)
   - responses are JSON; errors are {"error": "..."} with a meaningful status code
-  - ApiError -> its status, DocumentError -> 422, RAGError -> 503, anything else -> 500 (logged)
+  - AuthError -> 401/403/503, ApiError -> its status, DocumentError -> 422, RAGError -> 503,
+    anything else -> 500 (logged)
   - unsupported methods -> 405 JSON with an Allow header
 """
 
@@ -17,6 +20,8 @@ from django.utils.datastructures import MultiValueDict
 from django.views import View
 
 from rag.exceptions import DocumentError, RAGError
+
+from .auth import AuthError, authenticate
 
 log = logging.getLogger("rag.api")
 
@@ -41,10 +46,24 @@ def no_content() -> HttpResponse:
     return HttpResponse(status=204)
 
 
+def auth_error(exc: AuthError) -> JsonResponse:
+    response = error(exc.message, exc.status)
+    if exc.challenge:
+        response["WWW-Authenticate"] = exc.challenge
+    return response
+
+
 class ApiView(View):
+    public = False  # True only for endpoints that must work without a token (health check)
+
     def dispatch(self, request, *args, **kwargs):
         try:
+            if not self.public:
+                # Before any parsing or business logic; identity never comes from the request body.
+                request.principal = authenticate(request)
             return super().dispatch(request, *args, **kwargs)
+        except AuthError as exc:
+            return auth_error(exc)
         except ApiError as exc:
             return error(exc.message, exc.status)
         except DocumentError as exc:

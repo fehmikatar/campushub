@@ -25,6 +25,7 @@ from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 
 from chat.models import Conversation
+from config import auth
 from documents.models import Document
 from rag import embeddings, llm, vectorstore
 from rag.articles import assign_articles, detect_articles
@@ -37,6 +38,8 @@ from rag.loader import clean_text
 from rag.pipeline import ask, retrieval_query
 from rag.prompts import NOT_FOUND_ANSWER, SYSTEM_PROMPT
 from regulation.models import AcademicRule, Ambiguity
+
+from .fake_keycloak import auth_headers, keycloak_settings, shared_jwks
 
 REAL_DATA = settings.BASE_DIR / "data" / "regulation"
 
@@ -156,7 +159,11 @@ class CitationTests(SimpleTestCase):
 # --------------------------------------------------------------------------- integration
 
 class IndexTestCase(TestCase):
-    """Temporary Chroma dir + fake providers + the real regulation dataset."""
+    """Temporary Chroma dir + fake providers + the real regulation dataset.
+
+    `self.client` sends a signed test token (an ETUDIANT): requests go through the real
+    authentication, with the public key served by a local fake JWKS (tests/fake_keycloak.py).
+    """
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -165,6 +172,10 @@ class IndexTestCase(TestCase):
                "REGULATION_DIR": REAL_DATA}
         self.override = override_settings(RAG=rag)
         self.override.enable()
+        self.keycloak = keycloak_settings(shared_jwks().url)
+        self.keycloak.enable()
+        auth.reset_signing_keys()
+        self.client = Client(headers=auth_headers())
         self.fake_llm = FakeLLM()
         embeddings.set_embedder(FakeEmbedder())
         llm.set_llm(self.fake_llm)
@@ -173,6 +184,8 @@ class IndexTestCase(TestCase):
         embeddings.set_embedder(None)
         llm.set_llm(None)
         vectorstore._clients.clear()
+        auth.reset_signing_keys()
+        self.keycloak.disable()
         self.override.disable()
         shutil.rmtree(self.tmp, ignore_errors=True)
 
@@ -287,9 +300,9 @@ class AssistantTests(IndexTestCase):
 
     def test_api_works_for_clients_without_csrf_token(self):
         # The gateway / React frontend authenticate with a JWT, not a cookie: no CSRF token
-        client = Client(enforce_csrf_checks=True)
+        client = Client(enforce_csrf_checks=True, headers=auth_headers())
         r = client.post("/api/academic-assistant/ask/", json.dumps({"question": "PFE ?"}),
-                        content_type="application/json", HTTP_AUTHORIZATION="Bearer token")
+                        content_type="application/json")
         self.assertEqual(r.status_code, 200, r.content)
 
     def test_api_input_validation(self):

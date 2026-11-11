@@ -46,6 +46,10 @@ def load_settings(**variables) -> dict:
 
 
 class DatabasePathTests(SimpleTestCase):
+    # Declared so the test runner always sets up its in-memory test database, even when this
+    # module runs alone (see test_tests_never_use_the_configured_database_file). No query is made.
+    databases = {"default"}
+
     def test_default_path_is_unchanged(self):
         with mock.patch.dict(os.environ):
             os.environ.pop("DJANGO_DB_PATH", None)

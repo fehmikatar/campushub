@@ -12,6 +12,8 @@ SERVICE_NAME = "campushub-academic-assistant"
 class HealthView(ApiView):
     """GET /api/health — liveness + index status. Never calls the model providers (stays fast)."""
 
+    public = True  # used by Docker, Eureka and monitoring: no token
+
     def get(self, request):
         index = {
             "page_chunks": vectorstore.count(cfg("COLLECTION_PAGES")),

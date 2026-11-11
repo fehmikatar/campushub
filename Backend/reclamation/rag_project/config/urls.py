@@ -10,6 +10,7 @@ urlpatterns = [
     path("", include("chat.urls")),
     path("", include("regulation.urls")),
     path("", include("documents.urls")),
+    path("", include("reclamations.urls")),  # DRF, MongoDB
     re_path(r"^", not_found),  # must stay last
 ]
 

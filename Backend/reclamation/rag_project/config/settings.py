@@ -64,18 +64,28 @@ SECRET_KEY = SECRET_KEY or "django-insecure-change-me-in-production"  # DEBUG on
 ALLOWED_HOSTS = [h.strip() for h in (env("DJANGO_ALLOWED_HOSTS") or "localhost,127.0.0.1").split(",")
                  if h.strip()]
 
-# REST API only: no admin, templates, sessions or static files. Callers authenticate with a
-# JWT at the API Gateway (stateless), so there is no cookie session and no CSRF middleware.
+# RAG and DRF both use config.auth for stateless Keycloak authentication.
+# Legacy local users/groups/sessions remain in SQLite for compatibility only.
 INSTALLED_APPS = [
-    "documents",   # Document model, PDF upload/ingestion, /api/documents
-    "regulation",  # ESPRIT regulation dataset: rules, ambiguities, ingest_regulation, /api/academic-rules
-    "rag",         # Pure service layer: chunk -> embed -> store -> hybrid retrieve -> generate -> verify
-    "chat",        # Conversations + /api/academic-assistant/ask
+    "django.contrib.auth",          # legacy local users + groups
+    "django.contrib.contenttypes",  # required by auth
+    "django.contrib.sessions",      # legacy sessions (not API authentication)
+    "django_mongodb_backend",       # MongoDB backend: management commands, embedded-model migrations
+    "django_mongodb_extensions",    # MongoModelSerializer (ObjectId, embedded models) for DRF
+    "rest_framework",
+    "documents",     # Document model, PDF upload/ingestion, /api/documents
+    "regulation",    # ESPRIT regulation dataset: rules, ambiguities, ingest_regulation, /api/academic-rules
+    "rag",           # Pure service layer: chunk -> embed -> store -> hybrid retrieve -> generate -> verify
+    "chat",          # Conversations + /api/academic-assistant/ask
+    "reclamations",  # Student reclamations (MongoDB) + /api/reclamations
 ]
 
+# Bearer-only APIs do not authenticate with cookies.
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -93,18 +103,63 @@ DATABASES = {
     }
 }
 
+# MongoDB (official django-mongodb-backend): ONLY the `reclamations` app; see config/db_router.py.
+# The connection opens on first use, so the RAG endpoints keep working while MongoDB is down
+# (the reclamations API then answers 503).
+MONGODB_URI = (env("MONGODB_URI") or "").strip() or "mongodb://localhost:27017"
+MONGODB_NAME = (env("MONGODB_NAME") or "").strip() or "campushub"
+DATABASES["mongodb"] = {
+    "ENGINE": "django_mongodb_backend",
+    "HOST": MONGODB_URI,  # a connection string: may contain credentials, never logged or returned
+    "NAME": MONGODB_NAME,
+    # Fail after 5 s (PyMongo's default is 30 s) when the server cannot be reached
+    "OPTIONS": {"serverSelectionTimeoutMS": 5000},
+    # `manage.py test` creates and drops this database; the development database is never used.
+    "TEST": {"NAME": f"test_{MONGODB_NAME}"},
+}
+DATABASE_ROUTERS = [
+    "django_mongodb_backend.routers.MongoRouter",  # embedded models get no collection of their own
+    "config.db_router.DatabaseRouter",             # reclamations -> mongodb, everything else -> default
+]
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Africa/Tunis"
 USE_I18N = True
 USE_TZ = True
 
+# SQLite apps. The reclamations app overrides it with ObjectIdAutoField (reclamations/apps.py).
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# --------------------------------------------------------------------------
+# Reclamations API (Django REST Framework)
+# --------------------------------------------------------------------------
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["reclamations.authentication.KeycloakAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    "DEFAULT_RENDERER_CLASSES": ["reclamations.renderers.JSONRenderer"],  # JSON only, UTF-8 charset
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "EXCEPTION_HANDLER": "reclamations.exceptions.exception_handler",
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
+}
+
+# --------------------------------------------------------------------------
+# Keycloak (realm campushub): every endpoint except /api/health needs a valid token (config/auth.py)
+# --------------------------------------------------------------------------
+# The expected "iss" claim, exactly as in the tokens: always the browser-side address, also in
+# Docker. Empty = protected endpoints answer 503 (fail closed: this service has no legacy token mode).
+KEYCLOAK_ISSUER_URI = (env("KEYCLOAK_ISSUER_URI") or "").strip()
+# Where the realm's public keys are downloaded. Empty = <issuer>/protocol/openid-connect/certs.
+# In Docker: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+KEYCLOAK_JWKS_URI = (env("KEYCLOAK_JWKS_URI") or "").strip()
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
-    "loggers": {"rag": {"handlers": ["console"], "level": env("RAG_LOG_LEVEL", "INFO")}},
+    "loggers": {
+        "rag": {"handlers": ["console"], "level": env("RAG_LOG_LEVEL", "INFO")},
+        "reclamations": {"handlers": ["console"], "level": env("RECLAMATIONS_LOG_LEVEL", "INFO")},
+    },
 }
 
 # --------------------------------------------------------------------------
