@@ -155,19 +155,24 @@ Seul appel HTTP sortant du service (règles communes du synchrone) : pour les no
 - Pas d'appel dans une boucle : les envois à une liste (`course.published`, `broadcast`) n'ajoutent pas de prénom, en attendant un endpoint « par lot » côté User.
 - Code : `app/Services/UserDirectory.php` ; tests : `tests/Feature/UserDirectoryTest.php`.
 
-## Lancer avec Docker (Notification + RabbitMQ + MySQL)
+## Lancer avec Docker
 
+### Dans le compose global
+`docker-compose.yml` est le **bloc du service** à copier dans le compose commun : `notification-service` (API + enregistrement Eureka), `notification-consumer` et `notification-mysql` (base propre au service). RabbitMQ, Keycloak et Eureka sont **partagés** et doivent s'appeler `rabbitmq`, `keycloak` et `eureka-server` (sinon adapter `RABBITMQ_URL`, `KEYCLOAK_JWKS_URI`, `EUREKA_HOST`). L'instance est enregistrée dans Eureka sous `notification-service:8085` (`EUREKA_INSTANCE_HOST=notification-service`).
+
+### Le service seul
 ```bash
 docker compose up --build
 ```
+`docker-compose.override.yml` est chargé automatiquement : il ajoute RabbitMQ et pointe Keycloak et Eureka vers la machine hôte (ports 8180 et 8761). Il n'est pas à copier dans le compose global.
 
 | Conteneur | Rôle | Accès |
 |---|---|---|
-| `notification-api` | API HTTP Laravel (migrations lancées au démarrage) | http://localhost:8085/docs/ |
+| `notification-service` | API HTTP Laravel (migrations au démarrage) + enregistrement Eureka (nouvel essai toutes les 10 s) | http://localhost:8085/docs/ |
 | `notification-consumer` | `php artisan rabbitmq:consume` en continu (redémarre tout seul) | — |
-| `rabbitmq` | broker | AMQP `localhost:5672`, interface http://localhost:15672 (`guest` / `guest`) |
-| `mysql` | base `campushub_notification` | `localhost:3307` (`root` / `root`) |
+| `rabbitmq` (override) | broker | AMQP `localhost:5672`, interface http://localhost:15672 (`guest` / `guest`) |
+| `notification-mysql` | base `campushub_notification` | `localhost:3307` (`root` / `root`, port publié par l'override) |
 
 Dans Docker, le service est en mode Keycloak par défaut (Keycloak sur la machine hôte, port 8180) ; pour l'ancien mode, lancer avec `KEYCLOAK_ISSUER_URI=` vide. Valeurs par défaut de développement : `JWT_SECRET=dev-secret`, `INTERNAL_API_KEY=dev-key` (modifiables avec des variables d'environnement avant `docker compose up`). La clé d'application Laravel est générée au démarrage, aucun secret n'est dans le dépôt. Le mail est en mode `log`. Pour arrêter : `docker compose down` (`-v` pour effacer aussi la base).
 
-L'enregistrement Eureka (`php artisan eureka:register`) n'est pas lancé dans Docker : à utiliser en local.
+Hors Docker, l'enregistrement Eureka se lance à la main : `php artisan eureka:register`.
