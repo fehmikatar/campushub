@@ -1,0 +1,52 @@
+<div class="layout">
+  <aside class="sidebar">
+    <a class="brand" routerLink="/">
+      <app-icon [name]="icons.graduationCap" [size]="26" />
+      <span>CampusHub</span>
+    </a>
+    <nav aria-label="Navigation principale">
+      @for (item of menu(); track item.path) {
+        <a class="nav-item" [routerLink]="item.path" routerLinkActive="active">
+          <app-icon [name]="item.icon" [size]="18" />
+          <span>{{ item.label }}</span>
+        </a>
+      }
+    </nav>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <label class="search">
+        <app-icon [name]="icons.search" [size]="16" />
+        <input type="search" placeholder="Rechercher..." aria-label="Rechercher" />
+      </label>
+
+      <a class="bell" routerLink="/notifications" aria-label="Notifications">
+        <app-icon [name]="icons.bell" [size]="20" />
+      </a>
+
+      <div class="account">
+        <button type="button" class="account-button" (click)="menuOpen.set(!menuOpen())" [attr.aria-expanded]="menuOpen()">
+          <span class="avatar">{{ initials() }}</span>
+          <span class="identity">
+            <strong>{{ user()?.prenom }} {{ user()?.nom }}</strong>
+            <small>{{ roleLabel() }}</small>
+          </span>
+          <app-icon [name]="icons.chevronDown" [size]="16" />
+        </button>
+        @if (menuOpen()) {
+          <div class="dropdown">
+            <button type="button" (click)="logout()">
+              <app-icon [name]="icons.logOut" [size]="16" />
+              Se déconnecter
+            </button>
+          </div>
+        }
+      </div>
+    </header>
+
+    <main class="content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

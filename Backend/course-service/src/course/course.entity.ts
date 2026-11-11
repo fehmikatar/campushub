@@ -57,7 +57,7 @@ export class Course {
   @ApiPropertyOptional({ example: 3 })
   nbChapitres?: number;
 
-  // Rempli par appel synchrone vers evaluation-service (GET /courses/{id})
-  @ApiPropertyOptional({ example: 5, description: 'Nombre de quiz pour ce cours' })
+  // Aucun appel a Evaluation : alimentation du compteur a definir avec l'equipe.
+  @ApiPropertyOptional({ example: null, nullable: true, description: 'Nombre de quiz indisponible : null' })
   nbQuiz?: number | null;
 }
