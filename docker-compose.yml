@@ -93,6 +93,80 @@ services:
       eureka-server:
         condition: service_started
 
+  # --- Evaluation (SQL Server + API .NET + migrations EF) ---
+  # Mot de passe SA : definir MSSQL_SA_PASSWORD dans un fichier .env a la racine (non committe).
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-CampusHub!2026}
+    # Pas de port publie (les migrations et l'API passent par le reseau Docker).
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  # Applique les migrations EF une seule fois, puis s'arrete (voir Dockerfile, etape "migrate").
+  evaluation-migrate:
+    build:
+      context: ./Backend/evaluation-service
+      target: migrate
+    image: campushub/evaluation-service-migrate
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=EvaluationDB;User Id=sa;Password=${MSSQL_SA_PASSWORD:-CampusHub!2026};TrustServerCertificate=True;"
+      # Suffit a demarrer le host en mode Keycloak (sinon JWT_SECRET serait exige).
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+    depends_on:
+      mssql:
+        condition: service_healthy
+    restart: "no"
+
+  evaluation-service:
+    build: ./Backend/evaluation-service
+    image: campushub/evaluation-service
+    environment:
+      # Definition = Swagger disponible sur http://localhost:8084/swagger
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8084
+      Urls: http://0.0.0.0:8084
+      ConnectionStrings__DefaultConnection: "Server=mssql,1433;Database=EvaluationDB;User Id=sa;Password=${MSSQL_SA_PASSWORD:-CampusHub!2026};TrustServerCertificate=True;"
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      # iss vu par le navigateur ; cles publiques lues par le reseau Docker (comme forum/gateway).
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      # Enregistrement dans l'Eureka du compose (la Gateway resout lb://evaluation-service).
+      Eureka__Client__ServiceUrl: http://eureka-server:8761/eureka/
+      Eureka__Instance__HostName: evaluation-service
+      Eureka__Instance__Port: "8084"
+      Eureka__Instance__InstanceId: evaluation-service:8084
+      # Course tourne encore sur la machine hote (PostgreSQL, port 8082).
+      COURSE_SERVICE_URL: ${COURSE_SERVICE_URL:-http://host.docker.internal:8082}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:3000}
+    ports:
+      - "8084:8084"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mssql:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+      keycloak:
+        condition: service_started
+      evaluation-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8084/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
 volumes:
   keycloak-data:
   mongo-data:
+  mssql-data:
