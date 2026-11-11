@@ -410,9 +410,13 @@ class ProtectedEndpointTests(IndexTestCase):
         self.assertEqual(renamed.json()["title"], "PFE")
         self.assertEqual(self.client.get("/api/conversations").json()["count"], 1)
 
-        upload = self.client.post("/api/documents", {"file": _pdf("guide.pdf")})
+        # documents: every role reads (above), only an ADMIN changes them
+        self.assertEqual(self.client.post("/api/documents", {"file": _pdf("guide.pdf")}).status_code, 403)
+        admin = Client(headers=kc.auth_headers(kc.make_token(sub=kc.ADMIN_ID, roles=["ADMIN"])))
+        upload = admin.post("/api/documents", {"file": _pdf("guide.pdf")})
         self.assertEqual(upload.status_code, 201, upload.content)
-        self.assertEqual(self.client.delete(f"/api/documents/{upload.json()['id']}").status_code, 204)
+        self.assertEqual(self.client.delete(f"/api/documents/{upload.json()['id']}").status_code, 403)
+        self.assertEqual(admin.delete(f"/api/documents/{upload.json()['id']}").status_code, 204)
         self.assertEqual(self.client.delete(conversation).status_code, 204)
 
 

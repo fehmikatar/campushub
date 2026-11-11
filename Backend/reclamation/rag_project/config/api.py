@@ -3,6 +3,8 @@
 Every endpoint is a subclass of ApiView, so all of them behave the same way:
   - a valid Keycloak token is required (config.auth) unless the view sets `public = True`;
     the caller is then available as `request.principal` (sub, role, roles)
+  - `write_roles` (optional) restricts the changing methods to some roles: 403 before anything
+    is parsed or touched (documents: ADMIN only)
   - responses are JSON; errors are {"error": "..."} with a meaningful status code
   - AuthError -> 401/403/503, ApiError -> its status, DocumentError -> 422, RAGError -> 503,
     anything else -> 500 (logged)
@@ -53,14 +55,26 @@ def auth_error(exc: AuthError) -> JsonResponse:
     return response
 
 
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+
 class ApiView(View):
     public = False  # True only for endpoints that must work without a token (health check)
+    # Roles allowed to CHANGE something through this view (every method except GET / HEAD /
+    # OPTIONS); None = every authenticated CampusHub role. Only the verified token's highest role
+    # counts (config.auth); checked right after authentication, before the body is parsed and before
+    # any file, database, index or provider access, so a refused request has no side effect.
+    write_roles: tuple[str, ...] | None = None
+    write_forbidden = "Your role does not allow this change."
 
     def dispatch(self, request, *args, **kwargs):
         try:
             if not self.public:
                 # Before any parsing or business logic; identity never comes from the request body.
                 request.principal = authenticate(request)
+                if (self.write_roles is not None and request.method not in SAFE_METHODS
+                        and request.principal.role not in self.write_roles):
+                    raise AuthError(403, self.write_forbidden)
             return super().dispatch(request, *args, **kwargs)
         except AuthError as exc:
             return auth_error(exc)

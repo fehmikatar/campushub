@@ -91,7 +91,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
 | `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
-| `test` | 283 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 291 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
@@ -102,6 +102,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `test tests.test_eureka` | 21 Eureka registration tests against a local fake Eureka (no real Eureka) |
 | `test tests.test_course_client` | 20 Course check tests against local fake Course / Eureka servers (5 need MongoDB) |
 | `test tests.test_events` | 17 RabbitMQ event tests with a fake broker connection (7 need MongoDB) |
+| `test tests.test_document_permissions` | 8 document authorization tests: reads for every role, changes for ADMIN only, no side effect when refused |
 
 ## Configuration
 
@@ -393,7 +394,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 283 total with MongoDB: 225 offline + 58 integration
+python manage.py test --noinput                       # 291 total with MongoDB: 233 offline + 58 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -671,6 +672,18 @@ endpoints are described in [Reclamations API](#reclamations-api-mongodb).
 | `GET` | `/api/ambiguities/{amb_id}` | | 200 ambiguity + rules on the same pages |
 | `GET` | `/api/health` | no token needed | 200 `{"status": "UP", "indexed": true, "index": {...}}` |
 
+- **Documents: every role reads, only `ADMIN` changes.** `GET` (list, one document) is open to
+  ETUDIANT, ENSEIGNANT and ADMIN; `POST`, `PUT` and `DELETE` (and any other changing method) answer
+  `403 {"error": "Only an administrator can upload, replace or delete documents."}` to ETUDIANT and
+  ENSEIGNANT. Why: these PDFs are indexed into the shared knowledge base, so a change alters the
+  assistant's answers for every user and spends the embedding provider's quota. The role is the
+  highest CampusHub realm role of the verified Keycloak token (ADMIN > ENSEIGNANT > ETUDIANT); a role,
+  id or flag sent in the body, the query or a header (`X-Role`…), the old `role` claim, a client role,
+  a local Django superuser or group never count. The check runs right after authentication
+  (`config.api.ApiView.write_roles`), before the upload is parsed and before any file, SQLite row,
+  Chroma vector or embedding call, so a refused request changes nothing. Order: 401 (no / invalid /
+  expired token) or 503 (Keycloak keys unavailable) -> 403 (role) -> the usual 400 / 404 / 405 / 409 /
+  413 / 422 for an ADMIN. A refused caller learns nothing about the document (403 even for a missing id).
 - **Rules and ambiguities are read-only**: they are paraphrases of the official PDF, loaded and
   embedded by `ingest_regulation`. The regulation document itself cannot be replaced or deleted
   through `/api/documents` (409); only uploaded PDFs can.
@@ -689,8 +702,9 @@ Examples (`$TOKEN` = a Keycloak access token, see [Authentication](#authenticati
 AUTH="Authorization: Bearer $TOKEN"
 curl -X POST localhost:8000/api/academic-assistant/ask -H "$AUTH" -H "Content-Type: application/json" \
      -d '{"question": "Mon PFE doit durer 26 ou 28 semaines ?"}'
-curl -X POST localhost:8000/api/documents -H "$AUTH" -F "file=@syllabus.pdf"
-curl -X PUT  localhost:8000/api/documents/2 -H "$AUTH" -F "file=@syllabus-v2.pdf"
+ADMIN_AUTH="Authorization: Bearer $ADMIN_TOKEN"   # document changes: an ADMIN token only
+curl -X POST localhost:8000/api/documents -H "$ADMIN_AUTH" -F "file=@syllabus.pdf"
+curl -X PUT  localhost:8000/api/documents/2 -H "$ADMIN_AUTH" -F "file=@syllabus-v2.pdf"
 curl -X PUT  localhost:8000/api/conversations/3 -H "$AUTH" -H "Content-Type: application/json" -d '{"title": "PFE"}'
 curl -X DELETE localhost:8000/api/conversations/3 -H "$AUTH"
 ```
@@ -762,12 +776,10 @@ Add real student questions to `data/regulation/eval_questions.json`.
 - API Gateway route: prepared and tested on a scratch copy (see "API Gateway"); waiting for the
   Gateway owner's approval of `/api/v1/reclamation/**`, then a live test with the team's Keycloak,
   Eureka and Gateway.
-- **Security, before any production exposure:** `/api/documents` has no role check. Every
-  authenticated role (students included) can upload, replace or delete knowledge-base PDFs, which
-  changes the answers of the assistant for everyone and spends the embedding provider's quota.
-  Recommended: reads for every role, `POST` / `PUT` / `DELETE` for `ADMIN` only (decision pending);
-  then add 403 tests for ETUDIANT and ENSEIGNANT (refused before any file is read or embedded) and
-  move the existing upload tests, which use a student token, to an admin token.
+- Security follow-ups (audit of 2026-11-11; document changes are now ADMIN-only):
+  `/api/health` is public and also returns the embedding / LLM model names and the document and
+  index counts (keep only `status` for anonymous callers?); `/api/academic-assistant/ask` has no
+  rate limit, so any authenticated user can spend the LLM / embedding quota (throttle per `sub`).
 - Course check: add "Reclamation -> Course" to the team's table of synchronous calls; live test.
 - RabbitMQ: approval of the queue `reclamation.events`, the two events and the administrator
   recipients; the Notification patch applied by its owner; only then `RECLAMATION_EVENTS_ENABLED=true`.

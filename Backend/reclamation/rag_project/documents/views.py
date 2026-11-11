@@ -6,6 +6,11 @@ GET    /api/documents/<id>     one document
 PUT    /api/documents/<id>     replace its PDF + re-index  multipart/form-data, field "file"
 DELETE /api/documents/<id>     delete it (file, row and vectors)
 
+Authorization (verified Keycloak role only): every CampusHub role may read (GET); only ADMIN may
+POST / PUT / DELETE (any other changing method too): 403 for ETUDIANT and ENSEIGNANT before the
+upload is parsed, before any file, SQLite row or Chroma vector is touched and before the embedding
+provider is called. These PDFs feed the assistant's answers for every user.
+
 The prepared regulation (origin "json") is read-only here: it is managed by
 `manage.py ingest_regulation`. Indexing is synchronous (the response comes back once the
 PDF is embedded). Errors: 400 bad request, 409 conflict, 413 too large, 422 unusable PDF,
@@ -20,6 +25,8 @@ from .services import (add_uploaded_pdf, check_pdf, delete_uploaded_pdf, pdf_pat
                        replace_uploaded_pdf, safe_pdf_name)
 
 NOT_FOUND = "Document not found."
+WRITE_ROLES = ("ADMIN",)  # highest verified realm role (config.auth); see config.api.ApiView.write_roles
+WRITE_FORBIDDEN = "Only an administrator can upload, replace or delete documents."
 READ_ONLY = ("This document is the prepared regulation dataset; it is managed with "
              "`python manage.py ingest_regulation`, not through the API.")
 
@@ -44,6 +51,8 @@ def _editable(pk) -> Document:
 
 
 class DocumentListView(ApiView):
+    write_roles, write_forbidden = WRITE_ROLES, WRITE_FORBIDDEN
+
     def get(self, request):
         documents = [d.to_dict() for d in Document.objects.all()]
         return ok({"count": len(documents), "results": documents})
@@ -60,6 +69,8 @@ class DocumentListView(ApiView):
 
 
 class DocumentDetailView(ApiView):
+    write_roles, write_forbidden = WRITE_ROLES, WRITE_FORBIDDEN
+
     def get(self, request, pk):
         return ok(get_object(Document, NOT_FOUND, pk=pk).to_dict())
 

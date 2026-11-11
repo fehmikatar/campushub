@@ -38,8 +38,11 @@ Cloud API Gateway). Two functionalities:
   raises, waits 3 s at most). actorId = verified sub, studentSub = stored author_sub; no token,
   secret or free text in events. OFF unless RECLAMATION_EVENTS_ENABLED=true and RABBITMQ_URL: the
   queue `reclamation.events` is not approved yet (patch for Notification in docs/notification/).
-- `/api/documents` has NO role check today (any authenticated role can upload/replace/delete);
-  ADMIN-only writes are recommended but not decided: do not change the policy without the team.
+- `/api/documents`: every role reads, only ADMIN changes (POST / PUT / DELETE / any non-GET), via
+  `ApiView.write_roles` in config/api.py: checked on the verified principal's highest role right
+  after authentication, BEFORE the body is parsed or any file / SQLite / Chroma / embedding access
+  (403, no side effect). Never read a role from the request; never use Django groups or is_staff.
+  tests/test_document_permissions.py proves it (state snapshot + spies); keep it passing.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
   Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
   goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
@@ -122,7 +125,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 283 tests (225 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 291 tests (233 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

@@ -39,7 +39,7 @@ from rag.pipeline import ask, retrieval_query
 from rag.prompts import NOT_FOUND_ANSWER, SYSTEM_PROMPT
 from regulation.models import AcademicRule, Ambiguity
 
-from .fake_keycloak import auth_headers, keycloak_settings, shared_jwks
+from .fake_keycloak import ADMIN_ID, auth_headers, keycloak_settings, make_token, shared_jwks
 
 REAL_DATA = settings.BASE_DIR / "data" / "regulation"
 
@@ -410,6 +410,13 @@ class ServiceApiTests(IndexTestCase):
 
 
 class DocumentApiTests(IndexTestCase):
+    """The document lifecycle for its only authorized caller, an ADMIN (signed ADMIN token). The
+    refusals for ETUDIANT / ENSEIGNANT are in tests/test_document_permissions.py."""
+
+    def setUp(self):
+        super().setUp()
+        self.client = Client(headers=auth_headers(make_token(sub=ADMIN_ID, roles=["ADMIN"])))
+
     def upload(self, name, data, method="post", url="/api/documents"):
         body = {"file": SimpleUploadedFile(name, data, content_type="application/pdf")}
         if method == "post":
