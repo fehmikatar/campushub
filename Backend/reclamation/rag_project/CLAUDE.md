@@ -19,6 +19,10 @@ Cloud API Gateway). Two functionalities:
 - `documents/` owns `Document`, PDF ingestion (`ingest_pdfs`, `/api/documents` upload/replace/delete),
   `rebuild_index`, `ask`.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
+  Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
+  goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
+  conversation is a 404 for every role, ADMIN included. In `AskView` the ownership check stays
+  BEFORE reading the history and before any embedding / LLM call. Never guess owners of legacy rows.
 - `config/api.py` = REST toolkit of the RAG apps: every RAG endpoint subclasses `ApiView` (Keycloak
   JWT checked by `config/auth.py` unless `public = True`, JSON errors, 405 with Allow), routes use
   `route()` (trailing slash optional). `config/views.py`: `/api/health`, JSON 404.
@@ -96,7 +100,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 207 tests (162 offline + 45 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 217 tests (172 offline + 45 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

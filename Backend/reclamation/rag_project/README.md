@@ -88,12 +88,13 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `ask "question" [--evidence] [--year 2026-2027]` | Ask in the terminal; `--evidence` shows retrieval only |
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
-| `test` | 207 tests: no Ollama/API/Keycloak needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 217 tests: no Ollama/API/Keycloak needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
 | `test tests.test_auth` | the 39 shared/RAG Keycloak authentication / security tests |
 | `test tests.test_reclamations_auth` | 25 DRF Keycloak security tests, no MongoDB required |
 | `test tests.test_reclamations_identity` | 9 real MongoDB ownership and migration tests |
+| `test tests.test_conversation_ownership` | 10 private-conversation tests (RAG), no MongoDB required |
 
 ## Configuration
 
@@ -371,7 +372,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 207 total with MongoDB: 162 offline + 45 integration
+python manage.py test --noinput                       # 217 total with MongoDB: 172 offline + 45 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -444,8 +445,14 @@ login, registration or password endpoint. Every RAG and Reclamations endpoint ex
 The table uses the RAG `error` key; CRUD returns the same safe messages under DRF's `detail` key.
 Error bodies never contain tokens, keys, host names or technical details.
 
-**Known limitation until conversation ownership is added:** any authenticated user can list, read,
-rename and delete every conversation.
+**Private conversations:** a conversation belongs to the `sub` of the token that created it
+(`owner_sub`, set by the server; an `owner_sub` sent in a request is ignored). Every user, whatever
+the role (`ADMIN` included), only lists, reads, renames, deletes and continues their own
+conversations; anyone else's answers `404 Conversation not found.`, exactly like a missing one.
+For `POST /api/academic-assistant/ask` with a `conversation_id`, this check runs before the
+previous messages are read and before any embedding / LLM call. Conversations created before
+ownership existed keep `owner_sub` empty: they are kept in the database but no one can reach them
+through the API (no owner is guessed from a username).
 
 Local test token (PowerShell). Start Keycloak as in section 8 of
 `Documentation/regles-communes-keycloak.txt`; the test users and their password are in section 7.
@@ -581,8 +588,6 @@ Add real student questions to `data/regulation/eval_questions.json`.
   they first need a relevance threshold evaluated on labelled examples.
 - `POST /api/recommendations/` — needs `campushub_recommendation_engine.py` (referenced by the
   guide, not in this repo) and an authorized student snapshot from the Enrollment/Evaluation services.
-- Conversation ownership — tokens are checked, but conversations are not tied to their user yet
-  (`request.principal.sub`), so every authenticated user sees all of them.
 - Role rules — e.g. whether `/api/documents` writes are restricted to `ADMIN` (not decided yet).
 - Gateway route + Eureka registration + Dockerfile.
 - Reranking with a cross-encoder (e.g. bge-reranker) — RRF is the current ranking step.

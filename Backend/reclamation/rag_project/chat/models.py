@@ -4,12 +4,22 @@ TITLE_MAX_LENGTH = 200
 
 
 class Conversation(models.Model):
+    """A private chat of one user with the assistant.
+
+    `owner_sub` is the verified Keycloak `sub` (UUID) of its creator, set from the token, never
+    from the request. Every endpoint only sees the caller's own conversations, whatever the role
+    (ADMIN included). Rows created before ownership existed keep owner_sub NULL: they stay in the
+    database but nobody can reach them through the API (no owner is ever guessed).
+    """
+
+    owner_sub = models.CharField(max_length=36, null=True, blank=True, editable=False)
     title = models.CharField(max_length=TITLE_MAX_LENGTH, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-updated_at"]
+        indexes = [models.Index(fields=["owner_sub", "-updated_at"], name="conversation_owner_recent")]
 
     def __str__(self):
         return self.title or f"Conversation {self.pk}"
