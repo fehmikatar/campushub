@@ -4,11 +4,10 @@ import { Course } from './course.entity.js';
 import { Chapter } from '../chapter/chapter.entity.js';
 import { CourseService } from './course.service.js';
 import { CourseController } from './course.controller.js';
-import { EvaluationClient } from '../config/evaluation-client.js';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Course, Chapter])],
-  providers: [CourseService, EvaluationClient],
+  providers: [CourseService],
   controllers: [CourseController],
   exports: [CourseService],
 })

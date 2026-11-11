@@ -1,36 +1,81 @@
-# Course Service
+# Course Service - Docker
 
-**Framework :** NestJS
-**Base de données :** PostgreSQL
-**Port :** 8082
+## Port
+- **8082** (HTTP)
 
-Gère les cours et leurs contenus (chapitres, ressources pédagogiques).
+## Variables d'environnement
 
-## Démarrer en local
+| Variable | Description | Défaut | Requis |
+|----------|-------------|--------|--------|
+| `PORT` | Port d'écoute | `8082` | Non |
+| `NODE_ENV` | Environnement | `production` | Non |
+| `DB_HOST` | Host PostgreSQL | `localhost` | Oui |
+| `DB_PORT` | Port PostgreSQL | `5432` | Non |
+| `DB_USER` | User PostgreSQL | `postgres` | Oui |
+| `DB_PASS` | Password PostgreSQL | `postgres` | Oui |
+| `DB_NAME` | Base de données | `course_db` | Oui |
+| `KEYCLOAK_ISSUER_URI` | Issuer Keycloak (identique partout) | Non défini (mode legacy) | Non |
+| `KEYCLOAK_JWKS_URI` | URI JWKS, à définir si l'hôte des clés diffère de l'issuer | Dérivée de l'issuer | Non |
+| `JWT_SECRET` | Secret HS256 d'au moins 32 octets | Non défini | Requis en mode legacy |
+| `JWT_ISSUER` | Issuer JWT legacy | `campushub-user-service` | Non |
+| `EUREKA_ENABLED` | Désactiver Eureka uniquement avec la valeur `false` | `true` | Non |
+| `EUREKA_HOST` | Hôte Eureka | `localhost` | Non |
+| `EUREKA_PORT` | Port Eureka | `8761` | Non |
+| `EUREKA_INSTANCE_HOST` | Nom d'hôte annoncé à Eureka | `localhost` | Non |
+| `RABBITMQ_URL` | URL RabbitMQ (vide pour désactiver la publication) | Non défini | Non |
+| `EVALUATION_SERVICE_URL` | URL Evaluation Service (optionnel, priorité sur Eureka) | - | Non |
+
+Dans Docker, utiliser `KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/campushub` (issuer
+des tokens) et `KEYCLOAK_JWKS_URI=http://keycloak:8080/realms/campushub/protocol/openid-connect/certs`.
+Le bloc compose prêt à intégrer est dans [`docker-compose.block.yml`](./docker-compose.block.yml).
+
+## Build & Run
 
 ```bash
-npm install
-cp .env.example .env   # renseigner DB_*, JWT_SECRET (identique au user-service)
-npm run start:dev
+# Depuis la racine du dépôt
+docker build -f Backend/course-service/Dockerfile -t course-service Backend/course-service
+
+# Run (nécessite postgres, rabbitmq, keycloak sur le même réseau)
+docker run -d \
+  --name course-service \
+  -p 8082:8082 \
+  -e DB_HOST=postgres \
+  -e DB_PASS=postgres \
+  -e KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/campushub \
+  -e KEYCLOAK_JWKS_URI=http://keycloak:8080/realms/campushub/protocol/openid-connect/certs \
+  -e RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672 \
+  course-service
 ```
 
-Swagger : http://localhost:8082/api (bouton **Authorize** pour coller le token).
-Tests : `npm test`.
+## Endpoints principaux
+- `GET    /courses` - Liste cours (auth)
+- `POST   /courses` - Créer cours (ENSEIGNANT/ADMIN)
+- `GET    /courses/categories` - Catégories
+- `GET    /courses/:id` - Détail cours
+- `PUT    /courses/:id` - Modifier (ENSEIGNANT/ADMIN)
+- `PATCH  /courses/:id/publish` - Publier (ENSEIGNANT/ADMIN)
+- `PATCH  /courses/:id/archive` - Archiver (ENSEIGNANT/ADMIN)
+- `POST   /courses/:id/image` - Upload image (ENSEIGNANT/ADMIN)
+- `DELETE /courses/:id/image` - Supprimer image (ENSEIGNANT/ADMIN)
+- `DELETE /courses/:id` - Supprimer (ENSEIGNANT/ADMIN)
+- `GET    /courses/:coursId/chapters` - Chapitres
+- `POST   /courses/:coursId/chapters` - Créer chapitre
+- `GET    /courses/:coursId/chapters/:id` - Détail chapitre
+- `PUT    /courses/:coursId/chapters/:id` - Modifier chapitre
+- `DELETE /courses/:coursId/chapters/:id` - Supprimer chapitre
+- `POST   /courses/:coursId/chapters/:id/pdf` - Upload PDF
+- `GET    /courses/:coursId/chapters/:id/pdf` - Télécharger PDF
+
+## Swagger
+`http://localhost:8082/api`
+
+## Verification du cours par Evaluation
+`GET /courses/:id` consulte uniquement la base Course, sans rappeler Evaluation.
+Les controles d'authentification et de visibilite restent actifs. `nbQuiz` vaut
+`null` en attendant la decision de l'equipe sur son alimentation. Cela evite la
+chaine Evaluation -> Course -> Evaluation lors de la creation d'un quiz.
 
 ## Authentification
-
-Toutes les routes exigent `Authorization: Bearer <JWT>` (HS256, même secret et issuer que le user-service ; claims `sub` = UUID de l'utilisateur, `role`). Sans token valide : 401.
-
-| Rôle | Droits |
-|---|---|
-| `ETUDIANT` | Lecture des cours `PUBLIE` et de leurs chapitres visibles |
-| `ENSEIGNANT` | Lecture de tout ; création ; modification de ses propres cours (sinon 403) |
-| `ADMIN` | Lecture et modification de tous les cours |
-
-À la création, `formateurId` est l'utilisateur connecté (`sub` du token), pas une valeur du corps de la requête. Les images de couverture (`/uploads/images/...`) restent publiques.
-
-Token de test : `npm run token -- ENSEIGNANT` (ou `ETUDIANT`, `ADMIN`, avec un UUID en second argument pour choisir l'utilisateur).
-
-## Événements RabbitMQ
-
-Avec `RABBITMQ_URL` renseigné, le service publie sur la file `course.events` (déclarée par le notification-service) : `course.published`, `course.archived`, `chapter.created`. Envoi « best effort » ; sans `RABBITMQ_URL`, rien n'est envoyé.
+- Bearer token Keycloak (RS256) ou JWT legacy (HS256)
+- Rôles : `ETUDIANT`, `ENSEIGNANT`, `ADMIN`
+- Header : `Authorization: Bearer <token>`
