@@ -9,6 +9,9 @@
 
 name: campushub
 
+include:
+  - path: Backend/notification-service/docker-compose.yml
+
 services:
 
   keycloak:
