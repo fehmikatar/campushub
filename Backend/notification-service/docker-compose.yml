@@ -1,0 +1,83 @@
+# Bloc du notification-service pour le docker-compose global : à copier tel quel dans le compose commun.
+# Il suppose les services partagés `rabbitmq`, `keycloak` et `eureka-server` (voir docker-compose.override.yml
+# pour les essais du service seul : `docker compose up --build` charge l'override automatiquement).
+# API : http://localhost:8085/docs/   Base : MySQL propre au service (notification-mysql).
+
+x-notification-env: &notification-env
+  APP_ENV: local
+  APP_DEBUG: "true"
+  LOG_CHANNEL: stderr
+  DB_CONNECTION: mysql
+  DB_HOST: notification-mysql
+  DB_PORT: 3306
+  DB_DATABASE: campushub_notification
+  DB_USERNAME: root
+  DB_PASSWORD: root
+  SESSION_DRIVER: array
+  CACHE_STORE: file
+  QUEUE_CONNECTION: sync
+  MAIL_MAILER: log
+  JWT_SECRET: ${JWT_SECRET:-dev-secret}
+  JWT_ISSUER: campushub-user-service
+  INTERNAL_API_KEY: ${INTERNAL_API_KEY:-dev-key}
+  RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+  # Le token garde l'issuer localhost:8180 ; les clés sont lues sur le réseau Docker.
+  KEYCLOAK_ISSUER_URI: ${KEYCLOAK_ISSUER_URI:-http://localhost:8180/realms/campushub}
+  KEYCLOAK_JWKS_URI: ${KEYCLOAK_JWKS_URI:-http://keycloak:8080/realms/campushub/protocol/openid-connect/certs}
+  # Enregistrement Eureka sous le nom du service (la Gateway joint http://notification-service:8085).
+  EUREKA_HOST: eureka-server
+  EUREKA_INSTANCE_HOST: notification-service
+  SERVICE_PORT: 8085
+  USER_SERVICE_URL: ${USER_SERVICE_URL:-}
+
+services:
+  notification-mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: campushub_notification
+    volumes:
+      - notification-mysql-data:/var/lib/mysql
+    healthcheck:
+      # 127.0.0.1 (pas localhost) : localhost passe par le socket Unix, ouvert pendant l'init temporaire de MySQL.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  notification-service:
+    build: .
+    image: campushub/notification-service
+    environment: *notification-env
+    ports:
+      - "8085:8085"
+    depends_on:
+      notification-mysql:
+        condition: service_healthy
+    # Clé d'application de développement générée au démarrage (rien de secret dans le dépôt).
+    # L'enregistrement Eureka tourne dans le même conteneur et réessaie toutes les 10 s si Eureka n'est pas prêt.
+    command: >
+      sh -c 'export APP_KEY=$$(php artisan key:generate --show);
+             php artisan migrate --force || exit 1;
+             (while true; do php artisan eureka:register; sleep 10; done) &
+             exec php artisan serve --host=0.0.0.0 --port=8085'
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8085/up') === false ? 1 : 0);"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  notification-consumer:
+    image: campushub/notification-service
+    pull_policy: never
+    environment: *notification-env
+    depends_on:
+      notification-service:
+        condition: service_healthy
+    command: >
+      sh -c 'export APP_KEY=$$(php artisan key:generate --show) &&
+             php artisan rabbitmq:consume'
+    restart: unless-stopped
+
+volumes:
+  notification-mysql-data:

@@ -1,0 +1,151 @@
+CAMPUSHUB - REGLES COMMUNES : SECURITE AVEC KEYCLOAK
+====================================================
+
+Principe : Keycloak connait les utilisateurs et delivre les tokens (JWT).
+Les services ne creent plus de token : ils VERIFIENT seulement celui qu'on leur envoie.
+Le frontend se connecte a Keycloak, puis appelle la Gateway avec le token.
+La Gateway verifie le token, puis le transmet tel quel au service.
+Chaque service verifie lui-meme le token (on ne fait confiance a personne).
+
+1. LES VALEURS A UTILISER (identiques pour tout le monde)
+---------------------------------------------------------
+- Keycloak              : http://localhost:8180  (admin / admin)
+- Realm                 : campushub
+- Issuer (iss du token) : http://localhost:8180/realms/campushub
+- Cles publiques (JWKS) : http://localhost:8180/realms/campushub/protocol/openid-connect/certs
+- Algorithme            : RS256 (plus de JWT_SECRET, plus de HS256)
+- Identifiant du user   : claim "sub" (un UUID, comme avant)
+- Roles                 : claim "realm_access" -> "roles" (liste)
+                          Exemple : {"realm_access":{"roles":["ETUDIANT","offline_access",
+                          "uma_authorization","default-roles-campushub"]}}
+- Roles CampusHub       : ETUDIANT, ENSEIGNANT, ADMIN. On IGNORE tous les autres roles.
+                          Si plusieurs roles CampusHub : on garde le plus eleve
+                          (ADMIN > ENSEIGNANT > ETUDIANT).
+- Le claim "aud" vaut "account" : on ne le verifie PAS.
+- Duree d'un token : 30 minutes (en test).
+- Le claim "role" de l'ancien token n'existe plus : toujours lire realm_access.roles.
+
+2. COMPORTEMENT D'UN SERVICE
+----------------------------
+- Pas de token, token mal forme, mauvaise signature, expire, mauvais issuer,
+  algorithme autre que RS256 : 401.
+- Token valide mais aucun role CampusHub : 403.
+- Role insuffisant pour l'action : 403 (comme avant).
+- Keycloak injoignable ET cle inconnue du cache : 503, jamais 500.
+- Les cles publiques sont mises en cache (environ 10 minutes) : on ne rappelle pas
+  Keycloak a chaque requete.
+- Le format d'erreur habituel de chaque service ne change pas.
+- Les services ne sont pas supposes joignables sans passer par la Gateway pour le
+  frontend, mais restent verifies : ils refusent tout appel sans token valide.
+
+3. VARIABLES D'ENVIRONNEMENT (memes noms partout)
+-------------------------------------------------
+  KEYCLOAK_ISSUER_URI = http://localhost:8180/realms/campushub
+  KEYCLOAK_JWKS_URI   = (optionnelle) adresse des cles si differente de l'issuer
+                        Vide = <KEYCLOAK_ISSUER_URI>/protocol/openid-connect/certs
+
+Pourquoi deux variables ? En Docker, un service joint Keycloak par "http://keycloak:8080"
+mais le token garde toujours l'issuer "http://localhost:8180/realms/campushub".
+Donc : l'issuer reste identique, seule l'adresse des cles change
+(KEYCLOAK_JWKS_URI=http://keycloak:8080/realms/campushub/protocol/openid-connect/certs).
+
+Transition : si KEYCLOAK_ISSUER_URI est vide, le service garde l'ancien mode JWT_SECRET.
+S'il est renseigne, le service passe en mode Keycloak. Quand tout le monde est migre,
+on supprimera l'ancien mode.
+
+4. COMMENT FAIRE, SERVICE PAR SERVICE
+-------------------------------------
+- Forum (Express)      : FAIT. Voir forum-service/src/shared/middlewares/auth.js
+                         (jsonwebtoken + jwks-rsa) et tests/keycloakAuth.test.js.
+- Course (NestJS)      : la librairie "jose" est deja installee. Utiliser
+                         createRemoteJWKSet(new URL(jwksUri)) et
+                         jwtVerify(token, jwks, { issuer, algorithms: ['RS256'] }).
+                         Role = le plus eleve de payload.realm_access.roles parmi
+                         ETUDIANT / ENSEIGNANT / ADMIN. userId = payload.sub.
+- Evaluation (.NET)    : package Microsoft.AspNetCore.Authentication.JwtBearer.
+                         Authority = KEYCLOAK_ISSUER_URI (en Docker : MetadataAddress
+                         vers keycloak:8080 et ValidIssuer = KEYCLOAK_ISSUER_URI).
+                         MapInboundClaims = false. Dans OnTokenValidated, transformer
+                         realm_access.roles en claims de role (ClaimTypes.Role).
+                         ValidateAudience = false.
+- Notification (Laravel): package firebase/php-jwt. Telecharger les cles (JWKS),
+                         les garder en cache (10 min), JWT::decode avec
+                         JWK::parseKeySet(...), algorithme RS256, verifier iss.
+                         Ne garder que les cles avec "use":"sig".
+- User (Spring Boot)   : starter spring-boot-starter-oauth2-resource-server.
+                         spring.security.oauth2.resourceserver.jwt.issuer-uri
+                         (ou jwk-set-uri si Docker). JwtAuthenticationConverter qui
+                         transforme realm_access.roles en ROLE_ETUDIANT, ROLE_ENSEIGNANT,
+                         ROLE_ADMIN. Voir la section 6 (decision a prendre).
+- Gateway (Spring)     : FAIT. Elle refuse tout appel sans token valide (401), sauf
+                         OPTIONS, /uploads/** et /actuator/health.
+- Enrollment (Django)  : a faire quand le service aura un proprietaire.
+
+5. TESTS A FOURNIR (service Keycloak simule ou cles de test)
+------------------------------------------------------------
+  a) token valide : la requete passe, id = sub, role lu dans realm_access.roles ;
+  b) mauvaise signature : 401 ;
+  c) token expire : 401 ;
+  d) mauvais issuer : 401 ;
+  e) token HS256 : 401 ;
+  f) token sans role CampusHub : 403 ;
+  g) role insuffisant sur une route reservee : 403 ;
+  h) Keycloak injoignable (cle inconnue) : 503 et jamais 500.
+Reference : forum-service/tests/keycloakAuth.test.js
+
+6. DECISION A PRENDRE POUR LE SERVICE USER (Aziz)
+-------------------------------------------------
+Avec Keycloak, la connexion (login), l'inscription et les mots de passe sont geres par
+Keycloak. Le service User ne delivre plus de token.
+Proposition :
+  - Keycloak gere login / inscription / mot de passe.
+  - User garde le PROFIL (nom, prenom, etc.) lie au "sub" Keycloak.
+  - Le profil est cree au premier appel authentifie (GET /api/v1/users/me) a partir du
+    token : sub, email, given_name, family_name, role.
+  - Les routes /api/v1/auth/** (login, register) de User deviennent inutiles et sont
+    retirees de la Gateway.
+  - L'endpoint public GET /api/v1/users/{id}/public reste SANS token (pour
+    Notification et Forum) et ne renvoie que id, prenom, nom.
+
+7. COMMENT OBTENIR UN TOKEN DE TEST (PowerShell)
+------------------------------------------------
+  $r = Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/campushub/protocol/openid-connect/token" -ContentType "application/x-www-form-urlencoded" -Body "grant_type=password&client_id=campushub-frontend&username=etudiant1&password=Test1234!"
+  $r.access_token
+
+Utilisateurs de test (mot de passe Test1234! pour les trois) :
+  etudiant1    ETUDIANT     id 11111111-1111-4111-8111-111111111111
+  enseignant1  ENSEIGNANT   id 3f2b8c1e-5d4a-4c1b-9a0e-2d7f6b1c8e90
+  admin1       ADMIN        id 99999999-9999-4999-8999-999999999999
+
+Test complet par la Gateway (le token doit etre accepte par la Gateway ET par le service) :
+  Invoke-RestMethod http://localhost:8080/api/v1/forum/categories -Headers @{Authorization="Bearer $($r.access_token)"}
+
+8. LANCER KEYCLOAK AVEC LE REALM (une seule fois par machine)
+-------------------------------------------------------------
+  Le fichier keycloak/campushub-realm.json contient les roles, le client et les 3
+  utilisateurs de test. Dans PowerShell, depuis la racine du projet :
+
+  docker run -d --name keycloak -p 8180:8080 `
+    -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin `
+    -v keycloak_data:/opt/keycloak/data `
+    -v ${PWD}\keycloak:/opt/keycloak/data/import:ro `
+    quay.io/keycloak/keycloak:26.0 start-dev --import-realm
+
+  Ensuite : docker start keycloak / docker stop keycloak (le volume garde les donnees).
+  Ne jamais faire "docker rm" sans savoir que le realm peut etre reimporte.
+
+9. SERVICE A SERVICE
+--------------------
+Rien ne change : on transmet tel quel l'en-tete Authorization de l'utilisateur
+(voir regles-communes-synchrone.txt). Le service appele verifie le token Keycloak.
+Cas Notification -> User : endpoint public sans token.
+
+10. CHACUN SA PARTIE
+--------------------
+- Fehmi (Forum, Gateway, Keycloak) : FAIT. Reste : docker-compose global et frontend.
+- Wassim (Course)     : passer la validation du token en Keycloak (section 4) + tests.
+- Lamin (Evaluation)  : passer la validation du token en Keycloak (section 4) + tests.
+- Rayen (Notification): passer la validation du token en Keycloak (section 4) + tests.
+- Aziz (User)         : passer en resource server Keycloak (section 4), decision de la
+                        section 6, + endpoint public + enregistrement Eureka.
+- Enrollment          : a decider (qui prend ce service ?).

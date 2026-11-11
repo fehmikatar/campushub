@@ -1,0 +1,40 @@
+# Essais du service seul (chargé automatiquement par `docker compose up --build`).
+# N'est PAS à copier dans le compose global : RabbitMQ, Keycloak et Eureka y sont déjà partagés.
+#   - RabbitMQ : lancé ici (interface http://localhost:15672, guest / guest)
+#   - Keycloak et Eureka : lancés sur la machine hôte (ports 8180 et 8761)
+
+x-local-env: &local-env
+  KEYCLOAK_JWKS_URI: http://host.docker.internal:8180/realms/campushub/protocol/openid-connect/certs
+  EUREKA_HOST: host.docker.internal
+  # Port publié sur la machine hôte : la Gateway locale joint localhost:8085.
+  EUREKA_INSTANCE_HOST: localhost
+
+services:
+  notification-mysql:
+    ports:
+      # 3307 pour ne pas entrer en conflit avec un MySQL local sur 3306.
+      - "3307:3306"
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  notification-service:
+    environment: *local-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  notification-consumer:
+    environment: *local-env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

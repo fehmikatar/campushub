@@ -4,6 +4,7 @@ const HttpError = require('../shared/utils/httpError');
 const { findActiveTopic } = require('../shared/utils/finders');
 const { isModerator, isOwnerOrModerator } = require('../shared/utils/permissions');
 const paginate = require('../shared/utils/pagination');
+const courseClient = require('../shared/utils/courseClient');
 
 async function assertCategoryExists(categoryId) {
   if (categoryId && !(await Category.exists({ _id: categoryId }))) {
@@ -13,6 +14,8 @@ async function assertCategoryExists(categoryId) {
 
 exports.createTopic = async (req, res) => {
   const { title, content, tags, categoryId } = req.body;
+  // appel synchrone vers Course : 404 si le cours n'existe pas, 503 si Course est en panne
+  await courseClient.assertCourseExists(req.params.courseId, req.headers.authorization);
   await assertCategoryExists(categoryId);
 
   const topic = await Topic.create({

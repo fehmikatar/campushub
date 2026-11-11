@@ -14,13 +14,25 @@ use Illuminate\Support\Facades\Mail;
  */
 class NotificationDispatcher
 {
-    /** @param array<string,mixed> $data */
-    public function send(string $userId, string $type, string $title, string $message, array $data = []): ?Notification
+    public function __construct(private UserDirectory $users)
+    {
+    }
+
+    /**
+     * @param  array<string,mixed>  $data
+     * @param  bool  $greet  ajoute le prénom du destinataire (un appel à user-service) ; à réserver aux envois
+     *                       à une ou deux personnes : jamais d'appel synchrone dans une boucle sur une liste.
+     */
+    public function send(string $userId, string $type, string $title, string $message, array $data = [], bool $greet = false): ?Notification
     {
         $prefs = NotificationPreference::where('user_id', $userId)->first();
 
         if ($prefs && in_array($type, $prefs->muted_types ?? [], true)) {
             return null;
+        }
+
+        if ($greet && ($firstName = $this->users->firstName($userId)) !== null) {
+            $message = "Bonjour $firstName, ".mb_strtolower(mb_substr($message, 0, 1)).mb_substr($message, 1);
         }
 
         $notification = Notification::create([

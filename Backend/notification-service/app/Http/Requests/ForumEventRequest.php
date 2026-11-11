@@ -16,7 +16,17 @@ class ForumEventRequest extends FormRequest
     /** @return array<string,mixed> */
     public function rules(): array
     {
-        $needsPost = ForumEvent::tryFrom((string) $this->input('event'))?->requiresPost() ?? false;
+        return self::rulesFor((string) $this->input('event'));
+    }
+
+    /**
+     * Règles partagées avec le consommateur RabbitMQ (mêmes données, autre canal).
+     *
+     * @return array<string,mixed>
+     */
+    public static function rulesFor(string $event): array
+    {
+        $needsPost = ForumEvent::tryFrom($event)?->requiresPost() ?? false;
 
         return [
             'event' => ['required', Rule::in(ForumEvent::values())],

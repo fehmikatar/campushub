@@ -13,14 +13,29 @@ Ce service est indépendant : `CourseId` référence le service Course (entier),
 
 ## Démarrer en local
 
-1. Créer un fichier `.env` local (non committé) à partir de l'exemple :
+1. Démarrer **Keycloak** en premier (realm `campushub` importé depuis
+   `keycloak/campushub-realm.json`), puis créer un fichier `.env` local (non
+   committé) à partir de l'exemple :
 
    ```bash
    cp .env.example .env
    ```
 
-   puis renseigner `JWT_SECRET` (chaîne UTF-8 brute, **minimum 32 octets**),
-   identique à celui du User Service.
+   puis renseigner :
+
+   ```dotenv
+   KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/campushub
+   ```
+
+   En Docker, garder l'issuer ci-dessus (c'est `iss` dans les tokens) et
+   pointer les clés vers le conteneur :
+
+   ```dotenv
+   KEYCLOAK_JWKS_URI=http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+   ```
+
+   Mode de transition : laisser `KEYCLOAK_ISSUER_URI` vide conserve l'ancien
+   mode HS256 (`JWT_SECRET`, chaîne UTF-8 brute, **minimum 32 octets**).
 
 2. Lancer le service :
 
@@ -29,8 +44,8 @@ Ce service est indépendant : `CourseId` référence le service Course (entier),
    dotnet run --urls=http://localhost:8084
    ```
 
-   Variante : `dotnet user-secrets set "JWT_SECRET" "..."` (le projet est
-   initialisé pour les user-secrets) ou variable d'environnement `JWT_SECRET`.
+   Variante : `dotnet user-secrets set "KEYCLOAK_ISSUER_URI" "..."` ou variable
+   d'environnement de même nom.
 
 L'API est disponible sur `http://localhost:8084`. En développement, la
 documentation OpenAPI est exposée (`Program.cs`, `MapOpenApi`).
@@ -45,8 +60,10 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
   `appsettings.json` (surchargeable par `ASPNETCORE_URLS` ou `--urls`).
 - Port annoncé à Eureka : `Eureka:Instance:Port` = `8084`, cohérent avec
   l'écoute Kestrel.
-- Le registre n'est pas interrogé (`ShouldFetchRegistry=false`) : le service
-  ne dépend d'aucun autre service pour démarrer.
+- Le registre **est** interrogé (`ShouldFetchRegistry=true`) pour résoudre
+  `course-service` lors de la création d'un quiz. Si Eureka est arrêté ou si
+  l'instance est absente, le service démarre quand même : seule la création de
+  quiz renvoie alors `503` (voir « Communication synchrone »).
 - Si le serveur Eureka (8761) est arrêté, le service démarre quand même ;
   l'enregistrement est réessayé en arrière-plan.
 - `GET /health` est public et renvoie `{"status":"UP"}` (sans authentification),
@@ -55,6 +72,78 @@ Le service s'enregistre dans Eureka sous le nom **`evaluation-service`** (VIP
 - Côté gateway, router `/api/v1/evaluation/**` vers `lb://evaluation-service`
   avec une réécriture vers `/api/**` (la gateway n'est pas modifiée par ce
   dépôt).
+
+## Communication synchrone (course-service)
+
+Le service appelle **course-service** en HTTP, directement, pour vérifier
+qu'un cours existe **avant de créer un quiz** (`POST /api/quizzes`). C'est le
+seul appel synchrone du service (pas d'appel vers Notification : RabbitMQ).
+
+- **Route appelée** : `GET /courses/{courseId}` (sans préfixe `/api`).
+- **Découverte** : par nom `course-service` via Eureka, ou via
+  `COURSE_SERVICE_URL` si la variable est renseignée (utile en Docker ; elle
+  remplace alors Eureka). Jamais d'adresse en dur dans le code.
+- **Identité** : l'en-tête `Authorization: Bearer <jwt>` de la requête
+  d'origine est transmis tel quel. Aucun token technique, aucune clé interne ;
+  course-service revalide le token.
+- **Délai** : 3 secondes maximum, un seul essai (aucun retry).
+- **Pas de boucle** : un seul appel par création de quiz.
+
+| Réponse de course-service | Comportement de l'évaluation |
+|---|---|
+| `200` | le quiz est créé (`201`) |
+| `404` | `404` avec le message `Course not found` |
+| `401` / `403` | le même statut est renvoyé au client |
+| Timeout, connexion refusée, instance absente d'Eureka, `5xx` | `503` avec le message `Course service unavailable, please retry later.` |
+
+Une panne de course-service ne produit **jamais** de `500` côté évaluation.
+Le format d'erreur reste celui du service (voir « Format des erreurs ») ; le
+message ne contient ni adresse interne ni détail technique.
+
+Ordre de démarrage : Eureka, puis course-service, puis evaluation-service.
+Sans Eureka, renseigner `COURSE_SERVICE_URL` (par exemple
+`http://localhost:8082`). Juste après le démarrage, le registre peut mettre
+quelques secondes à être récupéré : les créations de quiz renvoient `503`
+tant que `course-service` n'est pas résolu.
+
+## Événements RabbitMQ
+
+Le service est **producteur uniquement** : il publie dans la queue durable
+**`evaluation.events`**, déclarée par notification-service (seul consommateur).
+Il ne déclare ni queue ni exchange (exchange par défaut `""`, routing key =
+nom de la queue).
+
+Un seul événement est publié, à la création d'un résultat (soumission réussie) :
+
+| Événement | `actorId` | `data` |
+|---|---|---|
+| `result.published` | étudiant qui soumet | `studentId`, `quizTitle`, `score` |
+
+Enveloppe commune (JSON persistant, `content-type: application/json`) :
+
+```json
+{
+  "event": "result.published",
+  "occurredAt": "2026-11-10T12:00:00Z",
+  "actorId": "11111111-1111-1111-1111-111111111111",
+  "data": {
+    "studentId": "11111111-1111-1111-1111-111111111111",
+    "quizTitle": "Quiz JWT",
+    "score": 85.0
+  }
+}
+```
+
+- `quizTitle` est tronqué à 150 caractères (limite imposée par le consommateur) ;
+- `score` est le pourcentage arrondi à 2 décimales ;
+- `RABBITMQ_URL` vide ou invalide : publication désactivée, service normal.
+- Envoi **best effort** : broker indisponible -> warning journalisé, la requête
+  HTTP n'échoue jamais ; nouvelle tentative après 30 s.
+- Délai maximal de publication : 2 s. Connexion unique avec auto-recovery,
+  channel créé par publication.
+- Ordre de démarrage : RabbitMQ, puis notification-service (qui crée la queue),
+  puis les producteurs. Si la queue n'existe pas, le message est perdu
+  silencieusement (comportement de l'exchange par défaut).
 
 ## Tester avec Swagger
 
@@ -102,29 +191,63 @@ Update-Database
 
 | Variable | Rôle | Défaut |
 |---|---|---|
-| `JWT_SECRET` | Secret HS256, chaîne UTF-8 brute (pas de Base64), min. 32 octets | aucune (obligatoire) |
-| `JWT_ISSUER` | Issuer exigé (claim `iss`) | aucune (obligatoire) |
+| `KEYCLOAK_ISSUER_URI` | Issuer du realm Keycloak ; renseigné = mode Keycloak (RS256) | aucune (mode HS256 de transition) |
+| `KEYCLOAK_JWKS_URI` | URL des clés publiques si différente de l'issuer (Docker) ; vide = `<issuer>/protocol/openid-connect/certs` | aucune |
+| `JWT_SECRET` | *Ancien mode HS256 uniquement* : secret, chaîne UTF-8 brute (pas de Base64), min. 32 octets | aucune |
+| `JWT_ISSUER` | *Ancien mode HS256 uniquement* : issuer exigé (claim `iss`) | aucune |
 | `CORS_ALLOWED_ORIGINS` | Origines CORS autorisées, séparées par des virgules | `http://localhost:3000` |
+| `RABBITMQ_URL` | URL AMQP du broker ; vide = publication désactivée | aucune (désactivé) |
+| `COURSE_SERVICE_URL` | URL directe de course-service (remplace Eureka) ; vide = résolution Eureka | aucune (Eureka) |
 | `ConnectionStrings__DefaultConnection` | Chaîne de connexion SQL Server | valeur de `appsettings.json` |
 
 Sources possibles : fichier `.env` (copié depuis `.env.example`, non committé),
 user-secrets, ou variables d'environnement.
 
-### Caractéristiques du token attendu
+### Authentification Keycloak (mode par défaut)
 
-- Algorithme **HS256**, clé = `JWT_SECRET` encodé en UTF-8 (pas de décodage Base64).
-- **Issuer** exigé : `campushub-user-service` (`ValidateIssuer = true`).
-- Pas de claim `aud` (`ValidateAudience = false`).
-- `ValidateLifetime = true`, `ClockSkew = 30 s`.
-- Claims : `sub` (id utilisateur, **Guid**), `role` (**une seule** chaîne :
-  `ETUDIANT`, `ENSEIGNANT` ou `ADMIN`, sans préfixe `ROLE_`), plus `iss`, `iat`,
-  `exp`, `jti`.
-- `MapInboundClaims = false`, `NameClaimType = "sub"`, `RoleClaimType = "role"`.
+Activé dès que `KEYCLOAK_ISSUER_URI` est renseigné. En local :
+Keycloak `http://localhost:8180`, realm `campushub`, issuer
+`http://localhost:8180/realms/campushub`.
+
+- Algorithme **RS256** uniquement (HS256 refusé dans ce mode).
+- Clés publiques récupérées directement depuis la JWKS
+  (`/protocol/openid-connect/certs`, pas de document de découverte), en cache
+  ~10 min : aucun appel Keycloak à chaque requête. Timeout de récupération : 3 s.
+- `ValidateIssuer = true` (issuer configuré), `ValidateAudience = false`
+  (`aud = "account"` dans Keycloak n'est pas vérifié).
+- `ValidateLifetime = true`, `ClockSkew = 30 s`, `MapInboundClaims = false`,
+  `NameClaimType = "sub"`.
+- `sub` : UUID obligatoire (sinon le token est rejeté).
+- Rôles lus dans `realm_access.roles`, filtrés sur `ETUDIANT`, `ENSEIGNANT`,
+  `ADMIN`. Si plusieurs sont présents, le plus élevé l'emporte :
+  **ADMIN > ENSEIGNANT > ETUDIANT**. Les autres rôles du realm
+  (`offline_access`, `uma_authorization`, `default-roles-campushub`) sont ignorés.
 - Les **headers d'identité envoyés par le client** (`X-User-Id`, `X-Role`, …)
   sont **ignorés** : l'identité provient uniquement du token.
 
-Un token dont le `sub` n'est pas un Guid ou dont le `role` est inconnu est rejeté
-(`401`).
+### Comportement en cas d'erreur
+
+| Situation | Réponse |
+|---|---|
+| Token absent, mal formé, mauvaise signature, expiré, mauvais issuer, non RS256 | `401` `UNAUTHORIZED` |
+| Token valide mais **sans rôle CampusHub** | `403` `FORBIDDEN` |
+| Token valide, rôle insuffisant pour l'endpoint | `403` `FORBIDDEN` |
+| **Keycloak injoignable** et clé inconnue du cache | `503` `SERVICE_UNAVAILABLE` (jamais `500`) |
+
+Le message du `503` ne contient ni adresse interne ni détail technique.
+
+### Ancien mode HS256 (transition)
+
+Utilisé uniquement si `KEYCLOAK_ISSUER_URI` est vide (services pas encore
+migrés, tests locaux) :
+
+- Algorithme **HS256**, clé = `JWT_SECRET` encodé en UTF-8 (pas de Base64).
+- Issuer exigé : `JWT_ISSUER` (`ValidateIssuer = true`), pas de claim `aud`.
+- Claims : `sub` (Guid) et `role` (une seule chaîne : `ETUDIANT`,
+  `ENSEIGNANT` ou `ADMIN`, sans préfixe `ROLE_`).
+- `MapInboundClaims = false`, `NameClaimType = "sub"`, `RoleClaimType = "role"`.
+- Un token dont le `sub` n'est pas un Guid ou dont le `role` est inconnu est
+  rejeté (`401`).
 
 ### Droits par endpoint
 
@@ -163,7 +286,9 @@ Identique au User Service :
 
 Codes : `UNAUTHORIZED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404),
 `VALIDATION_ERROR` (400, `fieldErrors` rempli), `CONFLICT` (409),
-`INTERNAL_SERVER_ERROR` (500, message générique sans détail technique).
+`SERVICE_UNAVAILABLE` (503, dépendance indisponible : Keycloak ou
+course-service), `INTERNAL_SERVER_ERROR` (500, message générique sans détail
+technique).
 
 Toute exception non gérée est journalisée côté serveur et renvoyée en `500`
 au format CampusHub, sans stack trace ni détail interne.
@@ -172,7 +297,8 @@ au format CampusHub, sans stack trace ni détail interne.
 
 Le service ne vérifie que la **signature** du token. Après une suspension, un
 changement de rôle ou de mot de passe, un token déjà émis **reste accepté
-jusqu'à son expiration** (1 h au maximum).
+jusqu'à son expiration** (30 min avec Keycloak, `accessTokenLifespan: 1800` ;
+1 h au maximum en ancien mode HS256).
 
 ## Endpoints
 
@@ -264,6 +390,10 @@ Règles de validation (sinon `400 VALIDATION_ERROR` avec `fieldErrors`) :
 
 Les collections `null` sont rejetées proprement (aucune
 `NullReferenceException`).
+
+Avant l'insertion, le cours est vérifié auprès de course-service :
+`404` avec `Course not found` s'il n'existe pas, `503` si course-service est
+indisponible (voir « Communication synchrone »).
 
 ### Détail d'un quiz — `GET /api/quizzes/{id}`
 
@@ -380,20 +510,52 @@ résultat n'existe pas, `403` si le quiz appartient à un autre enseignant.
 
 ## Tests
 
-Le fichier `EvaluationService.http` contient les cas de test (200 / 201 / 204 /
-400 / 401 / 403 / 404 / 409), dont les tentatives et la durée (section 9).
-Pour un token du User Service :
-`POST http://localhost:8081/api/v1/auth/login` -> champ `accessToken`.
-
-Pour générer localement des tokens de test (même `JWT_SECRET` et issuer) :
+Les appels synchrones vers course-service et l'authentification Keycloak sont
+couverts par des tests automatisés (`EvaluationService.Tests`, Keycloak et
+Course simulés, aucun réseau) :
 
 ```bash
-JWT_SECRET="..." node tools/generate-test-tokens.mjs
+cd EvaluationService.Tests
+dotnet test
 ```
 
-Le script produit des tokens ETUDIANT / ENSEIGNANT / ADMIN, ainsi que des cas
-invalides (expiré, mauvais secret, mauvais issuer, rôle inconnu, `sub` non-Guid),
-à coller dans `EvaluationService.http`.
+Cas couverts (Keycloak) : token RS256 valide ETUDIANT/ENSEIGNANT, mauvaise
+signature, token expiré, mauvais issuer, HS256 refusé, token absent ou mal
+formé (`401`), token valide sans rôle CampusHub (`403`), rôle insuffisant
+(`403`), Keycloak injoignable (`503`, jamais `500`), priorité des rôles
+(ADMIN > ENSEIGNANT > ETUDIANT). Cas couverts (synchrone) : cours existant
+(quiz créé en `201`), `404`, timeout ou service injoignable (`503`, jamais
+`500`), relais `401`/`403`, transmission du header `Authorization`, résolution
+par Eureka et par `COURSE_SERVICE_URL`.
+
+Le fichier `EvaluationService.http` contient les cas de test (200 / 201 / 204 /
+400 / 401 / 403 / 404 / 409), dont les tentatives et la durée (section 9).
+
+Pour un token Keycloak de test (utilisateurs du realm `campushub` :
+
+| Utilisateur | Rôle | Mot de passe |
+|---|---|---|
+| `etudiant1` | ETUDIANT | `Test1234!` |
+| `enseignant1` | ENSEIGNANT | `Test1234!` |
+| `admin1` | ADMIN | `Test1234!` |
+
+PowerShell :
+
+```powershell
+$token = (Invoke-RestMethod -Method Post `
+  -Uri "http://localhost:8180/realms/campushub/protocol/openid-connect/token" `
+  -Body @{
+    grant_type = "password"
+    client_id  = "campushub-frontend"
+    username   = "enseignant1"
+    password   = "Test1234!"
+  }).access_token
+```
+
+En ancien mode HS256 uniquement, le script `tools/generate-test-tokens.mjs`
+(exécuté avec le même `JWT_SECRET` et issuer) produit des tokens
+ETUDIANT / ENSEIGNANT / ADMIN ainsi que des cas invalides
+(expiré, mauvais secret, mauvais issuer, rôle inconnu, `sub` non-Guid).
 
 ## Structure du projet
 
@@ -402,14 +564,17 @@ evaluation-service/
 ├── .env.example            # Modèle de configuration locale (sans secret)
 ├── tools/
 │   └── generate-test-tokens.mjs
+├── EvaluationService.Tests/ # Tests xUnit (appels synchrones simulés)
 └── EvaluationService/
+    ├── Clients/            # Appel synchrone vers course-service (Eureka / COURSE_SERVICE_URL)
     ├── Controllers/        # QuizzesController, ResultatsController
     ├── Data/               # AppDbContext (EF Core)
     ├── Dtos/               # Objets d'échange (entrée / sortie de l'API)
     ├── Errors/             # Format CampusHub + gestionnaire global des exceptions
+    ├── Messaging/          # Producteur RabbitMQ (enveloppe, événements, publisher)
     ├── Migrations/         # Migrations EF Core
     ├── Models/             # Entités : Quiz, Question, Reponse, Resultat, Tentative
-    ├── Security/           # Rôles + accès aux claims (sub, role)
+    ├── Security/           # Keycloak (RS256) + rôles, claims (sub, role)
     ├── Program.cs
     └── appsettings.json
 ```

@@ -40,6 +40,13 @@ return [
         'issuer' => env('JWT_ISSUER', 'campushub-user-service'),
     ],
 
+    // Keycloak (RS256). Issuer renseigné = mode Keycloak, vide = ancien mode JWT_SECRET.
+    // jwks_uri : à renseigner seulement si l'adresse des clés diffère de l'issuer (Docker).
+    'keycloak' => [
+        'issuer' => env('KEYCLOAK_ISSUER_URI'),
+        'jwks_uri' => env('KEYCLOAK_JWKS_URI'),
+    ],
+
     'eureka' => [
         'host' => env('EUREKA_HOST', 'localhost'),
         'port' => env('EUREKA_PORT', 8761),
@@ -47,8 +54,20 @@ return [
         'service_port' => env('SERVICE_PORT', 8085),
     ],
 
+    // user-service (appel synchrone pour le prénom du destinataire) ; url renseignée = remplace Eureka.
+    'user' => [
+        'app' => env('USER_SERVICE_NAME', 'user-service'),
+        'url' => env('USER_SERVICE_URL'),
+    ],
+
     'internal' => [
         'key' => env('INTERNAL_API_KEY'),
+    ],
+
+    // Vide = consommation RabbitMQ désactivée (le service marche normalement sans).
+    'rabbitmq' => [
+        'url' => env('RABBITMQ_URL'),
+        'queues' => ['forum.events', 'evaluation.events', 'course.events'],
     ],
 
 ];

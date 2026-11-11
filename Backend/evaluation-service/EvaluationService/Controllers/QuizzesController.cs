@@ -1,6 +1,9 @@
+using System.Net;
+using EvaluationService.Clients;
 using EvaluationService.Data;
 using EvaluationService.Dtos;
 using EvaluationService.Errors;
+using EvaluationService.Messaging;
 using EvaluationService.Models;
 using EvaluationService.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -20,11 +23,27 @@ public class QuizzesController : ControllerBase
     private const int MaxReponseLength = 300;
     private const int ToleranceDelaiSecondes = 30;
 
-    private readonly AppDbContext _context;
+    // Limite imposée par le consommateur notification-service (quizTitle <= 150).
+    private const int MaxQuizTitleLengthForEvents = 150;
 
-    public QuizzesController(AppDbContext context)
+    private const string CourseNotFoundMessage = "Course not found";
+    private const string CourseUnavailableMessage = "Course service unavailable, please retry later.";
+
+    private readonly AppDbContext _context;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ICourseClient _courseClient;
+    private readonly ILogger<QuizzesController> _logger;
+
+    public QuizzesController(
+        AppDbContext context,
+        IEventPublisher eventPublisher,
+        ICourseClient courseClient,
+        ILogger<QuizzesController> logger)
     {
         _context = context;
+        _eventPublisher = eventPublisher;
+        _courseClient = courseClient;
+        _logger = logger;
     }
 
     // GET api/quizzes/course/{courseId} : liste des quiz d'un cours.
@@ -73,6 +92,13 @@ public class QuizzesController : ControllerBase
         if (erreurs.Count > 0)
         {
             return ValidationError(erreurs);
+        }
+
+        // Le cours doit exister dans course-service avant toute création (appel synchrone).
+        var erreurCours = await VerifierCoursAsync(dto.CourseId);
+        if (erreurCours is not null)
+        {
+            return erreurCours;
         }
 
         var quiz = new Quiz
@@ -328,6 +354,16 @@ public class QuizzesController : ControllerBase
         _context.Resultats.Add(resultat);
         await _context.SaveChangesAsync();
 
+        await _eventPublisher.PublishAsync(
+            MessagingContract.Events.ResultPublished,
+            etudiantId,
+            new
+            {
+                studentId = resultat.EtudiantId.ToString(),
+                quizTitle = TronquerTitreEvenement(quiz.Titre),
+                score = Math.Round(resultat.Score, 2)
+            });
+
         return Ok(ToResultatDto(resultat));
     }
 
@@ -465,6 +501,44 @@ public class QuizzesController : ControllerBase
 
         return erreurs;
     }
+
+    // Appelle course-service et convertit ses erreurs en réponses CampusHub
+    // (une panne de l'appelé ne produit jamais un 500 chez l'appelant).
+    private async Task<ObjectResult?> VerifierCoursAsync(int courseId)
+    {
+        try
+        {
+            await _courseClient.EnsureCourseExistsAsync(
+                courseId,
+                Request.Headers["Authorization"].ToString(),
+                HttpContext.RequestAborted);
+
+            return null;
+        }
+        catch (CourseNotFoundException)
+        {
+            return StatusCode(404, ApiErrorFactory.NotFound(CourseNotFoundMessage));
+        }
+        catch (CourseAccessDeniedException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+        {
+            return StatusCode(403, ApiErrorFactory.Forbidden());
+        }
+        catch (CourseAccessDeniedException)
+        {
+            return StatusCode(401, ApiErrorFactory.Unauthorized());
+        }
+        catch (CourseServiceUnavailableException ex)
+        {
+            _logger.LogWarning(ex, "Course service unavailable while checking course {CourseId}", courseId);
+            return StatusCode(503, ApiErrorFactory.ServiceUnavailable(CourseUnavailableMessage));
+        }
+    }
+
+    // Le consommateur rejette un quizTitle de plus de 150 caractères : on tronque pour ne pas perdre l'événement.
+    private static string TronquerTitreEvenement(string titre)
+        => titre.Length <= MaxQuizTitleLengthForEvents
+            ? titre
+            : titre[..MaxQuizTitleLengthForEvents];
 
     private bool EstProprietaireOuAdmin(Quiz quiz)
         => User.IsAdmin() || quiz.EnseignantId == User.GetUserId();
