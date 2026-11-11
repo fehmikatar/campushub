@@ -1,0 +1,98 @@
+# CampusHub - lancement dockerise (une seule machine)
+#   docker compose up --build -d
+# Acces : Gateway http://localhost:8080 | Keycloak http://localhost:8180 (admin/admin)
+#         Eureka http://localhost:8761  | RabbitMQ http://localhost:15672 (guest/guest)
+#
+# Chaque service ajoute SON bloc ici.
+# Les services pas encore dockerises tournent sur la machine hote : la Gateway et Forum
+# les joignent par host.docker.internal.
+
+name: campushub
+
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"
+    volumes:
+      - keycloak-data:/opt/keycloak/data
+      - ./keycloak:/opt/keycloak/data/import:ro
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    # Pas de port publie : evite le conflit avec un MongoDB local sur 27017
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  eureka-server:
+    build: ./Backend/eureka-server
+    ports:
+      - "8761:8761"
+
+  api-gateway:
+    build: ./Backend/api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      # iss attendu dans les tokens (adresse vue par le navigateur)
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      # cles publiques lues par le reseau Docker
+      SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      # User Service tourne encore sur la machine hote
+      USER_SERVICE_URI: http://host.docker.internal:8081
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - eureka-server
+      - keycloak
+
+  forum-service:
+    build: ./Backend/forum-service
+    environment:
+      PORT: 8086
+      MONGO_URI: mongodb://mongo:27017/campushub_forum
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      EUREKA_ENABLED: "true"
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+      EUREKA_INSTANCE_HOST: forum-service
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RABBITMQ_QUEUE: forum.events
+      # Passer a "true" quand Course valide les tokens Keycloak (sinon Course repond 401)
+      COURSE_CHECK_ENABLED: "false"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+volumes:
+  keycloak-data:
+  mongo-data:
