@@ -15,3 +15,4 @@ describe('App', () => {
     expect(fixture.nativeElement.querySelector('app-toast-host')).toBeTruthy();
   });
 });
+

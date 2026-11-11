@@ -1,4 +1,5 @@
 import { Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { errorMessage } from '../../../core/http/error-message';
@@ -6,7 +7,13 @@ import { ToastService } from '../../../core/toast/toast.service';
 import { ConfirmDialog } from '../../../shared/confirm-dialog/confirm-dialog';
 import { Icon } from '../../../shared/icon/icon';
 import { Icons } from '../../../shared/icon/icons';
-import { Course, CoursePage, CourseStatus, STATUS_LABELS, STATUS_TONES } from '../../courses/course';
+import {
+  Course,
+  CoursePage,
+  CourseStatus,
+  STATUS_LABELS,
+  STATUS_TONES,
+} from '../../courses/course';
 import { CoursesService } from '../../courses/courses.service';
 
 const PAGE_SIZE = 10;
@@ -14,7 +21,7 @@ const PAGE_SIZE = 10;
 /** Administrateur : tous les cours, avec publication, archivage et suppression. */
 @Component({
   selector: 'app-admin-courses-page',
-  imports: [FormsModule, DatePipe, Icon, ConfirmDialog],
+  imports: [FormsModule, DatePipe, Icon, ConfirmDialog, RouterLink],
   templateUrl: './admin-courses-page.html',
   styleUrl: './admin-courses-page.scss',
 })
@@ -39,7 +46,9 @@ export class AdminCoursesPage {
   private page = 1;
 
   constructor() {
-    this.api.categories().subscribe({ next: (list) => this.categories.set(list), error: () => undefined });
+    this.api
+      .categories()
+      .subscribe({ next: (list) => this.categories.set(list), error: () => undefined });
     this.load();
   }
 
@@ -66,7 +75,12 @@ export class AdminCoursesPage {
     this.loading.set(true);
     this.failed.set(false);
     this.api
-      .list({ statut: this.statut || undefined, categorie: this.categorie || undefined, page: this.page, limit: PAGE_SIZE })
+      .list({
+        statut: this.statut || undefined,
+        categorie: this.categorie || undefined,
+        page: this.page,
+        limit: PAGE_SIZE,
+      })
       .subscribe({
         next: (result) => {
           this.result.set(result);

@@ -50,10 +50,15 @@ export const routes: Routes = [
       },
       { path: 'forum', loadComponent: placeholder, data: { title: 'Forum' } },
       {
+        path: 'quiz',
+        canActivate: [authGuard],
+        loadChildren: () => import('./features/evaluations/quiz.routes').then((m) => m.QUIZ_ROUTES),
+      },
+      {
         path: 'evaluations',
-        canActivate: [roleGuard('ETUDIANT', 'ENSEIGNANT')],
-        loadComponent: placeholder,
-        data: { title: 'Évaluations' },
+        canActivate: [authGuard],
+        loadComponent: () => import('./features/evaluations/quiz-list').then((m) => m.QuizList),
+        data: { history: true },
       },
       {
         path: 'notifications',
