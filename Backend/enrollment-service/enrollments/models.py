@@ -2,8 +2,8 @@ from django.db import models
 
 
 class Inscription(models.Model):
-    etudiant_id = models.BigIntegerField()   # référence au User Service
-    cours_id = models.BigIntegerField()      # référence au Course Service
+    etudiant_id = models.UUIDField()                 # "sub" Keycloak
+    cours_id = models.CharField(max_length=64)       # id du Course Service
     date_inscription = models.DateField(auto_now_add=True)
 
     class Meta:
@@ -15,8 +15,7 @@ class Inscription(models.Model):
 
 class Progression(models.Model):
     inscription = models.OneToOneField(
-        Inscription, on_delete=models.CASCADE, related_name='progression'
-    )
+        Inscription, on_delete=models.CASCADE, related_name='progression')
     pourcentage = models.FloatField(default=0)
 
     def __str__(self):
