@@ -5,14 +5,14 @@ const app = require('./app');
 const rabbitPublisher = require('./shared/utils/rabbitPublisher');
 const courseClient = require('./shared/utils/courseClient');
 
-const { PORT = 8086, MONGO_URI, JWT_SECRET } = process.env;
+const { PORT = 8086, MONGO_URI, JWT_SECRET, KEYCLOAK_ISSUER_URI } = process.env;
 
 if (!MONGO_URI) {
   console.error('MONGO_URI manquant dans le .env');
   process.exit(1);
 }
-if (!JWT_SECRET || JWT_SECRET.length < 32) {
-  console.error('JWT_SECRET manquant ou trop court (32 caractères minimum)');
+if (!KEYCLOAK_ISSUER_URI && (!JWT_SECRET || JWT_SECRET.length < 32)) {
+  console.error('JWT_SECRET manquant ou trop court (32 caractères minimum), ou renseigner KEYCLOAK_ISSUER_URI');
   process.exit(1);
 }
 
@@ -27,7 +27,7 @@ connectDB(MONGO_URI)
       console.log(`forum-service démarré sur le port ${PORT}`);
       if (process.env.EUREKA_ENABLED !== 'false') {
         eurekaClient = registerWithEureka({ port: PORT });
-                courseClient.setEurekaClient(eurekaClient);
+        courseClient.setEurekaClient(eurekaClient);
       }
     });
   })
