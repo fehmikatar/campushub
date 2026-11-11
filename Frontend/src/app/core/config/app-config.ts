@@ -14,7 +14,7 @@ export class AppConfig {
 
   async load(): Promise<void> {
     try {
-      const response = await fetch('config.local.json', { cache: 'no-store' });
+      const response = await fetch('/config.local.json', { cache: 'no-store' });
       if (!response.ok) {
         return;
       }

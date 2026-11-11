@@ -31,6 +31,8 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+/.angular/course-browser-*
+/.angular/quiz-browser-*
 .sass-cache/
 /connect.lock
 /coverage

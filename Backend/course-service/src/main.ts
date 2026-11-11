@@ -26,7 +26,8 @@ async function bootstrap() {
   if (!isKeycloakMode && Buffer.byteLength(process.env.JWT_SECRET ?? '', 'utf8') < 32) {
     throw new Error('JWT_SECRET est absent ou trop court (minimum 32 octets) : voir .env.example');
   }
-  app.enableCors();
+  // Le frontend passe par la Gateway, qui gere deja le CORS.
+  // Ajouter un second Access-Control-Allow-Origin ici bloque les reponses dans le navigateur.
   app.useGlobalPipes(
     new ValidationPipe({ whitelist: true, transform: true }),
   );
