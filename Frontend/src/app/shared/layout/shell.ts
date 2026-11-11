@@ -1,21 +1,33 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ROLE_LABELS } from '../../core/auth/role';
+import { NotificationsService } from '../../features/notifications/notifications.service';
 import { Icon } from '../icon/icon';
 import { Icons } from '../icon/icons';
 import { MENUS } from './menu';
+import { NotificationBell } from './notification-bell';
+
+/** Intervalle de mise à jour du badge de la cloche. */
+const UNREAD_POLL_MS = 60_000;
 
 /** Page applicative : sidebar (menu selon le rôle) + en-tête + contenu. */
 @Component({
   selector: 'app-shell',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, NotificationBell],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })
 export class Shell {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly notifications = inject(NotificationsService);
+
+  constructor() {
+    this.notifications.refreshUnreadCount();
+    const timer = setInterval(() => this.notifications.refreshUnreadCount(), UNREAD_POLL_MS);
+    inject(DestroyRef).onDestroy(() => clearInterval(timer));
+  }
 
   protected readonly icons = Icons;
   protected readonly menuOpen = signal(false);
@@ -36,6 +48,7 @@ export class Shell {
   });
 
   protected logout(): void {
+    this.notifications.unreadCount.set(0);
     this.auth.logout();
     void this.router.navigate(['/login']);
   }

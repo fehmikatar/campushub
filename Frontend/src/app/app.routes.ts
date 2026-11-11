@@ -29,7 +29,14 @@ export const routes: Routes = [
         loadComponent: placeholder,
         data: { title: 'Évaluations' },
       },
-      { path: 'notifications', loadComponent: placeholder, data: { title: 'Notifications' } },
+      {
+        path: 'notifications',
+        loadComponent: () => import('./features/notifications/notifications-page').then((m) => m.NotificationsPage),
+      },
+      {
+        path: 'notifications/preferences',
+        loadComponent: () => import('./features/notifications/preferences-page').then((m) => m.PreferencesPage),
+      },
       { path: 'utilisateurs', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Utilisateurs' } },
       { path: 'cours', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Cours' } },
       { path: 'categories', canActivate: [roleGuard('ADMIN')], loadComponent: placeholder, data: { title: 'Catégories' } },

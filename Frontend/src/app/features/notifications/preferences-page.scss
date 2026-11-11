@@ -1,0 +1,20 @@
+:host { display: block; max-width: 760px; }
+.back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px; color: var(--text-muted); text-decoration: none; }
+h1 { margin: 0 0 16px; }
+h2 { margin: 8px 0 0; font-size: 16px; }
+.panel { display: grid; gap: 16px; padding: 24px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.row p { margin: 2px 0 0; }
+.muted { margin: 0; color: var(--text-muted); }
+.switch {
+  position: relative; flex: none; width: 44px; height: 24px; border: 0; border-radius: 999px;
+  background: #cbd5e1; cursor: pointer; transition: background 0.15s;
+}
+.switch::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; transition: transform 0.15s;
+}
+.switch.on { background: var(--indigo); }
+.switch.on::after { transform: translateX(20px); }
+.footer { display: flex; justify-content: flex-end; }
+.link { border: 0; background: transparent; color: var(--indigo); font: inherit; text-decoration: underline; cursor: pointer; }

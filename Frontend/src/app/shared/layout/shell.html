@@ -21,9 +21,7 @@
         <input type="search" placeholder="Rechercher..." aria-label="Rechercher" />
       </label>
 
-      <a class="bell" routerLink="/notifications" aria-label="Notifications">
-        <app-icon [name]="icons.bell" [size]="20" />
-      </a>
+      <app-notification-bell />
 
       <div class="account">
         <button type="button" class="account-button" (click)="menuOpen.set(!menuOpen())" [attr.aria-expanded]="menuOpen()">
