@@ -1,0 +1,101 @@
+@if (notFound()) {
+  <div class="card empty-state">
+    <h2>Réclamation introuvable</h2>
+    <p class="muted">Cette réclamation n'existe pas ou ne vous est pas accessible.</p>
+    <a class="btn btn-primary" [routerLink]="isAdmin() ? '/reclamations/gestion' : '/reclamations/liste'">Retour à la liste</a>
+  </div>
+} @else if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger cette réclamation.
+    <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+  </div>
+} @else if (reclamation(); as rec) {
+  <div class="page">
+    <p class="crumbs">
+      <a routerLink="/reclamations">Réclamations</a> /
+      <a [routerLink]="isAdmin() ? '/reclamations/gestion' : '/reclamations/liste'">{{ isAdmin() ? 'Gestion' : 'Mes réclamations' }}</a> / {{ rec.reference }}
+    </p>
+
+    <header class="page-head">
+      <div>
+        <h1>{{ rec.reference }}</h1>
+        <p class="subject">{{ rec.subject }}</p>
+      </div>
+      <div class="head-side">
+        <app-status-pill [status]="rec.status" />
+        @if (studentCanChange()) {
+          <a class="btn btn-secondary" [routerLink]="['/reclamations', rec.id, 'modifier']"><app-icon [name]="icons.pencil" [size]="16" /> Modifier</a>
+          <button type="button" class="btn danger" (click)="confirmingDelete.set(true)"><app-icon [name]="icons.trash" [size]="16" /> Supprimer</button>
+        }
+        @if (adminCanProcess()) {
+          <a class="btn btn-primary" [routerLink]="['/reclamations', rec.id, 'traiter']">Traiter</a>
+        }
+      </div>
+    </header>
+
+    <dl class="meta card">
+      <div><dt>Catégorie</dt><dd>{{ categories[rec.category] }}</dd></div>
+      <div><dt>Date de soumission</dt><dd>{{ rec.created_at | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+      <div><dt>Année universitaire</dt><dd>{{ rec.academic_year }}</dd></div>
+      <div><dt>Module</dt><dd>{{ rec.module || '—' }}</dd></div>
+      <div><dt>Priorité</dt><dd><app-priority-pill [priority]="rec.priority" /></dd></div>
+      <div><dt>Dernière mise à jour</dt><dd>{{ rec.updated_at | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+      @if (isAdmin()) { <div><dt>Étudiant</dt><dd>{{ rec.author_username }}</dd></div> }
+    </dl>
+
+    <div class="columns">
+      <div class="main-col">
+        <section class="card card-pad">
+          <h2>Description de la réclamation</h2>
+          <p class="text">{{ rec.description }}</p>
+        </section>
+
+        <section class="card card-pad response" [class.final]="rec.admin_response">
+          <h2>Réponse de l'administration</h2>
+          @if (rec.admin_response) {
+            <p class="text">{{ rec.admin_response }}</p>
+            @if (rec.closed_at) {
+              <small class="muted">
+                Décision du {{ rec.closed_at | date: 'dd/MM/yyyy' }} :
+                <app-status-pill [status]="rec.status" />
+              </small>
+            }
+          } @else {
+            <p class="muted">L'administration n'a pas encore ajouté de réponse.</p>
+          }
+        </section>
+      </div>
+
+      <aside class="card card-pad timeline-card">
+        <h2>Suivi de ma réclamation</h2>
+        <ol class="timeline">
+          @for (step of steps(); track step.key; let n = $index) {
+            <li [class.done]="step.entry" [class.skipped]="step.skipped">
+              <span class="dot">@if (step.entry) { <app-icon [name]="icons.check" [size]="14" /> } @else { {{ n + 1 }} }</span>
+              <div>
+                <strong>{{ step.title }}</strong>
+                <span class="muted">{{ step.skipped ? 'Étape non nécessaire' : step.description }}</span>
+                @if (step.entry; as entry) {
+                  <small class="muted">{{ entry.at | date: 'dd/MM/yyyy HH:mm' }} · {{ entry.by_username }}</small>
+                  @if (entry.comment) { <small class="comment">« {{ entry.comment }} »</small> }
+                }
+              </div>
+            </li>
+          }
+        </ol>
+      </aside>
+    </div>
+  </div>
+
+  @if (confirmingDelete()) {
+    <app-confirm-dialog
+      title="Supprimer cette réclamation ?"
+      message="Cette action est irréversible."
+      [busy]="deleting()"
+      (confirmed)="remove()"
+      (cancelled)="confirmingDelete.set(false)"
+    />
+  }
+} @else {
+  <div class="card card-pad"><div class="skeleton"></div></div>
+}

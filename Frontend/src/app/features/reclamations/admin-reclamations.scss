@@ -1,0 +1,17 @@
+h2 { margin: 0 0 12px; font-size: 16px; }
+.muted { color: var(--text-muted); margin: 0; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.donut-wrap { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+.donut { width: 168px; height: 168px; flex: none; }
+.donut-total { font-size: 26px; font-weight: 600; fill: var(--text); }
+.donut-label { font-size: 9px; fill: var(--text-muted); }
+.legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.legend li { display: flex; align-items: center; gap: 8px; }
+.legend strong { margin-left: auto; padding-left: 14px; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; }
+.bars { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.bars li { display: grid; grid-template-columns: 110px 1fr 28px; align-items: center; gap: 10px; }
+.bar-track { height: 10px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.bar-fill { display: block; height: 100%; border-radius: 999px; background: var(--indigo); min-width: 2px; }
+.bars strong { text-align: right; }
+.queue-title { margin-bottom: 10px; font-size: 18px; }

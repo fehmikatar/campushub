@@ -13,7 +13,7 @@ export function errorMessage(error: unknown, fallback = 'Une erreur est survenue
   }
   const body: unknown = error.error;
   if (body && typeof body === 'object') {
-    const { message, errors } = body as { message?: unknown; errors?: unknown };
+    const { message, errors, detail } = body as { message?: unknown; errors?: unknown; detail?: unknown };
     const details = Array.isArray(errors)
       ? errors
           .map((item) => (item && typeof item === 'object' ? (item as { message?: unknown }).message : null))
@@ -25,9 +25,39 @@ export function errorMessage(error: unknown, fallback = 'Une erreur est survenue
     if (typeof message === 'string' && message !== '') {
       return message;
     }
+    // Django REST Framework : { detail: "..." } ou { champ: ["message", ...] }.
+    if (typeof detail === 'string' && detail !== '') {
+      return detail;
+    }
+    const perField = Object.values(fieldErrors(error)).join(' ');
+    if (perField !== '') {
+      return perField;
+    }
   }
   if (typeof body === 'string' && body !== '' && body.length < 200) {
     return body;
   }
   return fallback;
+}
+
+/**
+ * Erreurs par champ au format Django REST Framework (`{ champ: ["message"] }`), pour les afficher sous chaque champ.
+ * Les clés `detail`, `message` et `errors` ne sont pas des champs.
+ */
+export function fieldErrors(error: unknown): Record<string, string> {
+  const body: unknown = error instanceof HttpErrorResponse ? error.error : null;
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return {};
+  }
+  const result: Record<string, string> = {};
+  for (const [field, value] of Object.entries(body as Record<string, unknown>)) {
+    if (['detail', 'message', 'errors'].includes(field)) {
+      continue;
+    }
+    const messages = Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+    if (messages.length > 0) {
+      result[field] = messages.join(' ');
+    }
+  }
+  return result;
 }

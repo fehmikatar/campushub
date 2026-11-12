@@ -1,0 +1,108 @@
+<div class="page narrow">
+  <p class="crumbs">
+    <a routerLink="/reclamations">Réclamations</a> /
+    @if (editing) { <a [routerLink]="['/reclamations', editId]">Détails</a> / Modifier } @else { Nouvelle réclamation }
+  </p>
+  <header class="page-head">
+    <div>
+      <h1>{{ editing ? 'Modifier la réclamation' : 'Nouvelle réclamation' }}</h1>
+      <p>Décrivez votre problème afin que l'administration puisse examiner votre demande.</p>
+    </div>
+  </header>
+
+  @if (loadFailed()) {
+    <div class="alert" role="alert">Impossible de charger cette réclamation. <a routerLink="/reclamations/liste">Retour à la liste</a></div>
+  } @else if (locked()) {
+    <div class="alert" role="alert">
+      Cette réclamation est déjà en traitement : elle ne peut plus être modifiée.
+      <a [routerLink]="['/reclamations', editId]">Voir la réclamation</a>
+    </div>
+  } @else {
+    <form class="card form" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      @if (error(); as message) {
+        <div class="alert" role="alert">{{ message }}</div>
+      }
+
+      <section>
+        <h2>Informations générales</h2>
+
+        <fieldset class="field">
+          <legend>Catégorie <span class="required" aria-hidden="true">*</span></legend>
+          <div class="categories" role="radiogroup">
+            @for (category of categories; track category) {
+              <button type="button" role="radio" class="category" [class.on]="form.controls.category.value === category" [attr.aria-checked]="form.controls.category.value === category" (click)="select(category)">
+                <app-icon [name]="categoryIcons[category]" [size]="20" />
+                <span>{{ labels[category] }}</span>
+              </button>
+            }
+          </div>
+          @if (invalid('category') || serverErrors()['category']) {
+            <small class="error">{{ serverErrors()['category'] || 'Choisissez une catégorie.' }}</small>
+          }
+        </fieldset>
+
+        <label class="field">
+          <span>Objet de la réclamation <span class="required" aria-hidden="true">*</span> <small class="muted">{{ subjectLength() }}/{{ limits.subjectMax }}</small></span>
+          <input type="text" formControlName="subject" [maxlength]="limits.subjectMax" placeholder="Ex. : Erreur dans ma note de contrôle continu" [class.invalid]="invalid('subject') || serverErrors()['subject']" />
+          @if (invalid('subject') || serverErrors()['subject']) {
+            <small class="error">{{ serverErrors()['subject'] || 'L\'objet doit contenir entre ' + limits.subjectMin + ' et ' + limits.subjectMax + ' caractères.' }}</small>
+          }
+        </label>
+
+        <div class="two">
+          <label class="field">
+            <span>Module / UE <small class="muted">(facultatif)</small></span>
+            <input type="text" formControlName="module" [maxlength]="limits.module" placeholder="Ex. : Architecture Logicielle" [class.invalid]="invalid('module') || serverErrors()['module']" />
+            @if (invalid('module') || serverErrors()['module']) {
+              <small class="error">{{ serverErrors()['module'] || 'Le module ne doit pas dépasser ' + limits.module + ' caractères.' }}</small>
+            }
+          </label>
+          <label class="field">
+            <span>Année universitaire <span class="required" aria-hidden="true">*</span></span>
+            <input type="text" formControlName="academic_year" placeholder="2026-2027" [class.invalid]="invalid('academic_year') || serverErrors()['academic_year']" />
+            @if (invalid('academic_year') || serverErrors()['academic_year']) {
+              <small class="error">{{ serverErrors()['academic_year'] || 'Utilisez le format 2026-2027 (deux années consécutives).' }}</small>
+            }
+          </label>
+        </div>
+      </section>
+
+      <section>
+        <h2>Description du problème</h2>
+        <label class="field">
+          <span>Description détaillée <span class="required" aria-hidden="true">*</span> <small class="muted">{{ descriptionLength() }}/{{ limits.descMax }}</small></span>
+          <textarea formControlName="description" rows="8" [maxlength]="limits.descMax" placeholder="Expliquez votre situation, les circonstances et les éléments nécessaires à son traitement..." [class.invalid]="invalid('description') || serverErrors()['description']"></textarea>
+          @if (invalid('description') || serverErrors()['description']) {
+            <small class="error">{{ serverErrors()['description'] || 'La description doit contenir entre ' + limits.descMin + ' et ' + limits.descMax + ' caractères.' }}</small>
+          }
+        </label>
+      </section>
+
+      <div class="notice-info">
+        <strong>Conseils pour une réclamation efficace</strong>
+        Précisez les faits, les dates concernées et le résultat attendu. Une description claire facilite le traitement de votre demande.
+      </div>
+
+      <div class="actions">
+        <a class="btn btn-secondary" [routerLink]="editing ? ['/reclamations', editId] : ['/reclamations']">Annuler</a>
+        <button type="submit" class="btn btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Envoi...' : editing ? 'Enregistrer les modifications' : 'Soumettre la réclamation' }}
+        </button>
+      </div>
+    </form>
+  }
+</div>
+
+@if (created(); as reclamation) {
+  <div class="modal-overlay">
+    <div class="modal card" role="dialog" aria-modal="true" aria-labelledby="done-title">
+      <span class="done"><app-icon [name]="icons.circleCheck" [size]="40" /></span>
+      <h2 id="done-title">Réclamation envoyée avec succès !</h2>
+      <p>Votre demande a été enregistrée sous la référence <strong>{{ reclamation.reference }}</strong>.</p>
+      <div class="actions center">
+        <a class="btn btn-secondary" routerLink="/reclamations">Retour au tableau de bord</a>
+        <a class="btn btn-primary" [routerLink]="['/reclamations', reclamation.id]">Voir ma réclamation</a>
+      </div>
+    </div>
+  </div>
+}
