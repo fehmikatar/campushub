@@ -69,6 +69,12 @@ docker run -d \
 ## Swagger
 `http://localhost:8082/api`
 
+## Appels du navigateur et CORS
+Le frontend appelle Course via la Gateway (`http://localhost:8080/api/v1/courses`).
+La Gateway gere les autorisations CORS. Course ne doit pas ajouter une seconde
+valeur `Access-Control-Allow-Origin` : le navigateur refuserait la reponse,
+meme avec un statut HTTP 200. Swagger reste utilisable directement sur le port 8082.
+
 ## Verification du cours par Evaluation
 `GET /courses/:id` consulte uniquement la base Course, sans rappeler Evaluation.
 Les controles d'authentification et de visibilite restent actifs. `nbQuiz` vaut
@@ -79,3 +85,8 @@ chaine Evaluation -> Course -> Evaluation lors de la creation d'un quiz.
 - Bearer token Keycloak (RS256) ou JWT legacy (HS256)
 - Rôles : `ETUDIANT`, `ENSEIGNANT`, `ADMIN`
 - Header : `Authorization: Bearer <token>`
+
+## Taille des fichiers
+Images : JPG/PNG/WebP, 1 Mo maximum. PDF de chapitre : 20 Mo maximum
+(20 * 1024 * 1024 octets). La Gateway autorise 21 Mo par requete multipart
+pour laisser de la place aux en-tetes.

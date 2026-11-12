@@ -1,3 +1,4 @@
+import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
@@ -5,8 +6,16 @@ import { AdminCoursesPage } from './admin-courses-page';
 
 const BASE = 'http://localhost:8080/api/v1/courses';
 const course = (id: number, statut: string, nbChapitres: number) => ({
-  id, titre: `Cours ${id}`, description: '', categorie: 'Design', statut, imageUrl: null,
-  formateurId: '3f2b8c1e-5d4a-4c1b-9a0e-2d7f6b1c8e90', nbChapitres, createdAt: '2026-11-11T10:00:00Z', updatedAt: '2026-11-11T10:00:00Z',
+  id,
+  titre: `Cours ${id}`,
+  description: '',
+  categorie: 'Design',
+  statut,
+  imageUrl: null,
+  formateurId: '3f2b8c1e-5d4a-4c1b-9a0e-2d7f6b1c8e90',
+  nbChapitres,
+  createdAt: '2026-11-11T10:00:00Z',
+  updatedAt: '2026-11-11T10:00:00Z',
 });
 const page = (data: object[], total = data.length) => ({ data, total, page: 1, limit: 10 });
 
@@ -14,7 +23,9 @@ describe('AdminCoursesPage', () => {
   let http: HttpTestingController;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
+    });
     http = TestBed.inject(HttpTestingController);
   });
 
@@ -28,7 +39,8 @@ describe('AdminCoursesPage', () => {
     return fixture;
   };
   const el = (fixture: ReturnType<typeof open>) => fixture.nativeElement as HTMLElement;
-  const buttons = (row: Element) => Array.from(row.querySelectorAll<HTMLButtonElement>('.icon-btn'));
+  const buttons = (row: Element) =>
+    Array.from(row.querySelectorAll<HTMLButtonElement>('.icon-btn'));
 
   it('affiche les cours avec leur statut', () => {
     const fixture = open(page([course(1, 'BROUILLON', 2), course(2, 'PUBLIE', 1)]));
@@ -39,8 +51,17 @@ describe('AdminCoursesPage', () => {
   });
 
   it('réserve les actions selon le statut et le nombre de chapitres', () => {
-    const fixture = open(page([course(1, 'BROUILLON', 0), course(2, 'BROUILLON', 2), course(3, 'PUBLIE', 1), course(4, 'ARCHIVE', 1)]));
-    const [noChapter, draft, published, archived] = Array.from(el(fixture).querySelectorAll('tbody tr')).map(buttons);
+    const fixture = open(
+      page([
+        course(1, 'BROUILLON', 0),
+        course(2, 'BROUILLON', 2),
+        course(3, 'PUBLIE', 1),
+        course(4, 'ARCHIVE', 1),
+      ]),
+    );
+    const [noChapter, draft, published, archived] = Array.from(
+      el(fixture).querySelectorAll('tbody tr'),
+    ).map(buttons);
 
     expect(noChapter[0].disabled).toBe(true); // publier sans chapitre
     expect(draft[0].disabled).toBe(false);

@@ -1,0 +1,499 @@
+<section class="course-content" [attr.aria-busy]="busy()">
+  <div class="breadcrumbs"><a routerLink="/courses">Cours</a> / {{ title }}</div>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">APPRENDRE · TRANSMETTRE · PROGRESSER</p>
+      <h1>{{ title }}</h1>
+      <p class="muted">
+        {{
+          session.canTeach
+            ? 'Un espace pour partager vos connaissances et accompagner vos étudiants.'
+            : 'Découvrez de nouvelles connaissances, à votre rythme.'
+        }}
+      </p>
+    </div>
+    @if (session.canTeach && (view() === 'mine' || view() === 'catalogue')) {
+      <a class="button primary" routerLink="/courses/new">+ Créer un cours</a>
+    }
+  </div>
+  @if (error()) {
+    <div class="alert error" role="alert">
+      {{ error() }}
+      <button type="button" (click)="reload()" [disabled]="busy()">Réessayer</button>
+    </div>
+  }
+  @if (notice()) {
+    <div class="alert success" role="status">{{ notice() }}</div>
+  }
+  @if (busy()) {
+    <div class="loading" role="status">Chargement en cours…</div>
+  }
+
+  @if (view() === 'catalogue' || view() === 'mine') {
+    @if (view() === 'catalogue') {
+      <section class="hero">
+        <div>
+          <span class="pill">VOTRE PROCHAINE DÉCOUVERTE</span>
+          <h2>Le savoir commence<br />par votre curiosité.</h2>
+          <p>Explorez les cours de votre campus et ouvrez de nouvelles perspectives.</p>
+        </div>
+        <div class="hero-art" aria-hidden="true"><span aria-hidden="true">◈</span><i>+</i><b>✦</b></div>
+      </section>
+    }
+    @if (view() === 'mine' && !session.canTeach) {
+      <section class="empty panel">
+        <div class="empty-icon">▤</div>
+        <h2>Votre parcours commence ici</h2>
+        <p>Vos inscriptions apparaîtront ici lorsque le service d’inscription sera disponible.</p>
+        <a class="button primary" routerLink="/courses">Explorer le catalogue</a>
+      </section>
+    } @else {
+      <form class="filters panel" [formGroup]="filters" (ngSubmit)="search()">
+        <label class="search"
+          >Rechercher un cours<input
+            formControlName="search"
+            placeholder="Titre, description…"
+            type="search" /></label
+        ><label
+          >Catégorie<select formControlName="categorie">
+            <option value="">Toutes les catégories</option>
+            @for (cat of categories(); track cat) {
+              <option [value]="cat">{{ cat }}</option>
+            }
+          </select></label
+        >
+        @if (session.canTeach) {
+          <label
+            >Statut<select formControlName="statut">
+              <option value="">Tous les statuts</option>
+              <option value="BROUILLON">Brouillon</option>
+              <option value="PUBLIE">Publié</option>
+              <option value="ARCHIVE">Archivé</option>
+            </select></label
+          >
+        }
+        <button class="primary" [disabled]="busy()">Rechercher</button>
+      </form>
+      <div class="results-heading">
+        <h2>
+          {{
+            view() === 'mine'
+              ? session.user.role === 'ADMIN'
+                ? 'Tous les cours du campus'
+                : 'Votre bibliothèque pédagogique'
+              : 'À découvrir'
+          }}
+        </h2>
+        <span class="muted">{{ total() }} cours</span>
+      </div>
+      @if (!courses().length && !busy() && !error()) {
+        <section class="empty panel">
+          <div class="empty-icon">▤</div>
+          <h2>Aucun cours pour le moment</h2>
+          <p>
+            {{
+              view() === 'mine'
+                ? 'Créez votre premier cours pour commencer à transmettre.'
+                : 'Essayez une autre recherche ou une autre catégorie.'
+            }}
+          </p>
+        </section>
+      }
+      @if (view() === 'mine' && courses().length) {
+        <div class="panel table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Cours</th>
+                <th>Catégorie</th>
+                <th>Statut</th>
+                <th>Chapitres</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (c of courses(); track c.id) {
+                <tr>
+                  <td>
+                    <a [routerLink]="['/courses', c.id]"
+                      ><strong>{{ c.titre }}</strong></a
+                    >
+                  </td>
+                  <td>{{ c.categorie || '—' }}</td>
+                  <td>
+                    <span class="status" [class.published]="c.statut === 'PUBLIE'">{{
+                      label(c.statut)
+                    }}</span>
+                  </td>
+                  <td>{{ c.nbChapitres || 0 }}</td>
+                  <td>
+                    <div class="actions">
+                      <a [routerLink]="['/courses', c.id, 'edit']">Modifier</a
+                      ><a [routerLink]="['/courses', c.id, 'chapters']">Chapitres</a
+                      ><button
+                        [disabled]="busy() || c.statut === 'PUBLIE' || !c.nbChapitres"
+                        [title]="
+                          !c.nbChapitres
+                            ? 'Ajoutez un chapitre avant de publier'
+                            : 'Publier le cours'
+                        "
+                        (click)="courseAction(c, 'publish')"
+                      >
+                        Publier</button
+                      ><button
+                        [disabled]="busy() || c.statut === 'ARCHIVE'"
+                        (click)="courseAction(c, 'archive')"
+                      >
+                        Archiver</button
+                      ><button
+                        class="danger-text"
+                        [disabled]="busy()"
+                        (click)="courseAction(c, 'delete')"
+                      >
+                        Supprimer
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+      @if (view() === 'catalogue') {
+        <div class="course-grid">
+          @for (c of courses(); track c.id) {
+            <article class="course-card panel">
+              <a
+                [routerLink]="['/courses', c.id]"
+                class="course-cover"
+                [attr.aria-label]="'Consulter ' + c.titre"
+              >
+                @if (c.imageUrl) {
+                  <img [src]="api.imageUrl(c.imageUrl)" alt="" loading="lazy" />
+                } @else {
+                  <div class="cover-art" aria-hidden="true">
+                    ◈<span>CampusHub · Apprendre ensemble</span>
+                  </div>
+                }
+                <span class="status" [class.published]="c.statut === 'PUBLIE'">{{
+                  label(c.statut)
+                }}</span></a
+              >
+              <div class="card-body">
+                <span class="category">{{ c.categorie || 'Tous les savoirs' }}</span>
+                <h3>
+                  <a [routerLink]="['/courses', c.id]">{{ c.titre }}</a>
+                </h3>
+                <p class="card-description">
+                  {{
+                    c.description ||
+                      'Découvrez le contenu de ce cours et ses ressources pédagogiques.'
+                  }}
+                </p>
+                <div class="card-meta">
+                  <span>▤ {{ c.nbChapitres || 0 }} chapitres</span><span>Formateur</span>
+                </div>
+                @if (session.canEdit(c)) {
+                  <div class="actions">
+                    <a [routerLink]="['/courses', c.id, 'edit']">Modifier</a
+                    ><a [routerLink]="['/courses', c.id, 'chapters']">Chapitres</a
+                    ><button
+                      [disabled]="busy() || c.statut === 'PUBLIE' || !c.nbChapitres"
+                      [title]="
+                        !c.nbChapitres ? 'Ajoutez un chapitre avant de publier' : 'Publier le cours'
+                      "
+                      (click)="courseAction(c, 'publish')"
+                    >
+                      Publier</button
+                    ><button
+                      [disabled]="busy() || c.statut === 'ARCHIVE'"
+                      (click)="courseAction(c, 'archive')"
+                    >
+                      Archiver</button
+                    ><button
+                      class="danger-text"
+                      [disabled]="busy()"
+                      (click)="courseAction(c, 'delete')"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                }
+              </div>
+            </article>
+          }
+        </div>
+      }
+      <div class="pagination">
+        <button [disabled]="busy() || page() <= 1" (click)="paginate(-1)">← Précédent</button
+        ><span>Page {{ page() }} sur {{ lastPage }}</span
+        ><button [disabled]="busy() || page() >= lastPage" (click)="paginate(1)">Suivant →</button>
+      </div>
+    }
+  }
+
+  @if (view() === 'edit' && session.canTeach && (!course() || writable)) {
+    <form class="editor-grid" [formGroup]="form" (ngSubmit)="saveCourse()">
+      <section class="panel form-panel">
+        <h2>Informations du cours</h2>
+        <p class="muted">Donnez à vos étudiants envie d’en savoir plus.</p>
+        <label
+          >Titre du cours *<input
+            formControlName="titre"
+            maxlength="150"
+            placeholder="Ex. Développement web avec Angular"
+        /></label>
+        @if (form.controls.titre.touched && form.controls.titre.invalid) {
+          <p class="field-error">Un titre est obligatoire (150 caractères maximum).</p>
+        }
+        <label
+          >Catégorie<select formControlName="categorie">
+            <option value="">Choisir une catégorie</option>
+            @for (cat of categories(); track cat) {
+              <option [value]="cat">{{ cat }}</option>
+            }
+          </select></label
+        ><label
+          >Description<textarea
+            formControlName="description"
+            rows="8"
+            maxlength="2000"
+            placeholder="Présentez le contenu et le parcours du cours…"
+          ></textarea></label
+        ><small class="muted">{{ form.controls.description.value.length }} / 2000 caractères</small>
+        <div class="form-footer">
+          <a class="button" routerLink="/courses/mine">Annuler</a
+          ><button class="primary" [disabled]="busy() || form.invalid">Enregistrer le cours</button>
+        </div>
+      </section>
+      <aside class="panel form-panel">
+        <h2>Image de couverture</h2>
+        <div class="upload-preview">
+          @if (imagePreview()) {
+            <img [src]="imagePreview()" alt="Aperçu de la couverture" />
+          } @else {
+            <span aria-hidden="true">◈</span>
+            <p>Une image pour illustrer votre cours</p>
+          }
+        </div>
+        <label class="file-label"
+          >Choisir une image<input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            [disabled]="busy()"
+            (change)="chooseImage($event)"
+        /></label>
+        <p class="muted">JPG, PNG ou WebP · 1 Mo maximum</p>
+        @if (imagePreview()) {
+          <button type="button" (click)="removeImage()" [disabled]="busy()">Retirer l’image</button>
+        }
+        <div class="tip">
+          Votre cours est créé en brouillon. Ajoutez ses chapitres avant de le publier.
+        </div>
+      </aside>
+    </form>
+  }
+
+  @if (course(); as c) {
+    @if (view() === 'detail') {
+      <section class="detail-hero">
+        <div>
+          <span class="pill">{{ c.categorie || 'CampusHub' }}</span>
+          <h2>{{ c.titre }}</h2>
+          <span>{{ label(c.statut) }} · {{ chapters.length }} chapitres</span>
+        </div>
+        @if (c.imageUrl) {
+          <img [src]="api.imageUrl(c.imageUrl)" alt="Couverture du cours" />
+        } @else {
+          <span class="detail-symbol" aria-hidden="true">◈</span>
+        }
+      </section>
+      <div class="detail-grid">
+        <section class="panel form-panel">
+          <h2>À propos de ce cours</h2>
+          <p class="content">{{ c.description || 'Aucune description pour ce cours.' }}</p>
+          <a class="button primary" routerLink="/quiz" [queryParams]="{courseId:c.id}">Quiz de ce cours</a>
+              <h2>Le parcours d’apprentissage</h2>
+          @for (ch of chapters; track ch.id) {
+            <a class="chapter-link" [routerLink]="['/courses', c.id, 'chapters', ch.id]"
+              ><span class="chapter-number">{{ ch.ordre }}</span
+              ><span
+                >{{ ch.titre
+                }}<small>{{
+                  ch.pdfNom ? 'Ressource PDF disponible' : 'Contenu du chapitre'
+                }}</small></span
+              ><span aria-hidden="true">◈</span></a
+            >
+          } @empty {
+            <p class="muted">Aucun chapitre disponible.</p>
+          }
+        </section>
+        <aside class="panel form-panel">
+          <span class="eyebrow">VOTRE PARCOURS</span>
+          <h2>Apprendre à votre rythme</h2>
+          <p class="muted">Retrouvez ici les contenus et ressources de votre formateur.</p>
+          @if (writable) {
+            <a class="button primary full" [routerLink]="['/courses', c.id, 'chapters']"
+              >Gérer les chapitres</a
+            ><a class="button full" [routerLink]="['/courses', c.id, 'edit']">Modifier le cours</a>
+          } @else {
+            <button class="primary full" disabled>S’inscrire — bientôt disponible</button>
+            <p class="muted">Le service d’inscription n’est pas encore disponible.</p>
+          }
+        </aside>
+      </div>
+    }
+    @if (view() === 'chapters' && writable) {
+      <div class="section-heading">
+        <div>
+          <span class="category">{{ label(c.statut) }}</span>
+          <h2>{{ c.titre }}</h2>
+        </div>
+        <a class="button" [routerLink]="['/courses', c.id]">Aperçu du cours ↗</a>
+      </div>
+      @if (!chapters.length) {
+        <div class="alert error">Ajoutez au moins un chapitre avant de publier ce cours.</div>
+      }
+      <div class="editor-grid">
+        <section class="panel form-panel">
+          <h2>Le parcours · {{ chapters.length }} chapitres</h2>
+          <p class="muted">Glissez les chapitres pour les réordonner, ou utilisez les flèches.</p>
+          @for (ch of chapters; track ch.id; let i = $index) {
+            <article
+              class="chapter-edit"
+              [draggable]="!busy()"
+              (dragstart)="startDrag(ch.id)"
+              (dragover)="$event.preventDefault()"
+              (drop)="drop($event, ch.id)"
+            >
+              <div class="chapter-top">
+                <span class="chapter-number">{{ ch.ordre }}</span
+                ><strong>{{ ch.titre }}</strong
+                ><span class="status" [class.published]="ch.visible">{{
+                  ch.visible ? 'Visible' : 'Masqué'
+                }}</span>
+              </div>
+              <div class="actions">
+                <button
+                  [disabled]="busy() || i === 0"
+                  (click)="move(ch, -1)"
+                  [attr.aria-label]="'Monter ' + ch.titre"
+                >
+                  ?</button
+                ><button
+                  [disabled]="busy() || i === chapters.length - 1"
+                  (click)="move(ch, 1)"
+                  [attr.aria-label]="'Descendre ' + ch.titre"
+                >
+                  ?</button
+                ><button [disabled]="busy()" (click)="editChapter(ch)">Modifier</button
+                ><a [routerLink]="['/courses', c.id, 'chapters', ch.id]">Lire</a
+                ><button
+                  class="danger-text"
+                  [disabled]="busy() || (c.statut === 'PUBLIE' && chapters.length === 1)"
+                  (click)="deleteChapter(ch)"
+                >
+                  Supprimer
+                </button>
+              </div>
+              <p class="muted">
+                {{ ch.pdfNom || 'Aucun PDF associé' }} · Téléchargement
+                {{ ch.telechargementAutorise ? 'autorisé' : 'désactivé' }}
+              </p>
+              <label class="file-label"
+                >{{ ch.pdfNom ? 'Remplacer le PDF' : 'Ajouter un PDF'
+                }}<input
+                  type="file"
+                  accept="application/pdf"
+                  [disabled]="busy()"
+                  (change)="uploadPdf(ch, $event)"
+              /></label>
+              @if (ch.pdfNom) {
+                <button [disabled]="busy()" (click)="removePdf(ch)">Retirer le PDF</button>
+              }
+            </article>
+          } @empty {
+            <p class="muted">Votre premier chapitre vous attend.</p>
+          }
+        </section>
+        <section class="panel form-panel">
+          <form [formGroup]="chapterForm" (ngSubmit)="saveChapter()">
+            <h2>{{ editChapterId() ? 'Modifier le chapitre' : 'Ajouter un chapitre' }}</h2>
+            <label
+              >Titre *<input
+                formControlName="titre"
+                maxlength="150"
+                placeholder="Ex. Introduction et premiers pas"
+            /></label>
+            @if (chapterForm.controls.titre.touched && chapterForm.controls.titre.invalid) {
+              <p class="field-error">Saisissez un titre (150 caractères maximum).</p>
+            }
+            <label
+              >Contenu<textarea
+                formControlName="contenu"
+                rows="9"
+                placeholder="Rédigez le contenu du chapitre…"
+              ></textarea></label
+            ><label class="checkbox"
+              ><input type="checkbox" formControlName="visible" /> Visible pour les étudiants</label
+            ><label class="checkbox"
+              ><input type="checkbox" formControlName="telechargementAutorise" /> Autoriser le
+              téléchargement du PDF</label
+            >
+            <div class="form-footer">
+              @if (editChapterId()) {
+                <button type="button" (click)="editChapter()">Annuler</button>
+              }
+              <button class="primary" [disabled]="busy() || chapterForm.invalid">
+                Enregistrer le chapitre
+              </button>
+            </div>
+            <p class="muted">PDF : 20 Mo maximum. Ajoutez-le après avoir enregistré le chapitre.</p>
+          </form>
+        </section>
+      </div>
+    }
+    @if (view() === 'read') {
+      @if (currentChapter; as ch) {
+        <div class="reader-layout">
+          <aside class="panel form-panel">
+            <a [routerLink]="['/courses', c.id]">← Retour au cours</a>
+            <h2>{{ c.titre }}</h2>
+            @for (item of chapters; track item.id) {
+              <a
+                class="reader-nav"
+                [class.current]="item.id === ch.id"
+                [routerLink]="['/courses', c.id, 'chapters', item.id]"
+                >{{ item.ordre }}. {{ item.titre }}</a
+              >
+            }
+          </aside>
+          <article class="panel form-panel">
+            <span class="eyebrow">CHAPITRE {{ ch.ordre }}</span>
+            <h2>{{ ch.titre }}</h2>
+            <div class="reading-content">
+              {{ ch.contenu || 'Ce chapitre contient une ressource à consulter ci-dessous.' }}
+            </div>
+            @if (ch.pdfNom) {
+              <div class="pdf-resource">
+                <div>
+                  <strong>{{ ch.pdfNom }}</strong>
+                  <p class="muted">Ressource pédagogique · PDF</p>
+                </div>
+                <div class="actions">
+                  <button class="primary" [disabled]="busy()" (click)="openPdf(ch, false)">
+                    Voir le PDF ↗
+                  </button>
+                  @if (ch.telechargementAutorise || session.canTeach) {
+                    <button [disabled]="busy()" (click)="openPdf(ch, true)">Télécharger ↓</button>
+                  }
+                </div>
+              </div>
+            }
+          </article>
+        </div>
+      }
+    }
+  }
+</section>

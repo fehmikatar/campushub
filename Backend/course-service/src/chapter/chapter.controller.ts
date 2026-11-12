@@ -115,13 +115,13 @@ export class ChapterController {
 
   @Post(':id/pdf')
   @Roles(Role.ENSEIGNANT, Role.ADMIN)
-  @UseInterceptors(FileInterceptor('file', uploadOptions('pdfs', PDF_TYPES, 2)))
-  @ApiOperation({ summary: 'Ajouter / remplacer le PDF du chapitre (PDF, 2 Mo max)' })
+  @UseInterceptors(FileInterceptor('file', uploadOptions('pdfs', PDF_TYPES, 20)))
+  @ApiOperation({ summary: 'Ajouter / remplacer le PDF du chapitre (PDF, 20 Mo max)' })
   @ApiConsumes('multipart/form-data')
   @ApiBody(FILE_BODY_SCHEMA)
   @ApiCreatedResponse({ type: Chapter })
   @ApiBadRequestResponse({ description: 'Aucun fichier ou pas un PDF' })
-  @ApiPayloadTooLargeResponse({ description: 'Fichier > 2 Mo' })
+  @ApiPayloadTooLargeResponse({ description: 'Fichier > 20 Mo' })
   @ApiForbiddenResponse({ description: "Role insuffisant ou cours d'un autre enseignant" })
   @ApiNotFoundResponse({ description: 'Chapitre introuvable' })
   uploadPdf(
