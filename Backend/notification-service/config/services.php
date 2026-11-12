@@ -67,7 +67,14 @@ return [
     // Vide = consommation RabbitMQ désactivée (le service marche normalement sans).
     'rabbitmq' => [
         'url' => env('RABBITMQ_URL'),
-        'queues' => ['forum.events', 'evaluation.events', 'course.events'],
+        'queues' => ['forum.events', 'evaluation.events', 'course.events', 'reclamation.events'],
+    ],
+
+    // reclamation.created : sub Keycloak (UUID) des administrateurs à prévenir, séparés par des virgules.
+    // Une entrée qui n'est pas un UUID est ignorée ; aucun UUID valide = l'événement est confirmé sans
+    // notification, avec un avertissement dans le journal (EventMessageProcessor::reclamationAdminIds).
+    'reclamation' => [
+        'admin_ids' => array_values(array_filter(array_map('trim', explode(',', (string) env('RECLAMATION_ADMIN_IDS', ''))))),
     ],
 
 ];

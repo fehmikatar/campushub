@@ -103,7 +103,7 @@ Règle : les contrôleurs restent fins (validation dans `Requests`, logique dans
 
 ## Communication asynchrone (RabbitMQ)
 
-Le notification-service est le **seul consommateur** : il déclare les 3 files durables `forum.events`, `evaluation.events` et `course.events`. Les autres services **publient seulement** (ils ne déclarent pas les files).
+Le notification-service est le **seul consommateur** : il déclare les 4 files durables `forum.events`, `evaluation.events`, `course.events` et `reclamation.events`. Les autres services **publient seulement** (ils ne déclarent pas les files).
 
 - Variable d'environnement : `RABBITMQ_URL=amqp://guest:guest@localhost:5672` (vide = consommation désactivée, le service marche normalement).
 - Lancer RabbitMQ : `docker run -d --name rabbitmq -p 5672:5672 -p 15672:15672 rabbitmq:3-management` (interface : http://localhost:15672, `guest` / `guest`).
@@ -122,6 +122,12 @@ Le notification-service est le **seul consommateur** : il déclare les 3 files d
 | `forum.events` | `post.created`, `post.liked`, `post.accepted`, `topic.locked`, `topic.resolved` | `{ "topic": {"id","title","authorId","courseId?"}, "post?": {"id","authorId","parentAuthorId?"} }` (`post` obligatoire pour `post.*`, `actorId` obligatoire) | auteur du sujet ou de la réponse |
 | `evaluation.events` | `result.published` | `{ "studentId", "quizTitle", "score?" }` | l'étudiant |
 | `course.events` | `course.published` | `{ "courseId", "title", "userIds": [...] }` | chaque utilisateur de `userIds` |
+| `reclamation.events` | `reclamation.status_changed` | `{ "reclamationId", "reference", "studentSub", "oldStatus", "newStatus" }` | l'étudiant auteur (`studentSub`) |
+| `reclamation.events` | `reclamation.created` | `{ "reclamationId", "reference", "studentSub", "category" }` | les administrateurs de `RECLAMATION_ADMIN_IDS` (vide = personne) |
+
+Réclamations (`reclamation.events`, publié par le reclamation-service) :
+- `studentSub` est le sub Keycloak (UUID) de l'auteur enregistré par Reclamation, le même identifiant que `user_id` ici ; un message sans UUID valide est écarté. `oldStatus` / `newStatus` : `new` / `in_progress` -> `in_progress` / `resolved` / `rejected`, toujours différents.
+- `RECLAMATION_ADMIN_IDS` (obligatoire pour prévenir les administrateurs) : les sub Keycloak des administrateurs, séparés par des virgules, par exemple ceux des comptes ADMIN du realm `campushub` (Keycloak, Utilisateurs, colonne ID). Le user-service ne fournit la liste des administrateurs qu'avec un token ADMIN, que le consommateur n'a pas : la liste est donc une configuration. Une entrée qui n'est pas un UUID est ignorée ; si aucune n'est valide, `reclamation.created` est confirmé sans notification et un avertissement est écrit dans le journal (et au démarrage de `rabbitmq:consume`).
 
 ### Comportement
 - Message traité : confirmé (ack) et retiré de la file. Les préférences de l'utilisateur (types coupés, email) sont appliquées comme pour l'API HTTP.
