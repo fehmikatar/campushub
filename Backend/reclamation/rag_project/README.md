@@ -617,16 +617,23 @@ The automated tests (`python manage.py test tests.test_eureka`) use a local fake
 ## API Gateway
 
 The team Gateway (`Backend/api-gateway`, Spring Cloud Gateway Server WebMVC, owned by the Gateway
-team) routes `/api/v1/reclamation/**` to this service: `routes[6]` in
-`Backend/api-gateway/src/main/resources/application.properties`, in its own commit for the owner's
-review (same pattern as Notification; the six existing routes are unchanged):
+team) routes `/api/v1/reclamation/**` to this service: `routes[7]` in
+`Backend/api-gateway/src/main/resources/application.properties` (`routes[6]` is Enrollment's; the
+other routes are unchanged):
 
 ```properties
-spring.cloud.gateway.server.webmvc.routes[6].id=reclamation-service
-spring.cloud.gateway.server.webmvc.routes[6].uri=lb://reclamation-service
-spring.cloud.gateway.server.webmvc.routes[6].predicates[0]=Path=/api/v1/reclamation/**
-spring.cloud.gateway.server.webmvc.routes[6].filters[0]=RewritePath=/api/v1/reclamation(?<segment>/?.*), /api$\{segment}
+spring.cloud.gateway.server.webmvc.routes[7].id=reclamation-service
+spring.cloud.gateway.server.webmvc.routes[7].uri=lb://reclamation-service
+spring.cloud.gateway.server.webmvc.routes[7].predicates[0]=Path=/api/v1/reclamation/**
+spring.cloud.gateway.server.webmvc.routes[7].filters[0]=RewritePath=/api/v1/reclamation(?<segment>/?.*), /api$\{segment}
 ```
+
+**Route indexes must stay unique.** Two branches that each add `routes[6]` merge without a Git
+conflict, yet a duplicated key keeps only its last value, so one route silently disappears (this
+happened with Enrollment). The Gateway test `GatewayRoutesTests` fails on duplicated keys, a gap in
+the indexes, duplicated route ids, a missing Enrollment or Reclamation route, and a wrong
+Reclamation rewrite (it runs the Gateway's own `RewritePath`): `cd Backend/api-gateway && ./mvnw test`.
+A new service takes the next free index.
 
 | Through the Gateway (port 8080) | In this service |
 |---|---|
@@ -754,7 +761,7 @@ No live Keycloak, Course or RabbitMQ was available, so three parts are **test do
 
 | Part | How it ran |
 |---|---|
-| API Gateway (with `routes[6]`), Eureka server | **real** team code built from this branch (`java -jar`) |
+| API Gateway (with the reclamation route, at the time `routes[6]`), Eureka server | **real** team code built from this branch (`java -jar`) |
 | Reclamation | **real**: waitress + `eureka_register`, MongoDB (scratch database, dropped afterwards) |
 | Notification | **real** code (scratch copy): `php artisan rabbitmq:consume` (php-amqplib), its HTTP API, `eureka:register`, scratch SQLite |
 | Keycloak | stub: OIDC discovery + JWKS, RS256 tokens with realm roles |

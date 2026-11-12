@@ -21,7 +21,8 @@ Cloud API Gateway). Two functionalities:
 - `discovery/` = Eureka registration only (`discovery/eureka.py`, `manage.py eureka_register`), as
   RECLAMATION-SERVICE on port 8087, health `/api/health`. Never start it from `AppConfig.ready()`
   or any import: it is a separate process; Django must keep working without Eureka.
-- API Gateway (`routes[6]` in Backend/api-gateway application.properties: `/api/v1/reclamation/**`
+- API Gateway (`routes[7]` in Backend/api-gateway application.properties, `routes[6]` = Enrollment;
+  indexes must stay unique, checked by the Gateway's GatewayRoutesTests: `/api/v1/reclamation/**`
   -> `/api/**`, `lb://reclamation-service`, owned by the Gateway team): it forwards bodies chunked without Content-Length, which Django reads as empty.
   Behind it, serve with waitress (README "API Gateway"); `config/middleware.RejectUnreadableBody`
   (first middleware) answers 411 instead of processing an empty body. Keep both. Page links go
