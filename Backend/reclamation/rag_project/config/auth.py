@@ -16,6 +16,7 @@ Flow: bearer_token(request) -> verify_token(token) [SigningKeys.get(kid) + jwt.d
 import http.client
 import json
 import logging
+import math
 import re
 import threading
 import time
@@ -244,8 +245,10 @@ def verify_token(token: str, issuer: str, keys: SigningKeys) -> dict:
         log.debug("Rejected token: %s", exc)  # PyJWT's reason, never the token itself
         raise _invalid() from None
     iat = claims["iat"]  # checked here instead of by PyJWT (no skew allowance there without exp's)
-    if isinstance(iat, bool) or not isinstance(iat, (int, float)) or iat > time.time() + IAT_CLOCK_SKEW:
-        log.debug("Rejected token: iat missing, not a number or more than %d s ahead", IAT_CLOCK_SKEW)
+    # NaN / Infinity: Python's JSON accepts them, and NaN compares as "not ahead"; PyJWT refused both
+    if (isinstance(iat, bool) or not isinstance(iat, (int, float)) or not math.isfinite(iat)
+            or iat > time.time() + IAT_CLOCK_SKEW):
+        log.debug("Rejected token: iat not a finite number or more than %d s ahead", IAT_CLOCK_SKEW)
         raise _invalid()
     return claims
 

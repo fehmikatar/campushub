@@ -192,7 +192,7 @@ class RejectedTokenTests(AuthTestCase):
         # (measured: iat one second ahead -> 401). Within IAT_CLOCK_SKEW it is accepted; exp is not extended.
         now = int(time.time())
         self.assertEqual(self.call(kc.make_token(iat=now + 30)).status_code, 200)
-        for iat in (now + auth.IAT_CLOCK_SKEW + 30, "yesterday", True):
+        for iat in (now + auth.IAT_CLOCK_SKEW + 30, "yesterday", True, float("nan"), float("inf"), float("-inf")):
             with self.subTest(iat=iat):
                 self.assertAuthError(self.call(kc.make_token(iat=iat)), 401, auth.INVALID)
         expired = kc.make_token(iat=now + 30, exp=now - 1)
