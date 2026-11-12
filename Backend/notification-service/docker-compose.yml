@@ -15,7 +15,8 @@ x-notification-env: &notification-env
   DB_PASSWORD: root
   SESSION_DRIVER: array
   CACHE_STORE: file
-  QUEUE_CONNECTION: sync
+  # E-mails envoyés par le service `notification-worker` (php artisan queue:work) ; `sync` = envoi immédiat.
+  QUEUE_CONNECTION: database
   MAIL_MAILER: log
   JWT_SECRET: ${JWT_SECRET:-dev-secret}
   JWT_ISSUER: campushub-user-service
@@ -77,6 +78,19 @@ services:
     command: >
       sh -c 'export APP_KEY=$$(php artisan key:generate --show) &&
              php artisan rabbitmq:consume'
+    restart: unless-stopped
+
+  # Worker de la file d'attente (e-mails). Même image ; redémarre seul s'il s'arrête.
+  notification-worker:
+    image: campushub/notification-service
+    pull_policy: never
+    environment: *notification-env
+    depends_on:
+      notification-service:
+        condition: service_healthy
+    command: >
+      sh -c 'export APP_KEY=$$(php artisan key:generate --show) &&
+             php artisan queue:work --tries=3 --sleep=3 --max-time=3600'
     restart: unless-stopped
 
 volumes:
