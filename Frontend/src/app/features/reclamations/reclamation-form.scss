@@ -1,0 +1,29 @@
+.narrow { max-width: 820px; }
+.form { display: grid; gap: 22px; padding: 24px; }
+section { display: grid; gap: 14px; }
+section h2 { margin: 0; font-size: 16px; }
+.field { display: grid; gap: 6px; font-weight: 500; border: 0; padding: 0; margin: 0; min-width: 0; }
+legend { padding: 0; margin-bottom: 6px; font-weight: 500; }
+textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; font-weight: 400; color: var(--text); background: var(--card); resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--indigo); outline-offset: -1px; }
+textarea.invalid { border-color: var(--danger); }
+.required { color: var(--danger); }
+.muted { color: var(--text-muted); font-weight: 400; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.categories { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.category {
+  display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--card); color: var(--text); font: inherit; cursor: pointer; text-align: left;
+}
+.category:hover { border-color: var(--indigo); }
+.category.on { border-color: var(--indigo); background: var(--indigo-soft); color: var(--indigo); font-weight: 500; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
+.actions.center { justify-content: center; }
+.modal-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 16px; background: rgb(15 23 42 / 0.5); }
+.modal { display: grid; justify-items: center; gap: 10px; width: 100%; max-width: 460px; padding: 28px; text-align: center; }
+.modal h2, .modal p { margin: 0; }
+.done { display: grid; place-items: center; width: 72px; height: 72px; border-radius: 50%; background: var(--success-bg); color: var(--success-text); }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } .form { padding: 16px; } }

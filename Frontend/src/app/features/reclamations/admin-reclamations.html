@@ -1,0 +1,132 @@
+<div class="page">
+  <header class="page-head">
+    <div>
+      <h1>Gestion des réclamations</h1>
+      <p>Suivez et traitez les demandes des étudiants.</p>
+    </div>
+    <label class="control">Année universitaire
+      <select [(ngModel)]="year" (ngModelChange)="changeYear()">
+        <option value="">Toutes</option>
+        @for (item of years; track item) { <option [value]="item">{{ item }}</option> }
+      </select>
+    </label>
+  </header>
+
+  @if (statsFailed()) {
+    <div class="alert" role="alert">
+      Impossible de charger les statistiques.
+      <button type="button" class="link-btn" (click)="loadStats()">Réessayer</button>
+    </div>
+  }
+
+  <div class="stat-grid">
+    <app-stat-card label="Total des réclamations" [value]="stats()?.total ?? null" [icon]="icons.clipboardList" />
+    <app-stat-card label="Nouvelles demandes" [value]="stats()?.by_status?.new ?? null" [icon]="icons.inbox" />
+    <app-stat-card label="En cours de traitement" [value]="stats()?.by_status?.in_progress ?? null" [icon]="icons.hourglass" />
+    <app-stat-card label="Résolues" [value]="stats()?.by_status?.resolved ?? null" [icon]="icons.circleCheck" />
+    <app-stat-card label="Rejetées" [value]="stats()?.by_status?.rejected ?? null" [icon]="icons.circleX" />
+  </div>
+
+  <div class="charts">
+    <section class="card card-pad">
+      <h2>Répartition par statut</h2>
+      @if (stats() === null) {
+        <div class="skeleton"></div>
+      } @else {
+        <div class="donut-wrap">
+          <svg viewBox="0 0 140 140" class="donut" role="img" aria-label="Répartition des réclamations par statut">
+            <circle cx="70" cy="70" [attr.r]="radius" fill="none" stroke="var(--border)" stroke-width="18" />
+            @for (segment of segments(); track segment.status) {
+              @if (segment.count > 0) {
+                <circle cx="70" cy="70" [attr.r]="radius" fill="none" [attr.stroke]="segment.color" stroke-width="18"
+                  [attr.stroke-dasharray]="segment.dash" [attr.stroke-dashoffset]="segment.offset" transform="rotate(-90 70 70)" />
+              }
+            }
+            <text x="70" y="68" text-anchor="middle" class="donut-total">{{ stats()!.total }}</text>
+            <text x="70" y="86" text-anchor="middle" class="donut-label">réclamations</text>
+          </svg>
+          <ul class="legend">
+            @for (item of statuses; track item) {
+              <li><span class="swatch" [style.background]="colors[item]"></span>{{ statusLabels[item] }} <strong>{{ stats()!.by_status[item] }}</strong></li>
+            }
+          </ul>
+        </div>
+      }
+    </section>
+
+    <section class="card card-pad">
+      <h2>Réclamations par catégorie</h2>
+      @if (stats() === null) {
+        <div class="skeleton"></div>
+      } @else {
+        <ul class="bars">
+          @for (bar of bars(); track bar.category) {
+            <li>
+              <span class="bar-label">{{ bar.label }}</span>
+              <span class="bar-track"><span class="bar-fill" [style.width.%]="bar.width"></span></span>
+              <strong>{{ bar.count }}</strong>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <section>
+    <h2 class="queue-title">Réclamations à traiter</h2>
+    <form class="toolbar" (ngSubmit)="apply()">
+      <div class="grow">
+        <input class="search-input" type="search" name="search" [(ngModel)]="search" placeholder="Rechercher par référence ou objet..." aria-label="Rechercher" />
+      </div>
+      <label class="control">Statut
+        <select name="status" [(ngModel)]="status" (ngModelChange)="apply()">
+          <option value="">Tous</option>
+          @for (item of statuses; track item) { <option [value]="item">{{ statusLabels[item] }}</option> }
+        </select>
+      </label>
+      <label class="control">Catégorie
+        <select name="category" [(ngModel)]="category" (ngModelChange)="apply()">
+          <option value="">Toutes</option>
+          @for (item of categories; track item) { <option [value]="item">{{ categoryLabels[item] }}</option> }
+        </select>
+      </label>
+      <label class="control">Priorité
+        <select name="priority" [(ngModel)]="priority" (ngModelChange)="apply()">
+          <option value="">Toutes</option>
+          @for (item of priorities; track item) { <option [value]="item">{{ priorityLabels[item] }}</option> }
+        </select>
+      </label>
+      <label class="control">Trier par
+        <select name="ordering" [(ngModel)]="ordering" (ngModelChange)="apply()">
+          @for (item of orderings; track item) { <option [value]="item">{{ orderingLabels[item] }}</option> }
+        </select>
+      </label>
+      <button type="submit" class="btn btn-secondary">Rechercher</button>
+    </form>
+
+    @if (failed()) {
+      <div class="alert" role="alert">
+        Impossible de charger les réclamations.
+        <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+      </div>
+    } @else if (result() === null) {
+      <div class="card card-pad"><div class="skeleton"></div></div>
+    } @else if (result()!.results.length === 0) {
+      <div class="card empty-state">
+        <span class="badge-icon"><app-icon [name]="icons.inbox" [size]="36" /></span>
+        <h2>Aucune réclamation</h2>
+        <p class="muted">{{ filtered() ? 'Aucune réclamation ne correspond à ces critères.' : "Aucun étudiant n'a encore soumis de réclamation." }}</p>
+        @if (filtered()) { <button type="button" class="btn btn-secondary" (click)="reset()">Réinitialiser les filtres</button> }
+      </div>
+    } @else {
+      <app-reclamation-table mode="admin" [items]="result()!.results" />
+      @if (totalPages() > 1) {
+        <nav class="pager" aria-label="Pagination">
+          <button type="button" class="btn btn-secondary" [disabled]="page() <= 1" (click)="goTo(page() - 1)"><app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent</button>
+          <span class="muted">Page {{ page() }} sur {{ totalPages() }} ({{ result()!.count }} réclamations)</span>
+          <button type="button" class="btn btn-secondary" [disabled]="page() >= totalPages()" (click)="goTo(page() + 1)">Suivant <app-icon [name]="icons.chevronRight" [size]="16" /></button>
+        </nav>
+      }
+    }
+  </section>
+</div>

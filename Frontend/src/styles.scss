@@ -281,3 +281,36 @@ a {
 .md pre { margin: 0 0 10px; padding: 12px; overflow-x: auto; border-radius: var(--radius-sm); background: #0f172a; color: #e2e8f0; }
 .md pre code { padding: 0; background: transparent; color: inherit; }
 .md a { color: var(--indigo); }
+
+/* Réclamations, assistant, règlement et documents : mise en page commune. */
+.page { display: block; max-width: 1200px; }
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.page-head h1 { margin: 0 0 4px; }
+.page-head p { margin: 0; color: var(--text-muted); }
+.crumbs { margin: 0 0 8px; font-size: 12px; color: var(--text-muted); }
+.crumbs a { color: var(--text-muted); text-decoration: none; }
+.crumbs a:hover { color: var(--indigo); }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.toolbar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.toolbar .grow { flex: 1; min-width: 220px; }
+.control { display: grid; gap: 4px; font-size: 12px; color: var(--text-muted); }
+select, .control input, .search-input {
+  height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--card); font: inherit; color: var(--text);
+}
+select:focus, .control input:focus, .search-input:focus { outline: 2px solid var(--indigo); outline-offset: -1px; }
+.search-input { width: 100%; }
+.empty-state { display: grid; justify-items: center; gap: 8px; padding: 48px 16px; text-align: center; }
+.empty-state h2, .empty-state p { margin: 0; }
+.empty-state .badge-icon { display: grid; place-items: center; width: 84px; height: 84px; border-radius: 50%; background: var(--indigo-soft); color: var(--indigo); }
+.skeleton { height: 14px; border-radius: 6px; background: var(--border); animation: skeleton-pulse 1.2s ease-in-out infinite; }
+@keyframes skeleton-pulse { 50% { opacity: 0.45; } }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 18px; }
+.notice-info { padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--indigo-soft); }
+.notice-info strong { display: block; margin-bottom: 2px; }
+.card-pad { padding: 20px; }
+.only-mobile { display: none; }
+@media (max-width: 760px) {
+  .only-desktop { display: none !important; }
+  .only-mobile { display: grid; gap: 10px; }
+}

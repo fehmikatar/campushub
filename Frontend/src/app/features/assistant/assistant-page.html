@@ -1,0 +1,137 @@
+<div class="assistant">
+  <aside class="side card" [class.open]="menuOpen()">
+    <button type="button" class="btn btn-primary new" (click)="newConversation()"><app-icon [name]="icons.plus" [size]="16" /> Nouvelle conversation</button>
+    @if (listFailed()) {
+      <div class="alert" role="alert">Historique indisponible. <button type="button" class="link-btn" (click)="loadConversations()">Réessayer</button></div>
+    }
+    <ul class="convs">
+      @for (conversation of conversations(); track conversation.id) {
+        <li [class.active]="conversation.id === currentId()">
+          @if (renaming() === conversation.id) {
+            <input class="rename" [(ngModel)]="renameValue" [maxlength]="titleMax" aria-label="Titre de la conversation"
+              (keydown.enter)="saveRename(conversation)" (keydown.escape)="renaming.set(null)" (blur)="saveRename(conversation)" />
+          } @else {
+            <button type="button" class="conv-title" (click)="open(conversation)">
+              <span>{{ conversation.title || 'Sans titre' }}</span>
+              <small class="muted">{{ conversation.updated_at | date: 'dd/MM/yyyy' }}</small>
+            </button>
+            <button type="button" class="icon-btn" aria-label="Renommer" (click)="startRename(conversation)"><app-icon [name]="icons.pencil" [size]="14" /></button>
+            <button type="button" class="icon-btn" aria-label="Supprimer" (click)="deleting.set(conversation)"><app-icon [name]="icons.trash" [size]="14" /></button>
+          }
+        </li>
+      } @empty {
+        @if (!listFailed()) { <li class="muted none">Aucune conversation pour l'instant.</li> }
+      }
+    </ul>
+  </aside>
+
+  <section class="chat card">
+    <header class="chat-head">
+      <button type="button" class="btn btn-secondary toggle" (click)="menuOpen.set(!menuOpen())"><app-icon [name]="icons.messageSquare" [size]="16" /> Conversations</button>
+      <div>
+        <h1>Assistant académique</h1>
+        <p class="muted">Posez vos questions sur le règlement de scolarité. Les réponses sont indicatives.</p>
+      </div>
+    </header>
+
+    <div class="notice-info" role="note">
+      Cet assistant fournit des informations à titre d'orientation uniquement : ce n'est pas une décision officielle.
+      Pour un cas personnel, <a routerLink="/reclamations/nouvelle">déposez une réclamation</a>.
+    </div>
+
+    <div class="scroll" #scroller aria-live="polite">
+      @if (loadingConversation()) {
+        <div class="skeleton"></div>
+      } @else if (empty()) {
+        <div class="welcome">
+          <span class="badge-icon"><app-icon [name]="icons.bot" [size]="36" /></span>
+          <h2>Comment puis-je vous aider ?</h2>
+          <div class="chips">
+            @for (text of suggestions; track text) {
+              <button type="button" class="chip" (click)="suggest(text)">{{ text }}</button>
+            }
+          </div>
+        </div>
+      }
+      @for (message of messages(); track $index) {
+        <article class="msg" [class.user]="message.role === 'user'" [class.bot]="message.role === 'assistant'" [class.failed]="message.failed">
+          @if (message.pending) {
+            <div class="bubble typing" aria-label="L'assistant rédige une réponse"><span></span><span></span><span></span></div>
+          } @else if (message.role === 'user') {
+            <div class="bubble">{{ message.content }}</div>
+          } @else {
+            <div class="bubble">
+              @if (message.failed) {
+                <p class="error-text">{{ message.content }}</p>
+              } @else {
+                <div class="md" [innerHTML]="html(message.content)"></div>
+              }
+              @if (hasSources(message)) {
+                <div class="sources">
+                  @for (page of citedPages(message); track page) { <span class="pill pill-info">p. {{ page }}</span> }
+                  <button type="button" class="link-btn" (click)="openedSources.set(message)">Voir les sources</button>
+                </div>
+              }
+              @if (message.citation_check?.verified === false) {
+                <p class="warn">Certaines références citées n'ont pas pu être vérifiées. Contrôlez-les dans le règlement.</p>
+              }
+              @if (message.official_decision === false) {
+                <small class="muted">Information indicative, non officielle.</small>
+              }
+            </div>
+          }
+        </article>
+      }
+    </div>
+
+    <form class="composer" (ngSubmit)="send()">
+      <textarea name="question" rows="2" [(ngModel)]="question" [maxlength]="questionMax" (keydown)="onKey($event)"
+        placeholder="Posez votre question (Entrée pour envoyer, Maj+Entrée pour un retour à la ligne)" aria-label="Votre question"></textarea>
+      <div class="composer-foot">
+        <small class="muted">{{ question.length }}/{{ questionMax }}</small>
+        <button type="submit" class="btn btn-primary" [disabled]="!canSend()"><app-icon [name]="icons.send" [size]="16" /> Envoyer</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+@if (openedSources(); as message) {
+  <div class="overlay" (click)="openedSources.set(null)">
+    <div class="panel card" role="dialog" aria-modal="true" aria-label="Sources de la réponse" (click)="$event.stopPropagation()">
+      <header class="panel-head">
+        <h2>Sources de la réponse</h2>
+        <button type="button" class="icon-btn" aria-label="Fermer" (click)="openedSources.set(null)"><app-icon [name]="icons.x" [size]="18" /></button>
+      </header>
+      @for (rule of message.evidence!.rules; track rule.rule_id) {
+        <section class="source">
+          <h3>{{ rule.rule_id }} · Article {{ rule.article }} @if (rule.cited) { <span class="pill pill-success">Citée</span> }</h3>
+          <p>{{ rule.text }}</p>
+          <small class="muted">{{ rule.citation }} · pages {{ rule.pages.join(', ') }}</small>
+        </section>
+      }
+      @for (page of message.evidence!.pages; track $index) {
+        <section class="source">
+          <h3>{{ page.title || page.source }} · page {{ page.page }} @if (page.cited) { <span class="pill pill-success">Citée</span> }</h3>
+          <p>{{ page.excerpt }}</p>
+        </section>
+      }
+      @for (item of message.evidence!.ambiguities; track item.amb_id) {
+        <section class="source ambiguity">
+          <h3>Point ambigu : {{ item.issue }}</h3>
+          <p>{{ item.details }}</p>
+          <p><strong>Conduite à tenir :</strong> {{ item.handling }}</p>
+        </section>
+      }
+    </div>
+  </div>
+}
+
+@if (deleting(); as target) {
+  <app-confirm-dialog
+    title="Supprimer cette conversation ?"
+    message="La conversation et tous ses messages seront supprimés définitivement."
+    [busy]="busyDelete()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="deleting.set(null)"
+  />
+}

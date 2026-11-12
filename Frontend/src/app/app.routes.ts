@@ -62,6 +62,34 @@ export const routes: Routes = [
         data: { history: true },
       },
       {
+        path: 'reclamations',
+        canActivate: [roleGuard('ETUDIANT', 'ADMIN')],
+        children: [
+          { path: '', pathMatch: 'full', loadComponent: () => import('./features/reclamations/reclamations-dashboard').then((m) => m.ReclamationsDashboard), canActivate: [roleGuard('ETUDIANT')] },
+          { path: 'liste', canActivate: [roleGuard('ETUDIANT')], loadComponent: () => import('./features/reclamations/reclamations-list').then((m) => m.ReclamationsList) },
+          { path: 'nouvelle', canActivate: [roleGuard('ETUDIANT')], loadComponent: () => import('./features/reclamations/reclamation-form').then((m) => m.ReclamationForm) },
+          { path: 'gestion', canActivate: [roleGuard('ADMIN')], loadComponent: () => import('./features/reclamations/admin-reclamations').then((m) => m.AdminReclamations) },
+          { path: ':id/modifier', canActivate: [roleGuard('ETUDIANT')], loadComponent: () => import('./features/reclamations/reclamation-form').then((m) => m.ReclamationForm) },
+          { path: ':id/traiter', canActivate: [roleGuard('ADMIN')], loadComponent: () => import('./features/reclamations/reclamation-process').then((m) => m.ReclamationProcess) },
+          { path: ':id', loadComponent: () => import('./features/reclamations/reclamation-detail').then((m) => m.ReclamationDetail) },
+        ],
+      },
+      {
+        path: 'assistant',
+        canActivate: [roleGuard('ETUDIANT', 'ENSEIGNANT', 'ADMIN')],
+        loadComponent: () => import('./features/assistant/assistant-page').then((m) => m.AssistantPage),
+      },
+      {
+        path: 'reglement',
+        canActivate: [roleGuard('ETUDIANT', 'ENSEIGNANT', 'ADMIN')],
+        loadComponent: () => import('./features/regulation/regulation-page').then((m) => m.RegulationPage),
+      },
+      {
+        path: 'documents',
+        canActivate: [roleGuard('ADMIN')],
+        loadComponent: () => import('./features/documents/documents-page').then((m) => m.DocumentsPage),
+      },
+      {
         path: 'notifications',
         loadComponent: () =>
           import('./features/notifications/notifications-page').then((m) => m.NotificationsPage),

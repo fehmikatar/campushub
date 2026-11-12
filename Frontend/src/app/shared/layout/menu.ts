@@ -16,6 +16,8 @@ const evaluations: MenuItem = {
   path: '/evaluations',
   icon: Icons.clipboardList,
 };
+const assistant: MenuItem = { label: 'Assistant', path: '/assistant', icon: Icons.bot };
+const regulation: MenuItem = { label: 'Règlement', path: '/reglement', icon: Icons.landmark };
 const quizzes: MenuItem = { label: 'Quiz', path: '/quiz', icon: Icons.clipboardList };
 const notifications: MenuItem = {
   label: 'Notifications',
@@ -29,18 +31,25 @@ export const MENUS: Record<Role, readonly MenuItem[]> = {
     home,
     myCourses,
     { label: 'Catalogue', path: '/catalogue', icon: Icons.layoutGrid },
+    { label: 'Réclamations', path: '/reclamations', icon: Icons.inbox },
     forum,
     evaluations,
+    assistant,
+    regulation,
     quizzes,
     notifications,
   ],
-  ENSEIGNANT: [home, myCourses, forum, evaluations, quizzes, notifications],
+  ENSEIGNANT: [home, myCourses, forum, evaluations, assistant, regulation, quizzes, notifications],
   ADMIN: [
     home,
     { label: 'Utilisateurs', path: '/utilisateurs', icon: Icons.users },
     { label: 'Cours', path: '/cours', icon: Icons.library },
     forum,
     { label: 'Catégories', path: '/categories', icon: Icons.tags },
+    { label: 'Réclamations', path: '/reclamations/gestion', icon: Icons.inbox },
+    assistant,
+    regulation,
+    { label: 'Documents', path: '/documents', icon: Icons.upload },
     quizzes,
     notifications,
   ],
