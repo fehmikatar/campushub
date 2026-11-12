@@ -44,6 +44,12 @@ Cloud API Gateway). Two functionalities:
   after authentication, BEFORE the body is parsed or any file / SQLite / Chroma / embedding access
   (403, no side effect). Never read a role from the request; never use Django groups or is_staff.
   tests/test_document_permissions.py proves it (state snapshot + spies); keep it passing.
+- Docker (local development / team testing, not production): `Dockerfile` (python:3.14-slim-trixie,
+  wheels only, exact versions from `constraints-docker.txt`), `docker/entrypoint.py` (tini -> migrations,
+  MongoDB wait, optional ingest, then waitress 0.0.0.0:8087 + eureka_register, agent stopped first),
+  `docker-compose.reclamation.yml` (block for the root compose, paths relative to the repo root; never
+  edit the root docker-compose.yml). Mutable data only in the `/data` volume; the regulation dataset
+  stays in the image. Never call a provider at startup unless RAG_INGEST_ON_START=true.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
   Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
   goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
@@ -126,7 +132,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 293 tests (235 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 294 tests (236 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

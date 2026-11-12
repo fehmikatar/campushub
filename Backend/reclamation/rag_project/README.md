@@ -80,6 +80,145 @@ Linux / macOS: `source .venv/bin/activate` and `cp .env.example .env`.
 The `.env` matters: without it (or without `DJANGO_DEBUG=True`) the settings start in production
 mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configuration](#configuration)).
 
+## 3. Docker (local development and team testing)
+
+For teammates who only have **Docker Desktop**: the service runs in the root `docker-compose.yml`
+environment, next to the shared Keycloak, MongoDB, RabbitMQ, Eureka, API Gateway, Course and
+Notification. This is a **local development / team-testing** setup, not a production deployment
+(development Keycloak, `guest` RabbitMQ account, no TLS, generated secret key).
+
+Files in this folder: `Dockerfile`, `.dockerignore`, `constraints-docker.txt` (exact package
+versions), `docker/entrypoint.py`, `docker/healthcheck.py`, `docker/smoke_test.py` and
+`docker-compose.reclamation.yml` (the Compose block).
+
+### Start
+
+From the repository root, Docker Desktop running (the first build downloads the Python packages):
+
+```powershell
+# Until the block is in the root file (the root docker-compose.yml is not modified):
+docker compose -f docker-compose.yml -f Backend/reclamation/rag_project/docker-compose.reclamation.yml up --build -d
+# Once it is in the root docker-compose.yml:
+docker compose up --build -d
+docker compose ps reclamation-service          # STATUS "healthy" after ~1 minute
+```
+
+**Integrating the block (root `docker-compose.yml`, Fehmi):** copy the `reclamation-service`
+service of `docker-compose.reclamation.yml` to the end of `services:` and `reclamation_data:` to
+`volumes:`; its paths are already relative to the repository root. The `notification-consumer`
+part of that file is for `Backend/notification-service/docker-compose.yml` (Rayen): one line in
+`x-notification-env`, `RECLAMATION_ADMIN_IDS: ${RECLAMATION_ADMIN_IDS:-99999999-9999-4999-8999-999999999999}`.
+Nothing else changes: the Gateway route `/api/v1/reclamation/**` -> `lb://reclamation-service`
+already exists. Stop a copy of this service running on the host first (it registers in Eureka as
+`localhost`, which the Gateway container cannot reach).
+
+### What runs in the container
+
+`tini` (PID 1) -> `docker/entrypoint.py`, as a non-root user (uid 10001):
+1. creates the folders of the `/data` volume and, when `DJANGO_SECRET_KEY` is empty, a random key
+   in `/data/.django-secret-key` (once; `DJANGO_SECRET_KEY_FILE`, so `docker compose exec ...
+   manage.py` commands use the same key);
+2. migrations: SQLite, then MongoDB as soon as it answers (it waits up to `MONGODB_WAIT_SECONDS`,
+   120 s; if MongoDB never answers, the container stops and `restart: unless-stopped` starts it
+   again). `RECLAMATION_MIGRATE=false` skips them;
+3. only if `RAG_INGEST_ON_START=true`: `ingest_regulation` (see "RAG data");
+4. **waitress** on `0.0.0.0:8087` (the Gateway forwards bodies chunked; runserver and Gunicorn are
+   not used) and `manage.py eureka_register`: the agent waits for `/api/health`, registers
+   `RECLAMATION-SERVICE` as `reclamation-service:8087`, sends heartbeats and retries while Eureka
+   is starting ("Eureka unreachable ... retrying" in the first lines is normal). A stopped agent is
+   started again after 10 s. On `docker compose stop`, the agent deregisters first, then waitress
+   stops.
+
+Health check: `docker/healthcheck.py` reads the public `GET /api/health` inside the container
+(index counts only; no token, MongoDB or provider call).
+
+### Addresses inside Docker
+
+| To reach | Value (`docker-compose.reclamation.yml`) | Why |
+|---|---|---|
+| this service | `http://localhost:8080/api/v1/reclamation/...` (Gateway) | no port published; Eureka `hostName` = `reclamation-service` |
+| Keycloak (token issuer) | `KEYCLOAK_ISSUER_URI=http://localhost:8180/realms/campushub` | the `iss` of the tokens users get on the host: never changes |
+| Keycloak (signing keys) | `KEYCLOAK_JWKS_URI=http://keycloak:8080/realms/campushub/protocol/openid-connect/certs` | inside a container, `localhost` is the container itself |
+| MongoDB | `mongodb://mongo:27017`, database `campushub_reclamation` | the shared `mongo` service (like `campushub_forum`) |
+| Eureka | `eureka-server:8761` | |
+| Course | `COURSE_SERVICE_URL=http://course-service:8082` | direct, never the Gateway: same token, one attempt, 3 s |
+| RabbitMQ | `amqp://guest:guest@rabbitmq:5672` | the shared broker; Notification declares `reclamation.events` |
+
+Tokens are still fully checked (RS256 signature with the keys read from `keycloak:8080`, issuer
+`localhost:8180`, expiry, realm roles); only the place the keys are downloaded from differs.
+Course runs in Keycloak mode in the root file, so it accepts the forwarded token.
+
+### Optional variables (root `.env` file, never committed)
+
+| Variable | Default | Effect |
+|---|---|---|
+| `RECLAMATION_EMBED_API_KEY`, `RECLAMATION_LLM_API_KEY` | `not-configured` | provider keys for the assistant; without them reclamations, rules and documents work, `/academic-assistant/ask` answers 503 |
+| `RECLAMATION_EMBED_BASE_URL` / `_MODEL`, `RECLAMATION_LLM_BASE_URL` / `_MODEL` / `_REASONING_EFFORT` | Google Gemini (OpenAI-compatible endpoint), `gemini-embedding-001`, `gemini-3.8-flash`, `low` | another OpenAI-compatible provider (see [Models](#1-models)) |
+| `RECLAMATION_INGEST_ON_START` | `false` | `true` = import the regulation at startup if it is not imported yet |
+| `RECLAMATION_EVENTS_ENABLED` | `true` | `false` = publish no RabbitMQ event (Notification gets nothing) |
+| `RECLAMATION_DJANGO_SECRET_KEY` | empty = generated in the volume | a fixed key instead |
+| `RECLAMATION_ADMIN_IDS` (Notification) | `99999999-9999-4999-8999-999999999999` = `admin1` | who is notified of new reclamations |
+
+**Administrators notified of new reclamations:** Notification's `RECLAMATION_ADMIN_IDS` = the Keycloak
+subs (user IDs) of ADMIN accounts, comma-separated. The default is `admin1` of the imported realm
+(`keycloak/campushub-realm.json` fixes its ID). For other administrators: Keycloak console
+<http://localhost:8180> (`admin` / `admin`) -> realm `campushub` -> Users -> the user -> **ID**.
+
+### RAG data
+
+Named volume `reclamation_data` (`campushub_reclamation_data` in Docker Desktop) mounted at `/data`:
+`db.sqlite3` (documents, conversations, rules), `chroma/` (vector index), `pdfs/` (uploaded PDFs),
+`.django-secret-key`. It survives restarts, `docker compose up --build` and `docker compose down`;
+only `docker compose down -v` or `docker volume rm` deletes it (`down -v` also deletes the other
+services' data: avoid it). The regulation dataset (`data/regulation`) is in the image, outside the
+volume; no personal `db.sqlite3` or index is copied into the image. The assistant needs the
+regulation imported once, which calls the embedding provider (a key is required):
+
+```powershell
+docker compose exec reclamation-service python manage.py ingest_regulation
+```
+
+Files already imported are skipped, so running it again (or `RECLAMATION_INGEST_ON_START=true`)
+costs nothing. Uploaded PDFs are limited to 20 MiB by this service (413 above); the Gateway's
+multipart settings do not limit proxied requests (measured).
+
+### Test through the Gateway
+
+```powershell
+$r = Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/campushub/protocol/openid-connect/token" -ContentType "application/x-www-form-urlencoded" -Body "grant_type=password&client_id=campushub-frontend&username=etudiant1&password=Test1234!"
+$h = @{Authorization = "Bearer $($r.access_token)"}
+Invoke-RestMethod http://localhost:8080/api/v1/reclamation/health -Headers $h
+Invoke-RestMethod -Method Post http://localhost:8080/api/v1/reclamation/reclamations/ -Headers $h -ContentType "application/json" -Body '{"category": "grade", "subject": "Note de l examen", "description": "Ma note de mathematiques semble erronee."}'
+```
+
+`admin1` (ADMIN) processes reclamations (`change-status`), `enseignant1` is refused (403). All
+three use the password of the team rules. Automated check, with nothing to install:
+
+```powershell
+docker compose exec reclamation-service python docker/smoke_test.py
+```
+
+It gets real Keycloak tokens for the three test accounts and checks, through the Gateway:
+Eureka registration, authentication, MongoDB create / read / list, roles (student, teacher,
+admin), ADMIN-only document changes, conversation privacy, the Course call (unknown course ->
+404) and the Notification of the administrator (RabbitMQ). It deletes what it created; exit code
+0 = success, `WARN` = Course or Notification not reachable.
+
+### Eureka, logs, restart
+
+- Eureka: <http://localhost:8761> lists `RECLAMATION-SERVICE` as `reclamation-service:8087`.
+- Logs: `docker compose logs reclamation-service --tail 50` (add `-f` to follow).
+- Restart: `docker compose restart reclamation-service`; after a code change:
+  `docker compose up --build -d reclamation-service` (the volume is kept).
+- Regression tests stay on the host (`python manage.py test`, see [Commands](#commands)); they
+  never need Docker.
+
+Verification (2026-11-12): the Compose files are validated with `docker compose config`, the pinned
+packages resolve (wheels only) for Linux amd64 and arm64, and the entrypoint, health check and smoke
+test were run as host processes against the real Eureka, Gateway, MongoDB and Notification (with
+Keycloak, Course, RabbitMQ and the embedding provider replaced by test doubles). The image itself
+has not been built yet (Docker Desktop was not running).
+
 ## Commands
 
 | Command | What it does |
@@ -91,7 +230,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
 | `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
-| `test` | 293 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 294 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
@@ -109,25 +248,26 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 Everything comes from environment variables (the `.env` file locally). Paths: relative = inside
 this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
 
-| Variable | Local default | Container (Dockerfile comes later) |
+| Variable | Local default | Docker (`docker-compose.reclamation.yml`) |
 |---|---|---|
 | `DJANGO_DEBUG` | `True`, set by `.env.example` (**off** when missing or empty) | `False` |
-| `DJANGO_SECRET_KEY` | `change-me`, accepted only while DEBUG is on | random, 50+ characters (required when DEBUG is off) |
-| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | the service's Docker host name, `localhost`, `127.0.0.1` |
-| `DJANGO_DB_PATH` | `db.sqlite3` in this folder | `/app/data/db.sqlite3` |
-| `RAG_CHROMA_DIR` | `data/chroma` | `/app/data/chroma` |
-| `RAG_PDF_DIR` | `data/pdfs` | `/app/data/pdfs` |
-| `RAG_REGULATION_DIR` | `data/regulation` | the dataset shipped in the image, outside the volume |
-| `EMBED_*`, `LLM_*` | see [Models](#1-models) | passed by the deployment (the API key is a secret) |
+| `DJANGO_SECRET_KEY` | `change-me`, accepted only while DEBUG is on | empty = the key of `DJANGO_SECRET_KEY_FILE` |
+| `DJANGO_SECRET_KEY_FILE` | empty | `/data/.django-secret-key` (random, generated once by the entrypoint) |
+| `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | `reclamation-service,localhost,127.0.0.1` |
+| `DJANGO_DB_PATH` | `db.sqlite3` in this folder | `/data/db.sqlite3` (volume) |
+| `RAG_CHROMA_DIR` | `data/chroma` | `/data/chroma` |
+| `RAG_PDF_DIR` | `data/pdfs` | `/data/pdfs` |
+| `RAG_REGULATION_DIR` | `data/regulation` | the default: `/app/data/regulation` in the image, outside the volume |
+| `EMBED_*`, `LLM_*` | see [Models](#1-models) | `RECLAMATION_EMBED_*` / `RECLAMATION_LLM_*` of the root `.env` (see [Docker](#3-docker-local-development-and-team-testing)) |
 | `KEYCLOAK_ISSUER_URI` | `http://localhost:8180/realms/campushub` | the same (see [Authentication](#authentication-keycloak)) |
 | `KEYCLOAK_JWKS_URI` | empty (= derived from the issuer) | `http://keycloak:8080/realms/campushub/protocol/openid-connect/certs` |
 | `MONGODB_URI` | `mongodb://localhost:27017` | e.g. `mongodb://mongo:27017` (a connection string: may contain credentials, so it is a secret) |
-| `MONGODB_NAME` | `campushub` | to be agreed (Forum uses `campushub_forum`; `campushub_reclamations` would follow the same convention) |
+| `MONGODB_NAME` | `campushub` | `campushub_reclamation` (like `campushub_forum`, `campushub_notification`) |
 | `EUREKA_ENABLED` | `true` (only `false`/`0`/`no`/`off` disable) | `true` |
 | `EUREKA_HOST`, `EUREKA_PORT` | `localhost`, `8761` | `eureka-server`, `8761` |
 | `EUREKA_APP_NAME` | `reclamation-service` (registered as `RECLAMATION-SERVICE`) | the same |
-| `EUREKA_INSTANCE_HOST`, `EUREKA_INSTANCE_PORT` | `localhost`, `8087` | the service's Docker host name, `8087` |
-| `EUREKA_INSTANCE_IP` | `127.0.0.1` (like Forum / Notification) | to be decided with the Dockerfile |
+| `EUREKA_INSTANCE_HOST`, `EUREKA_INSTANCE_PORT` | `localhost`, `8087` | `reclamation-service`, `8087` |
+| `EUREKA_INSTANCE_IP` | `127.0.0.1` (like Forum / Notification) | the container's address (set by the entrypoint) |
 | `PUBLIC_API_URL` | empty (page links use the address the request was sent to) | the Gateway address of `/api`, e.g. `http://localhost:8080/api/v1/reclamation` |
 | `COURSE_SERVICE_URL` | empty = Eureka lookup of `COURSE-SERVICE` | `http://course-service:8082` |
 | `RABBITMQ_URL` | empty = no event published | `amqp://guest:guest@rabbitmq:5672` (a secret if it holds a real password) |
@@ -141,18 +281,14 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
   empty index that is not rebuilt automatically (fix: `ingest_regulation --force`).
 - SQLite does not create folders: the folder of `DJANGO_DB_PATH` must exist (a Docker volume does).
   The Chroma and PDF folders are created when needed.
-- The regulation dataset is read-only and versioned with the code. A volume mounted at `/app/data`
-  would hide the image's `/app/data/regulation`, so `RAG_REGULATION_DIR` must then point elsewhere
-  (decided with the Dockerfile).
-- Production server: Gunicorn (Linux only; `requirements.txt` skips it on Windows, where
-  `runserver` stays the local command):
-  `gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 1 --threads 8`.
-  One worker because Chroma's local storage and the in-memory keyword index belong to one process;
-  threads because an answer mostly waits 4–15 s for the LLM. The port is not decided yet.
-  **To verify with the Dockerfile:** behind the API Gateway, request bodies arrive chunked (see
-  "API Gateway"); Django only reads bodies that have a `Content-Length`. waitress is verified to
-  handle this; Gunicorn is not verified yet (if it passes chunked bodies through, every POST gets
-  the 411 of `config/middleware.py`), so the container may have to use waitress too.
+- The regulation dataset is read-only and versioned with the code: the Docker volume is mounted at
+  `/data`, so it never hides the image's `/app/data/regulation`.
+- Server: **waitress** (Windows and the container), one process with threads (`WAITRESS_THREADS`,
+  8 in the container): Chroma's local storage and the in-memory keyword index belong to one
+  process, and an answer mostly waits 4–15 s for the LLM. Behind the API Gateway, request bodies
+  arrive chunked (see "API Gateway") and Django only reads bodies that have a `Content-Length`;
+  waitress handles this (verified), runserver does not (411 from `config/middleware.py`). Gunicorn
+  stays in `requirements.txt` (Linux only) but is not used.
 
 ## Reclamations API (MongoDB)
 
@@ -394,7 +530,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 293 total with MongoDB: 235 offline + 58 integration
+python manage.py test --noinput                       # 294 total with MongoDB: 236 offline + 58 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -456,8 +592,8 @@ python manage.py eureka_register --once  # register once and exit (Eureka drops 
 - **Graceful shutdown:** Ctrl+C, Ctrl+Break or SIGTERM -> deregistration, then exit.
 - **Without Eureka:** just don't start the agent (or set `EUREKA_ENABLED=false`, which makes it
   exit at once).
-- **One agent per instance.** In a container, the agent will run next to Gunicorn (decided with the
-  Dockerfile).
+- **One agent per instance.** In the container, `docker/entrypoint.py` runs it next to waitress
+  (see [Docker](#3-docker-local-development-and-team-testing)).
 
 Check the registration: open the Eureka dashboard <http://localhost:8761> (section *Instances
 currently registered with Eureka*), or
@@ -834,5 +970,8 @@ Add real student questions to `data/regulation/eval_questions.json`.
   they first need a relevance threshold evaluated on labelled examples.
 - `POST /api/recommendations/` — needs `campushub_recommendation_engine.py` (referenced by the
   guide, not in this repo) and an authorized student snapshot from the Enrollment/Evaluation services.
-- Dockerfile (with the Gunicorn / waitress check of "Configuration").
+- Docker: a first run of the image in the team's Docker Desktop (`docker compose up --build`, then
+  `docker/smoke_test.py`); so far it was validated without building the image (see "Docker").
+- With openai 3.x an **empty** `EMBED_API_KEY` / `LLM_API_KEY` makes the client raise while it is
+  being built (not mapped to 503); the Docker defaults use a placeholder value instead.
 - Reranking with a cross-encoder (e.g. bge-reranker) — RRF is the current ranking step.

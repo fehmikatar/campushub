@@ -120,6 +120,30 @@ class SecuritySettingsTests(SimpleTestCase):
         self.assertEqual(load_settings(**LOCAL_DEV, DJANGO_ALLOWED_HOSTS="")["hosts"],
                          ["localhost", "127.0.0.1"])
 
+    def test_debug_off_reads_the_secret_key_from_a_file(self):
+        # Docker: the entrypoint writes the key once in the data volume (DJANGO_SECRET_KEY_FILE).
+        with tempfile.TemporaryDirectory() as tmp:
+            key_file = Path(tmp) / ".django-secret-key"
+            key_file.write_text(get_random_secret_key() + "\n", encoding="utf-8")
+            result = import_settings(DJANGO_DEBUG="False", DJANGO_SECRET_KEY="", DJANGO_SECRET_KEY_FILE=str(key_file))
+            self.assertEqual(result.returncode, 0, result.stderr[-300:])
+
+            weak = "short-weak-key"
+            key_file.write_text(weak, encoding="utf-8")
+            result = import_settings(DJANGO_DEBUG="False", DJANGO_SECRET_KEY="", DJANGO_SECRET_KEY_FILE=str(key_file))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("DJANGO_SECRET_KEY must be a random value", result.stderr)
+            self.assertNotIn(weak, result.stderr)
+
+            # an explicit key wins over the file
+            result = import_settings(DJANGO_DEBUG="False", DJANGO_SECRET_KEY=get_random_secret_key(),
+                                     DJANGO_SECRET_KEY_FILE=str(key_file))
+            self.assertEqual(result.returncode, 0, result.stderr[-300:])
+
+            result = import_settings(DJANGO_DEBUG="False", DJANGO_SECRET_KEY="",
+                                     DJANGO_SECRET_KEY_FILE=str(Path(tmp) / "missing"))
+            self.assertNotEqual(result.returncode, 0)
+
     def test_error_message_never_contains_the_rejected_value(self):
         rejected = "short-but-secret-value"
         result = import_settings(DJANGO_DEBUG="False", DJANGO_SECRET_KEY=rejected)

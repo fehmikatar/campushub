@@ -1,0 +1,91 @@
+# Reclamation Service (Django) pour le docker-compose.yml racine -- developpement local et tests d'equipe,
+# pas un deploiement de production. Chemins relatifs a la RACINE du depot.
+#
+# 1) Essai sans modifier le compose racine (depuis la racine du depot) :
+#      docker compose -f docker-compose.yml -f Backend/reclamation/rag_project/docker-compose.reclamation.yml up --build -d
+# 2) Integration (Fehmi) : copier le service "reclamation-service" a la fin de "services:" et
+#    "reclamation_data:" dans "volumes:" du docker-compose.yml racine, puis : docker compose up --build -d
+#    (la partie "notification-consumer" en bas est pour le fichier de Rayen, voir son commentaire).
+#
+# Utilise les services partages du compose racine : mongo, rabbitmq, keycloak, eureka-server,
+# course-service, api-gateway, notification-consumer. Aucun port publie : tout passe par la Gateway,
+#   http://localhost:8080/api/v1/reclamation/...   (route deja dans Backend/api-gateway)
+# Variables facultatives : fichier .env a la racine (non committe), voir le README du service.
+
+services:
+  reclamation-service:
+    build: ./Backend/reclamation/rag_project
+    image: campushub/reclamation-service
+    environment:
+      PORT: "8087"
+      DJANGO_DEBUG: "false"
+      # Vide = cle aleatoire generee une fois dans le volume (/data/.django-secret-key)
+      DJANGO_SECRET_KEY: ${RECLAMATION_DJANGO_SECRET_KEY:-}
+      DJANGO_ALLOWED_HOSTS: reclamation-service,localhost,127.0.0.1
+      # SQLite (RAG, comptes locaux), index ChromaDB, PDF importes : un seul volume, /data
+      DJANGO_DB_PATH: /data/db.sqlite3
+      RAG_CHROMA_DIR: /data/chroma
+      RAG_PDF_DIR: /data/pdfs
+      # MongoDB partage : une base propre au service (comme campushub_forum)
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_NAME: campushub_reclamation
+      # Le token garde l'issuer localhost:8180 ; les cles publiques sont lues sur le reseau Docker
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      # Eureka : RECLAMATION-SERVICE, joignable par la Gateway sous ce nom (lb://reclamation-service)
+      EUREKA_ENABLED: "true"
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: "8761"
+      EUREKA_INSTANCE_HOST: reclamation-service
+      EUREKA_INSTANCE_PORT: "8087"
+      # Liens de pagination (next / previous) par la Gateway
+      PUBLIC_API_URL: http://localhost:8080/api/v1/reclamation
+      # Appel synchrone Reclamation -> Course (direct, jamais par la Gateway ; 3 s, un essai)
+      COURSE_SERVICE_URL: http://course-service:8082
+      # Evenements pour Notification (file reclamation.events, declaree par notification-consumer).
+      # Best effort : une panne RabbitMQ ne fait jamais echouer une requete. "false" = aucun envoi.
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      RECLAMATION_EVENTS_ENABLED: ${RECLAMATION_EVENTS_ENABLED:-true}
+      # Assistant RAG : fournisseur compatible OpenAI (Gemini par defaut). Sans cle, la reclamation,
+      # les regles et les documents marchent ; /academic-assistant/ask repond 503.
+      EMBED_BASE_URL: ${RECLAMATION_EMBED_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      EMBED_API_KEY: ${RECLAMATION_EMBED_API_KEY:-not-configured}
+      EMBED_MODEL: ${RECLAMATION_EMBED_MODEL:-gemini-embedding-001}
+      LLM_BASE_URL: ${RECLAMATION_LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      LLM_API_KEY: ${RECLAMATION_LLM_API_KEY:-not-configured}
+      LLM_MODEL: ${RECLAMATION_LLM_MODEL:-gemini-3.8-flash}
+      LLM_REASONING_EFFORT: ${RECLAMATION_LLM_REASONING_EFFORT:-low}
+      # "true" = importer le reglement au demarrage (appelle le fournisseur d'embeddings ; deja importe = rien)
+      RAG_INGEST_ON_START: ${RECLAMATION_INGEST_ON_START:-false}
+    volumes:
+      - reclamation_data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "/app/docker/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 6
+    # Le temps de se desinscrire d'Eureka avant l'arret de waitress
+    stop_grace_period: 30s
+    restart: unless-stopped
+    # Debogage seulement (appels directs sans la Gateway) :
+    # ports:
+    #   - "127.0.0.1:8087:8087"
+
+  # --- Pour Backend/notification-service/docker-compose.yml (Rayen) : destinataires de
+  # reclamation.created = sub Keycloak des comptes ADMIN. Valeur par defaut = admin1 du realm importe
+  # (keycloak/campushub-realm.json, id fixe). A ajouter dans x-notification-env :
+  #   RECLAMATION_ADMIN_IDS: ${RECLAMATION_ADMIN_IDS:-99999999-9999-4999-8999-999999999999}
+  notification-consumer:
+    environment:
+      RECLAMATION_ADMIN_IDS: ${RECLAMATION_ADMIN_IDS:-99999999-9999-4999-8999-999999999999}
+
+volumes:
+  reclamation_data:

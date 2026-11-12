@@ -54,6 +54,12 @@ def is_strong_secret_key(value: str) -> bool:
 # required. Local development switches DEBUG on in .env (see .env.example).
 DEBUG = env_bool("DJANGO_DEBUG", False)
 SECRET_KEY = (env("DJANGO_SECRET_KEY") or "").strip()
+# Docker: DJANGO_SECRET_KEY_FILE = a file holding the key (docker/entrypoint.py generates it once in
+# the data volume), so `docker compose exec ... manage.py <command>` sees the same key as the server.
+# An explicit DJANGO_SECRET_KEY wins; a missing file is the same as no key.
+_SECRET_KEY_FILE = (env("DJANGO_SECRET_KEY_FILE") or "").strip()
+if not SECRET_KEY and _SECRET_KEY_FILE and Path(_SECRET_KEY_FILE).is_file():
+    SECRET_KEY = Path(_SECRET_KEY_FILE).read_text(encoding="utf-8").strip()
 if not DEBUG and not is_strong_secret_key(SECRET_KEY):
     raise ImproperlyConfigured(
         f"DJANGO_SECRET_KEY must be a random value of at least {SECRET_KEY_MIN_LENGTH} characters "
@@ -97,7 +103,7 @@ APPEND_SLASH = False
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# SQLite file. Default: db.sqlite3 in the project folder. In Docker: DJANGO_DB_PATH=/app/data/db.sqlite3
+# SQLite file. Default: db.sqlite3 in the project folder. In Docker: DJANGO_DB_PATH=/data/db.sqlite3 (volume)
 # (same volume as Chroma and the uploaded PDFs). SQLite does not create missing folders.
 DATABASES = {
     "default": {
