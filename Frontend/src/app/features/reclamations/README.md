@@ -4,21 +4,23 @@
 `features/regulation` (règlement), `features/documents` (ADMIN).
 
 Le front appelle `${apiUrl}/api/v1/reclamation/<ressource>/` (ressources : `reclamations`, `academic-assistant/ask`,
-`conversations`, `academic-rules`, `ambiguities`, `documents`).
+`conversations`, `academic-rules`, `ambiguities`, `documents`). La route `reclamation-service` existe déjà dans la
+Gateway (`Path=/api/v1/reclamation/**`, réécrite en `/api/...` côté service).
 
-## À ajouter côté Gateway / Docker (Fehmi ou Aziz)
+## Lancer le service pour essayer les écrans
 
-Route Gateway :
+Depuis la racine du dépôt (le fichier d'override est nécessaire si la Gateway est publiée sur un autre port que 8080) :
 
-```yaml
-- id: reclamation-service
-  uri: lb://reclamation-service
-  predicates:
-    - Path=/api/v1/reclamation/**
-  filters:
-    - RewritePath=/api/v1/reclamation/(?<segment>.*), /api/${segment}
+```bash
+docker compose -f docker-compose.yml -f docker-compose.override.yml -f Backend/reclamation/rag_project/docker-compose.reclamation.yml up --build -d
 ```
 
-- Ajouter le service au `docker-compose` et l'enregistrer dans Eureka sous le nom `reclamation-service`.
-- Les endpoints `documents` et `academic-rules` n'ont pas de contrôle de rôle côté service : le front n'affiche
-  « Documents » qu'à l'ADMIN, mais le service devrait aussi le refuser aux autres rôles.
+- Réclamations, règlement et documents fonctionnent sans configuration supplémentaire.
+- L'assistant (chat) exige une clé de modèle (`LLM_API_KEY`, `EMBED_API_KEY` dans un `.env` à la racine, jamais commité) ;
+  sans elle, le front affiche une erreur et rend la question à l'utilisateur pour qu'il réessaie.
+- Le règlement reste vide tant que `manage.py ingest_regulation` n'a pas été exécuté (il demande aussi la clé d'embeddings).
+
+## Remarque pour le service
+
+Les endpoints `documents` et `academic-rules` n'ont pas de contrôle de rôle : le front n'affiche « Documents » qu'à
+l'ADMIN, mais le service devrait aussi le refuser aux autres rôles.

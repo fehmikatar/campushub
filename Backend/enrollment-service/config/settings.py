@@ -31,13 +31,11 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.auth',
     'rest_framework',
-    'corsheaders',
     'enrollments',
 ]
 
 MIDDLEWARE = [
     'enrollments.middleware.ChunkedBodyMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
 ]
 
@@ -59,7 +57,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 USE_TZ = True
 TIME_ZONE = 'UTC'
 
-CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS', 'http://localhost:4200')
+
 
 # --- Keycloak ---
 KEYCLOAK_ISSUER_URI = os.environ.get(

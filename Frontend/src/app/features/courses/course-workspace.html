@@ -41,12 +41,7 @@
       </section>
     }
     @if (view() === 'mine' && !session.canTeach) {
-      <section class="empty panel">
-        <div class="empty-icon">▤</div>
-        <h2>Votre parcours commence ici</h2>
-        <p>Vos inscriptions apparaîtront ici lorsque le service d’inscription sera disponible.</p>
-        <a class="button primary" routerLink="/courses">Explorer le catalogue</a>
-      </section>
+      <app-my-enrollments />
     } @else {
       <form class="filters panel" [formGroup]="filters" (ngSubmit)="search()">
         <label class="search"
@@ -338,8 +333,30 @@
               >Gérer les chapitres</a
             ><a class="button full" [routerLink]="['/courses', c.id, 'edit']">Modifier le cours</a>
           } @else {
-            <button class="primary full" disabled>S’inscrire — bientôt disponible</button>
-            <p class="muted">Le service d’inscription n’est pas encore disponible.</p>
+            @if (!isStudent) {
+              <p class="muted">Seuls les étudiants peuvent s’inscrire à un cours.</p>
+            } @else if (enrollmentUnavailable()) {
+              <button class="primary full" disabled>S’inscrire</button>
+              <p class="muted">Le service d’inscription est momentanément indisponible. Réessayez dans un instant.</p>
+            } @else if (enrollment(); as e) {
+              <p class="muted">Vous êtes inscrit à ce cours depuis le {{ e.date_inscription | date: 'dd/MM/yyyy' }}.</p>
+              @if (confirmingCancel()) {
+                <p class="muted">Annuler votre inscription ? Votre progression sera perdue.</p>
+                <button class="button full" type="button" [disabled]="enrolling()" (click)="cancelEnrollment()">Confirmer l’annulation</button>
+                <button class="button full" type="button" (click)="confirmingCancel.set(false)">Garder mon inscription</button>
+              } @else {
+                <button class="button full" type="button" (click)="confirmingCancel.set(true)">Se désinscrire</button>
+              }
+            } @else if (canEnroll) {
+              <button class="primary full" type="button" [disabled]="enrolling()" (click)="enroll()">
+                {{ enrolling() ? 'Inscription…' : 'S’inscrire' }}
+              </button>
+            } @else {
+              <p class="muted">Ce cours n’est pas ouvert aux inscriptions.</p>
+            }
+            @if (enrollmentError()) {
+              <p class="muted" role="alert">{{ enrollmentError() }}</p>
+            }
           }
         </aside>
       </div>

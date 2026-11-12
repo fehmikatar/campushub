@@ -4,6 +4,7 @@
 </section>
 
 <div class="stats">
+  <app-stat-card label="Mes cours" [value]="enrolled()?.length ?? null" [detail]="averageProgress() === null ? 'aucune inscription' : 'progression moyenne ' + averageProgress() + ' %'" [icon]="icons.bookOpen" link="/mes-cours" />
   <app-stat-card label="Quiz passés" [value]="resultsFailed() ? null : results()?.length ?? null" detail="depuis votre inscription" [icon]="icons.clipboardList" link="/quiz" />
   <app-stat-card label="Score moyen" [value]="average() === null ? null : average() + ' %'" [detail]="results()?.length === 0 ? 'Aucun quiz passé' : 'sur vos quiz passés'" [icon]="icons.trendingUp" />
   <app-stat-card label="Cours disponibles" [value]="courseTotal()" detail="publiés sur la plateforme" [icon]="icons.bookOpen" link="/catalogue" />
@@ -13,10 +14,24 @@
   <div class="column">
     <section class="card block">
       <header>
-        <h2>Reprendre l'apprentissage</h2>
-        <a routerLink="/catalogue">Voir le catalogue →</a>
+        <h2>{{ resume().length > 0 ? "Reprendre l'apprentissage" : 'Cours à découvrir' }}</h2>
+        <a [routerLink]="resume().length > 0 ? '/mes-cours' : '/catalogue'">{{ resume().length > 0 ? 'Mes cours →' : 'Voir le catalogue →' }}</a>
       </header>
-      @if (coursesFailed()) {
+      @if (enrolled() === null) {
+        <p class="muted pad">Chargement...</p>
+      } @else if (resume().length > 0) {
+        <ul class="list">
+          @for (item of resume(); track item.enrollment.id) {
+            <li>
+              <div class="grow">
+                <strong>{{ item.course!.titre }}</strong>
+                <small class="muted">{{ item.course!.categorie }} · progression {{ item.percent }} %</small>
+              </div>
+              <a class="btn btn-secondary small" [routerLink]="['/courses', item.course!.id]">{{ item.percent >= 100 ? 'Revoir' : 'Continuer' }}</a>
+            </li>
+          }
+        </ul>
+      } @else if (coursesFailed()) {
         <p class="muted pad">Impossible de charger les cours.</p>
       } @else if (courses() === null) {
         <p class="muted pad">Chargement...</p>
@@ -30,7 +45,7 @@
                 <strong>{{ course.titre }}</strong>
                 <small class="muted">{{ course.categorie }} · {{ course.nbChapitres }} {{ course.nbChapitres > 1 ? 'chapitres' : 'chapitre' }}</small>
               </div>
-              <a class="btn btn-secondary small" [routerLink]="['/courses', course.id]">Continuer</a>
+              <a class="btn btn-secondary small" [routerLink]="['/courses', course.id]">Découvrir</a>
             </li>
           }
         </ul>
