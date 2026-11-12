@@ -55,6 +55,12 @@ services:
     build: ./Backend/eureka-server
     ports:
       - "8761:8761"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8761/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
 
   api-gateway:
     build: ./Backend/api-gateway
@@ -70,8 +76,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - eureka-server
-      - keycloak
+      eureka-server:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
 
   forum-service:
     build: ./Backend/forum-service
@@ -96,7 +104,7 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
 
   # Course Service et sa base PostgreSQL
   course-service:
@@ -105,7 +113,7 @@ services:
       - "127.0.0.1:8082:8082"
     depends_on:
       eureka-server:
-        condition: service_started
+        condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -204,7 +212,7 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
       keycloak:
         condition: service_started
       evaluation-migrate:
@@ -236,7 +244,7 @@ services:
       enrollment-db:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       PORT: "8083"
       DEBUG: "False"
@@ -281,7 +289,7 @@ services:
       user-db:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: docker
       DB_HOST: user-db
@@ -352,7 +360,7 @@ services:
       rabbitmq:
         condition: service_healthy
       eureka-server:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "/app/docker/healthcheck.py"]
       interval: 10s
