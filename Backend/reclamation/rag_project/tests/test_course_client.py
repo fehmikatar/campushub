@@ -153,6 +153,26 @@ class CourseClientTests(CourseTestMixin, SimpleTestCase):
         self.assertEqual((error.status, len(self.course.requests)), (503, 1))
         self.assertLess(elapsed, 1.5)
 
+    def test_c_localhost_budget_is_total_when_ipv6_is_refused_first(self):
+        # Eureka advertises hostName "localhost" (::1 first); the fake listens on 127.0.0.1 only, like
+        # waitress / php -S here. Before the fix: refused ::1 (~2 s on Windows) + a fresh full timeout.
+        self.course.delay = 4
+        with override_settings(COURSE_SERVICE_URL=f"http://localhost:{self.course.port}"), \
+                mock.patch.object(course_client, "TIMEOUT_SECONDS", 2.5):
+            start = time.monotonic()
+            error = self.failure(7)
+            elapsed = time.monotonic() - start
+        self.assertEqual((error.status, len(self.course.requests)), (503, 1))
+        self.assertLess(elapsed, 3.2)
+
+    def test_localhost_reaches_an_ipv4_only_course_without_delay(self):
+        with override_settings(COURSE_SERVICE_URL=f"http://localhost:{self.course.port}"):
+            start = time.monotonic()
+            check_course(7, TOKEN)
+            elapsed = time.monotonic() - start
+        self.assertEqual(len(self.course.requests), 1)
+        self.assertLess(elapsed, 1.0)
+
     def test_c_connection_refused_is_503(self):
         with override_settings(COURSE_SERVICE_URL=f"http://127.0.0.1:{closed_port()}"):
             self.assertEqual(self.failure(7).status, 503)

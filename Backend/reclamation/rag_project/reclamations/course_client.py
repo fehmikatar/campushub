@@ -15,6 +15,7 @@ Team rules (regles-communes-synchrone.txt):
 import http.client
 import json
 import logging
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -48,8 +49,45 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None  # a 3xx is an unexpected answer (503), never a second request
 
 
+class _BudgetConnection(http.client.HTTPConnection):
+    """One TCP connection that stays inside the call's budget (`timeout` = the time left in total).
+
+    Eureka advertises hostName "localhost", which resolves to ::1 first. On Windows a refused ::1
+    (service listening on 127.0.0.1 only) is reported after ~2 s, and the standard connection then
+    restarts the full timeout on 127.0.0.1: a slow Course took 5 s instead of 3. Here IPv4 addresses
+    are tried first (like the JVM services) and connecting + reading share one deadline.
+    """
+
+    def connect(self):
+        deadline = time.monotonic() + self.timeout
+        addresses = socket.getaddrinfo(self.host, self.port, type=socket.SOCK_STREAM)
+        addresses.sort(key=lambda address: address[0] != socket.AF_INET)  # stable: IPv4 first, then the rest
+        error = None
+        for family, kind, proto, _, address in addresses:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            sock = socket.socket(family, kind, proto)
+            sock.settimeout(remaining)
+            try:
+                sock.connect(address)
+            except OSError as exc:
+                sock.close()
+                error = exc
+                continue
+            sock.settimeout(max(deadline - time.monotonic(), 0.001))  # the answer must come before the deadline
+            self.sock = sock
+            return
+        raise error or TimeoutError("no address answered within the budget")
+
+
+class _BudgetHandler(urllib.request.HTTPHandler):
+    def http_open(self, req):
+        return self.do_open(_BudgetConnection, req)
+
+
 # Internal addresses only: never through a system proxy (same choice as config.auth / discovery)
-_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
+_opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect, _BudgetHandler)
 
 
 @dataclass
