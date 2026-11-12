@@ -17,6 +17,8 @@ docker compose up --build -d
 Puis ouvrir **http://localhost:4200** (compte de test : `etudiant1` / `Test1234!`).
 Guide complet, comptes de test et dépannage : [`Documentation/RUN-LOCAL.md`](Documentation/RUN-LOCAL.md).
 
+L'assistant de réclamations (RAG) demande une clé de fournisseur dans un fichier `.env` à la racine (non committé) : voir la section 9 de `RUN-LOCAL.md`. Sans clé, tout le reste fonctionne.
+
 ## Équipe
 
 | Membre | Responsabilité | Technologie |
@@ -53,6 +55,7 @@ Diagrammes détaillés : `Documentation/Diagrams/`.
 
 - **Keycloak** (realm `campushub`) authentifie les utilisateurs et délivre les tokens ; les services ne créent aucun token, ils **vérifient** celui qu'on leur envoie (signature RS256, issuer, expiration).
 - Rôles : `ETUDIANT`, `ENSEIGNANT`, `ADMIN`.
+- Keycloak est la **seule source d'identité** (comptes, mots de passe, rôles). Le User service ne garde qu'un profil (nom, prénom, e-mail) dont l'`id` est le `sub` du token, créé au premier appel de `GET /api/v1/users/me`.
 - Inscription libre depuis la page de connexion : tout nouveau compte est `ETUDIANT`. Un compte qui demande `ENSEIGNANT` doit être **validé par un administrateur** (écran « Utilisateurs »).
 - La Gateway valide le token, puis chaque service le revalide lui-même.
 - Règles communes : [`Documentation/regles-communes-keycloak.txt`](Documentation/regles-communes-keycloak.txt).
@@ -63,6 +66,7 @@ Diagrammes détaillés : `Documentation/Diagrams/`.
 |---|---|---|
 | Synchrone (HTTP) | Forum → Course | vérifie qu'un cours existe avant de créer un sujet (404 sinon) |
 | Synchrone (HTTP) | Evaluation → Course, Reclamation → Course | contrôle d'existence du cours |
+| Synchrone (HTTP) | Notification → User | lecture du nom d'un utilisateur (`GET /api/v1/users/{id}/public`, sans e-mail) |
 | Asynchrone (RabbitMQ) | Forum, Evaluation, Course, Reclamation → Notification | files `forum.events`, `evaluation.events`, `course.events`, `reclamation.events`, consommées par `notification-consumer` |
 
 ## Microservices
@@ -86,7 +90,7 @@ Diagrammes détaillés : `Documentation/Diagrams/`.
 
 | Préfixe | Service |
 |---|---|
-| `/api/v1/auth/**`, `/api/v1/users/**`, `/api/v1/admin/**` | User |
+| `/api/v1/users/**` | User |
 | `/api/v1/courses/**`, `/uploads/**` | Course |
 | `/api/v1/enrollments/**` | Enrollment |
 | `/api/v1/evaluation/**` | Evaluation |
@@ -94,7 +98,7 @@ Diagrammes détaillés : `Documentation/Diagrams/`.
 | `/api/v1/forum/**` | Forum |
 | `/api/v1/reclamation/**` | Reclamation |
 
-> État du `docker-compose.yml` global : User et Reclamation tournent pour l'instant hors Docker ou à part, leur bloc doit être ajouté par leur responsable (voir `Documentation/RUN-LOCAL.md`).
+> Tous les services sont dans le `docker-compose.yml` global. User et Reclamation n'exposent aucun port : on ne les joint que par la Gateway, avec un token. Eureka a un healthcheck et les autres services l'attendent avant de démarrer.
 
 ## Structure du dépôt
 
