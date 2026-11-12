@@ -50,6 +50,9 @@ Cloud API Gateway). Two functionalities:
   `docker-compose.reclamation.yml` (block for the root compose, paths relative to the repo root; never
   edit the root docker-compose.yml). Mutable data only in the `/data` volume; the regulation dataset
   stays in the image. Never call a provider at startup unless RAG_INGEST_ON_START=true.
+  Empty EMBED_API_KEY / LLM_API_KEY = not configured: RAGError (503) at request time, never a
+  placeholder key. Tests must not depend on the container's env (it sets EUREKA_INSTANCE_HOST,
+  DJANGO_SECRET_KEY_FILE, ...): the suite also runs inside the container.
 - `chat/` owns `Conversation`/`Message`, `POST /api/academic-assistant/ask`, `/api/conversations` CRUD.
   Conversations are private: `owner_sub` = the token's `sub`, set by the server only. Every lookup
   goes through `chat.views.owned(request)` / `get_owned()`; another user's or a legacy (NULL owner)
@@ -132,7 +135,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 294 tests (236 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 297 tests (239 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

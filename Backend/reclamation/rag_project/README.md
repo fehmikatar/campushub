@@ -146,13 +146,15 @@ Health check: `docker/healthcheck.py` reads the public `GET /api/health` inside 
 
 Tokens are still fully checked (RS256 signature with the keys read from `keycloak:8080`, issuer
 `localhost:8180`, expiry, realm roles); only the place the keys are downloaded from differs.
-Course runs in Keycloak mode in the root file, so it accepts the forwarded token.
+Course runs in Keycloak mode in the root file, so it accepts the forwarded token. A reclamation's
+`course_id` must be a **published** course: Course answers 404 to a student for a draft
+(`BROUILLON`), so the reclamation is refused with 404 as well.
 
 ### Optional variables (root `.env` file, never committed)
 
 | Variable | Default | Effect |
 |---|---|---|
-| `RECLAMATION_EMBED_API_KEY`, `RECLAMATION_LLM_API_KEY` | `not-configured` | provider keys for the assistant; without them reclamations, rules and documents work, `/academic-assistant/ask` answers 503 |
+| `RECLAMATION_EMBED_API_KEY`, `RECLAMATION_LLM_API_KEY` | empty | provider keys for the assistant; without them reclamations, rules and the document list work, while `/academic-assistant/ask` and document uploads answer 503 "provider is not configured" (no provider call) |
 | `RECLAMATION_EMBED_BASE_URL` / `_MODEL`, `RECLAMATION_LLM_BASE_URL` / `_MODEL` / `_REASONING_EFFORT` | Google Gemini (OpenAI-compatible endpoint), `gemini-embedding-001`, `gemini-3.8-flash`, `low` | another OpenAI-compatible provider (see [Models](#1-models)) |
 | `RECLAMATION_INGEST_ON_START` | `false` | `true` = import the regulation at startup if it is not imported yet |
 | `RECLAMATION_EVENTS_ENABLED` | `true` | `false` = publish no RabbitMQ event (Notification gets nothing) |
@@ -192,7 +194,10 @@ Invoke-RestMethod -Method Post http://localhost:8080/api/v1/reclamation/reclamat
 ```
 
 `admin1` (ADMIN) processes reclamations (`change-status`), `enseignant1` is refused (403). All
-three use the password of the team rules. Automated check, with nothing to install:
+three use the password of the team rules. If `http://localhost:8080` answers with another program
+(something else listening on the same port over IPv6, e.g. a Jenkins in WSL), use
+`http://127.0.0.1:8080` for the Gateway; keep `localhost:8180` for the token (it is the issuer).
+Automated check, with nothing to install:
 
 ```powershell
 docker compose exec reclamation-service python docker/smoke_test.py
@@ -210,14 +215,23 @@ admin), ADMIN-only document changes, conversation privacy, the Course call (unkn
 - Logs: `docker compose logs reclamation-service --tail 50` (add `-f` to follow).
 - Restart: `docker compose restart reclamation-service`; after a code change:
   `docker compose up --build -d reclamation-service` (the volume is kept).
-- Regression tests stay on the host (`python manage.py test`, see [Commands](#commands)); they
-  never need Docker.
+- Regression tests run on the host (`python manage.py test`, see [Commands](#commands)) and never
+  need Docker; the same suite also runs in the container:
+  `docker compose exec reclamation-service python manage.py test` (its MongoDB tests use and drop
+  `test_campushub_reclamation`, never the service database).
 
-Verification (2026-11-12): the Compose files are validated with `docker compose config`, the pinned
-packages resolve (wheels only) for Linux amd64 and arm64, and the entrypoint, health check and smoke
-test were run as host processes against the real Eureka, Gateway, MongoDB and Notification (with
-Keycloak, Course, RabbitMQ and the embedding provider replaced by test doubles). The image itself
-has not been built yet (Docker Desktop was not running).
+Verification (2026-11-12, Docker Desktop 29.1 on Windows, amd64): the image builds (about 2.5 min,
+1.1 GB) and the stack starts with the command above, without anything installed on the host. Against
+the real Keycloak, Gateway, Eureka, MongoDB, Course (PostgreSQL), RabbitMQ and Notification
+containers: the smoke test passes (24/24); Keycloak tokens of the three accounts; Course found /
+unknown / draft course, and a frozen Course answered 503 after 2.9 s (3 s budget, nothing saved);
+both RabbitMQ events published and acknowledged, the administrator (`admin1`, the
+`RECLAMATION_ADMIN_IDS` default) and the student notified; the `/data` volume (key, SQLite, PDFs,
+Chroma) identical after `docker compose up -d --force-recreate`; `docker compose stop` = SIGTERM,
+deregistration, exit 0 in about 2 s; MongoDB started late (waits, then healthy), MongoDB never
+answering (exit 1), Eureka restarted (registered again within 40 s); no provider key = 503 "provider
+is not configured". Not verified: Apple Silicon (arm64: the pinned wheels exist, the image was not
+built there) and the assistant with a real provider key inside the container.
 
 ## Commands
 
@@ -230,7 +244,7 @@ has not been built yet (Docker Desktop was not running).
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
 | `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
-| `test` | 294 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 297 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
@@ -530,7 +544,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 294 total with MongoDB: 236 offline + 58 integration
+python manage.py test --noinput                       # 297 total with MongoDB: 239 offline + 58 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -781,7 +795,9 @@ login, registration or password endpoint. Every RAG and Reclamations endpoint ex
 
 - **Checks:** RS256 only (HS256, unsigned `none` and any other algorithm are refused), signature
   with the realm's public key, exact issuer, expiry, required `exp` / `iat` / `iss` / `sub`.
-  The audience (`account`) is not checked.
+  The audience (`account`) is not checked. `exp` and `nbf` are strict; only `iat` may be up to 60 s
+  ahead (clock skew: the Docker Desktop VM clock can step back between issue and use, like
+  Spring Security's default in the Gateway).
 - **Identity and role:** `sub` (a UUID) is the user id. The role is the highest CampusHub role in
   `realm_access.roles`: `ADMIN` > `ENSEIGNANT` > `ETUDIANT`; other Keycloak roles and the old
   `role` claim are ignored. Views read `request.principal` (`sub`, `role`, `roles`); the identity
@@ -970,8 +986,6 @@ Add real student questions to `data/regulation/eval_questions.json`.
   they first need a relevance threshold evaluated on labelled examples.
 - `POST /api/recommendations/` — needs `campushub_recommendation_engine.py` (referenced by the
   guide, not in this repo) and an authorized student snapshot from the Enrollment/Evaluation services.
-- Docker: a first run of the image in the team's Docker Desktop (`docker compose up --build`, then
-  `docker/smoke_test.py`); so far it was validated without building the image (see "Docker").
-- With openai 3.x an **empty** `EMBED_API_KEY` / `LLM_API_KEY` makes the client raise while it is
-  being built (not mapped to 503); the Docker defaults use a placeholder value instead.
+- Docker: a run on a teammate's PC and on Apple Silicon (arm64), and the assistant with a real
+  provider key inside the container (see "Docker", verification).
 - Reranking with a cross-encoder (e.g. bge-reranker) — RRF is the current ranking step.

@@ -31,6 +31,10 @@ log = logging.getLogger("rag.auth")
 ALGORITHM = "RS256"                                # the only accepted signing algorithm
 ROLES_BY_PRIORITY = ("ADMIN", "ENSEIGNANT", "ETUDIANT")
 REQUIRED_CLAIMS = ["exp", "iat", "iss", "sub"]
+# A fresh token may look issued slightly "in the future": the issuer's clock can be ahead, and the
+# Docker Desktop VM clock can step back between issue and use (measured). Same allowance as Spring
+# Security's default (the Gateway). Only for iat: exp and nbf stay strict (no longer lifetime).
+IAT_CLOCK_SKEW = 60
 UUID = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 MAX_TOKEN_LENGTH = 16 * 1024
 
@@ -231,13 +235,19 @@ def verify_token(token: str, issuer: str, keys: SigningKeys) -> dict:
 
     key = keys.get(kid)
     try:
-        return jwt.decode(token, key, algorithms=[ALGORITHM], issuer=issuer, options={
-            "require": REQUIRED_CLAIMS, "verify_aud": False, "enforce_minimum_key_length": True})
+        claims = jwt.decode(token, key, algorithms=[ALGORITHM], issuer=issuer, options={
+            "require": REQUIRED_CLAIMS, "verify_aud": False, "verify_iat": False,
+            "enforce_minimum_key_length": True})
     except jwt.ExpiredSignatureError:
         raise _invalid(EXPIRED) from None
     except jwt.PyJWTError as exc:
         log.debug("Rejected token: %s", exc)  # PyJWT's reason, never the token itself
         raise _invalid() from None
+    iat = claims["iat"]  # checked here instead of by PyJWT (no skew allowance there without exp's)
+    if isinstance(iat, bool) or not isinstance(iat, (int, float)) or iat > time.time() + IAT_CLOCK_SKEW:
+        log.debug("Rejected token: iat missing, not a number or more than %d s ahead", IAT_CLOCK_SKEW)
+        raise _invalid()
+    return claims
 
 
 def campushub_roles(claims: dict) -> tuple[str, ...]:

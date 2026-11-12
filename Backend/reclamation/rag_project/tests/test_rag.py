@@ -348,6 +348,19 @@ class AssistantTests(IndexTestCase):
         self.assertEqual(Document.objects.get().embed_model, "other-model")
         self.assertEqual(AcademicRule.objects.count(), 156)
 
+    def test_missing_provider_keys_are_a_controlled_503(self):
+        # The real clients, built from the settings (no fake): an empty key never reaches the network
+        embeddings.set_embedder(None)
+        with override_settings(RAG={**settings.RAG, "EMBED_API_KEY": ""}):
+            r = self.post({"question": "PFE ?"})
+        self.assertEqual((r.status_code, r.json()), (503, {"error": embeddings.NOT_CONFIGURED}))
+        embeddings.set_embedder(FakeEmbedder())
+        llm.set_llm(None)
+        with override_settings(RAG={**settings.RAG, "LLM_API_KEY": "  "}):
+            r = self.post({"question": "PFE ?"})
+        self.assertEqual((r.status_code, r.json()), (503, {"error": llm.NOT_CONFIGURED}))
+        self.assertEqual(Conversation.objects.count(), 0)
+
     def test_extra_pdf_is_indexed_with_year_and_articles(self):
         make_pdf(settings.RAG["PDF_DIR"] / "syllabus.pdf",
                  ["Article 3 : Machine learning\nLe module ML a pour prérequis les probabilités."])
@@ -477,6 +490,14 @@ class DocumentApiTests(IndexTestCase):
         embeddings.set_embedder(DownEmbedder())
         r = self.upload("guide.pdf", pdf_bytes(["Guide des stages."]))
         self.assertEqual(r.status_code, 503)
+        self.assertFalse(Document.objects.exists())
+        self.assertFalse((settings.RAG["PDF_DIR"] / "guide.pdf").exists())
+
+    def test_upload_without_embedding_key_is_503_and_rolls_back(self):
+        embeddings.set_embedder(None)
+        with override_settings(RAG={**settings.RAG, "EMBED_API_KEY": ""}):
+            r = self.upload("guide.pdf", pdf_bytes(["Guide des stages."]))
+        self.assertEqual((r.status_code, r.json()["error"]), (503, embeddings.NOT_CONFIGURED))
         self.assertFalse(Document.objects.exists())
         self.assertFalse((settings.RAG["PDF_DIR"] / "guide.pdf").exists())
 

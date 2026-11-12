@@ -16,19 +16,23 @@ THINK_TAGS = re.compile(r"<think>.*?</think>", re.DOTALL)  # reasoning models (q
 # can be cut mid-sentence. On finish_reason == "length" we retry once with this much more room.
 TRUNCATION_RETRY_FACTOR = 4
 TRUNCATED_NOTE = "\n\n(Réponse tronquée : limite de longueur atteinte. / Answer truncated: length limit reached.)"
+NOT_CONFIGURED = ("The LLM provider is not configured (LLM_API_KEY is empty): the academic assistant "
+                  "is unavailable until an administrator sets it.")
 
 
 class LLM:
     def __init__(self, base_url: str, api_key: str, model: str, temperature: float = 0.1,
                  max_tokens: int = 2048, timeout: float = 120, reasoning_effort: str = ""):
         self.base_url = base_url
-        self.api_key = api_key
+        self.api_key = api_key or ""
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.timeout = timeout
         self.reasoning_effort = reasoning_effort  # "" = not sent (providers that do not support it)
-        self._client = openai.OpenAI(base_url=base_url, api_key=api_key, timeout=timeout, max_retries=1)
+        # Empty key = not configured: each question raises RAGError (API 503), never a client error
+        self._client = (openai.OpenAI(base_url=base_url, api_key=self.api_key, timeout=timeout, max_retries=1)
+                        if self.api_key.strip() else None)
 
     def chat(self, messages: list[dict]) -> str:
         choice = self._complete(messages, self.max_tokens)
@@ -43,6 +47,8 @@ class LLM:
         return text
 
     def _complete(self, messages: list[dict], max_tokens: int):
+        if self._client is None:
+            raise RAGError(NOT_CONFIGURED)
         extra = {"reasoning_effort": self.reasoning_effort} if self.reasoning_effort else {}
         try:
             response = self._client.chat.completions.create(

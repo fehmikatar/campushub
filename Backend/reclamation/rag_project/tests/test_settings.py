@@ -32,8 +32,10 @@ LOCAL_DEV = {"DJANGO_DEBUG": "True", "DJANGO_SECRET_KEY": ""}
 
 
 def import_settings(**variables):
-    """Run `import config.settings` in a new interpreter with these environment variables."""
-    env = {**os.environ, **variables}
+    """Run `import config.settings` in a new interpreter with these environment variables.
+    The inherited DJANGO_SECRET_KEY_FILE is dropped (in the container it names the volume's key):
+    a case that needs a key file passes it explicitly."""
+    env = {**{k: v for k, v in os.environ.items() if k != "DJANGO_SECRET_KEY_FILE"}, **variables}
     return subprocess.run([sys.executable, "-c", PRINT_SETTINGS], cwd=BASE_DIR, env=env,
                           capture_output=True, text=True, timeout=120)
 

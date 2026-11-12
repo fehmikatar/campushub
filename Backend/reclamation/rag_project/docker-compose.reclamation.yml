@@ -46,13 +46,14 @@ services:
       # Best effort : une panne RabbitMQ ne fait jamais echouer une requete. "false" = aucun envoi.
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       RECLAMATION_EVENTS_ENABLED: ${RECLAMATION_EVENTS_ENABLED:-true}
-      # Assistant RAG : fournisseur compatible OpenAI (Gemini par defaut). Sans cle, la reclamation,
-      # les regles et les documents marchent ; /academic-assistant/ask repond 503.
+      # Assistant RAG : fournisseur compatible OpenAI (Gemini par defaut). Sans cle (vide), la reclamation
+      # et les regles marchent ; /academic-assistant/ask et l'ajout de documents repondent 503
+      # "provider is not configured" (aucun appel au fournisseur).
       EMBED_BASE_URL: ${RECLAMATION_EMBED_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
-      EMBED_API_KEY: ${RECLAMATION_EMBED_API_KEY:-not-configured}
+      EMBED_API_KEY: ${RECLAMATION_EMBED_API_KEY:-}
       EMBED_MODEL: ${RECLAMATION_EMBED_MODEL:-gemini-embedding-001}
       LLM_BASE_URL: ${RECLAMATION_LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
-      LLM_API_KEY: ${RECLAMATION_LLM_API_KEY:-not-configured}
+      LLM_API_KEY: ${RECLAMATION_LLM_API_KEY:-}
       LLM_MODEL: ${RECLAMATION_LLM_MODEL:-gemini-3.8-flash}
       LLM_REASONING_EFFORT: ${RECLAMATION_LLM_REASONING_EFFORT:-low}
       # "true" = importer le reglement au demarrage (appelle le fournisseur d'embeddings ; deja importe = rien)

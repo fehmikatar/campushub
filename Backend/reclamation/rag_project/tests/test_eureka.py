@@ -288,8 +288,10 @@ class AgentTests(EurekaTestCase):
 
 class CommandTests(EurekaTestCase):
     def eureka_settings(self, instance_port=8087, **overrides):
+        # INSTANCE_HOST pinned: the container sets EUREKA_INSTANCE_HOST=reclamation-service
         return override_settings(EUREKA={**settings.EUREKA, "HOST": "127.0.0.1", "PORT": self.eureka.port,
-                                         "INSTANCE_PORT": instance_port, **overrides})
+                                         "INSTANCE_HOST": "localhost", "INSTANCE_PORT": instance_port,
+                                         **overrides})
 
     def test_disabled_means_no_call_at_all(self):
         out = StringIO()

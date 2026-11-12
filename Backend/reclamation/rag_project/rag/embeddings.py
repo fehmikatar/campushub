@@ -20,14 +20,20 @@ log = logging.getLogger(__name__)
 # A live question never waits: it fails fast with a clear message (API 503).
 MAX_RATE_LIMIT_WAITS = 5
 sleep = time.sleep  # swapped in tests
+NOT_CONFIGURED = ("The embedding provider is not configured (EMBED_API_KEY is empty): the academic "
+                  "assistant and document indexing are unavailable until an administrator sets it.")
 
 
 class Embedder:
     def __init__(self, base_url: str, api_key: str, model: str, batch_size: int = 32):
         self.model = model
         self.base_url = base_url
+        self.api_key = api_key or ""
         self.batch_size = batch_size
-        self._client = openai.OpenAI(base_url=base_url, api_key=api_key, timeout=120, max_retries=2)
+        # Empty key = not configured: each request raises RAGError (API 503), like an unreachable
+        # provider; the OpenAI client itself would fail at construction (an unexpected 500).
+        self._client = (openai.OpenAI(base_url=base_url, api_key=self.api_key, timeout=120, max_retries=2)
+                        if self.api_key.strip() else None)
 
     def _embed(self, texts: list[str], wait_on_rate_limit: bool = False) -> list[list[float]]:
         waits = 0
@@ -46,6 +52,8 @@ class Embedder:
 
     def _request(self, texts: list[str]) -> list[list[float]]:
         """One API call. Rate-limit errors propagate (the caller decides to wait); others -> RAGError."""
+        if self._client is None:
+            raise RAGError(NOT_CONFIGURED)
         try:
             response = self._client.embeddings.create(model=self.model, input=texts)
         except openai.RateLimitError:
@@ -91,7 +99,7 @@ def get_embedder():
     if _override is not None:
         return _override
     key = (cfg("EMBED_BASE_URL"), cfg("EMBED_API_KEY"), cfg("EMBED_MODEL"))
-    if _instance is None or (_instance.base_url, _instance._client.api_key, _instance.model) != key:
+    if _instance is None or (_instance.base_url, _instance.api_key, _instance.model) != key:
         _instance = Embedder(*key, batch_size=cfg("EMBED_BATCH_SIZE"))
     return _instance
 

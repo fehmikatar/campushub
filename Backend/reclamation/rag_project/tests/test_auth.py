@@ -187,6 +187,17 @@ class RejectedTokenTests(AuthTestCase):
     def test_token_not_yet_valid(self):
         self.assertAuthError(self.call(kc.make_token(nbf=int(time.time()) + 600)), 401, auth.INVALID)
 
+    def test_issue_time_tolerates_clock_skew_only(self):
+        # A Docker Desktop VM clock that steps back makes a fresh token look issued "in the future"
+        # (measured: iat one second ahead -> 401). Within IAT_CLOCK_SKEW it is accepted; exp is not extended.
+        now = int(time.time())
+        self.assertEqual(self.call(kc.make_token(iat=now + 30)).status_code, 200)
+        for iat in (now + auth.IAT_CLOCK_SKEW + 30, "yesterday", True):
+            with self.subTest(iat=iat):
+                self.assertAuthError(self.call(kc.make_token(iat=iat)), 401, auth.INVALID)
+        expired = kc.make_token(iat=now + 30, exp=now - 1)
+        self.assertAuthError(self.call(expired), 401, auth.EXPIRED)
+
     def test_token_without_key_id(self):
         token = kc.make_token(header={"kid": None})
         self.assertAuthError(self.call(token), 401, auth.INVALID)
