@@ -66,7 +66,7 @@ Générer un token : `php artisan token:make alice ETUDIANT`, puis *Authorize* d
 ## Fonctionnalités avancées
 
 - **Préférences** (`GET/PUT /api/notifications/preferences`) : email de l'utilisateur, activation des emails, types de notifications coupés (`muted_types`, ex. `forum.like`).
-- **Emails** : envoyés via Laravel Mail dès qu'une adresse est renseignée (driver `log` par défaut : le mail s'écrit dans `storage/logs/laravel.log` ; passer `MAIL_MAILER=smtp` pour un vrai envoi). Un échec d'email ne perd jamais la notification.
+- **Emails** : mis en file d'attente (`ShouldQueue`, 3 essais espacés) puis envoyés par le worker `php artisan queue:work` (service `notification-worker` dans Docker, `QUEUE_CONNECTION=database` ; avec `sync`, l'envoi est immédiat). Envoyés via Laravel Mail dès qu'une adresse est renseignée (driver `log` par défaut : le mail s'écrit dans `storage/logs/laravel.log` ; passer `MAIL_MAILER=smtp` pour un vrai envoi). Un échec d'email ne perd jamais la notification.
 - **Diffusion générique** (`POST /api/internal/events/broadcast`, clé interne) : pour les autres services (notes, annonces, rappels d'échéance), types `grade`, `announcement`, `deadline`, `system`, jusqu'à 500 destinataires.
 - Toute création passe par `NotificationDispatcher` (préférences + email), utilisé aussi par les événements du forum.
 

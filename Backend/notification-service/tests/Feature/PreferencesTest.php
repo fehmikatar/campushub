@@ -37,7 +37,7 @@ class PreferencesTest extends TestCase
         $this->asUser('bob')->getJson('/api/notifications/unread-count')->assertJson(['count' => 1]);
     }
 
-    public function test_email_sent_only_when_enabled_and_address_set(): void
+    public function test_email_queued_only_when_enabled_and_address_set(): void
     {
         Mail::fake();
         $this->asUser('alice')->putJson('/api/notifications/preferences', ['email' => 'a@esprit.tn']);
@@ -46,7 +46,7 @@ class PreferencesTest extends TestCase
         $this->postInternal('broadcast', $this->broadcastPayload(['userIds' => ['alice', 'bob', 'carol']]))
             ->assertJson(['created' => 3]);
 
-        Mail::assertSent(NotificationMail::class, 1);
-        Mail::assertSent(NotificationMail::class, fn ($m) => $m->hasTo('a@esprit.tn'));
+        Mail::assertQueued(NotificationMail::class, 1);
+        Mail::assertQueued(NotificationMail::class, fn ($m) => $m->hasTo('a@esprit.tn'));
     }
 }

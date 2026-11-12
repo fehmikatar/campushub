@@ -45,10 +45,11 @@ class NotificationDispatcher
 
         if ($prefs && $prefs->email_enabled && $prefs->email) {
             try {
-                Mail::to($prefs->email)->send(new NotificationMail($title, $message));
+                // Mis en file d'attente : l'envoi réel (et ses nouveaux essais) se fait dans le worker.
+                Mail::to($prefs->email)->queue(new NotificationMail($title, $message));
             } catch (\Throwable $e) {
                 // L'email est un bonus : son échec ne doit pas perdre la notification.
-                Log::warning("Email non envoyé à l'utilisateur $userId : ".$e->getMessage());
+                Log::warning("Email non mis en file pour l'utilisateur $userId : ".$e->getMessage());
             }
         }
 
