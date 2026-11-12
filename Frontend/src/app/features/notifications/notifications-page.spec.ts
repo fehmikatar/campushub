@@ -51,7 +51,7 @@ describe('NotificationsPage', () => {
     fixture.detectChanges();
 
     expect(html.querySelectorAll('.item.unread').length).toBe(0);
-    expect(navigate).toHaveBeenCalledWith(['/forum']);
+    expect(navigate).toHaveBeenCalledWith(['/forum'], { queryParams: undefined });
   });
 
   it('affiche l\'état vide', () => {

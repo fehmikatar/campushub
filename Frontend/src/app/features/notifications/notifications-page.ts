@@ -4,7 +4,7 @@ import { ToastService } from '../../core/toast/toast.service';
 import { Icon } from '../../shared/icon/icon';
 import { Icons } from '../../shared/icon/icons';
 import { AppNotification, Page } from './notification.model';
-import { metaFor } from './notification-meta';
+import { targetFor } from './notification-meta';
 import { NotificationItem } from './notification-item';
 import { NotificationsService } from './notifications.service';
 
@@ -56,9 +56,9 @@ export class NotificationsPage {
         error: () => undefined,
       });
     }
-    const link = metaFor(notification.type).link;
-    if (link) {
-      void this.router.navigate(link);
+    const target = targetFor(notification);
+    if (target) {
+      void this.router.navigate(target.commands, { queryParams: target.queryParams });
     }
   }
 
