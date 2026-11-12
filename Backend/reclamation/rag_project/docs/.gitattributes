@@ -1,0 +1,2 @@
+# Patches for other services: keep LF so that `git apply` works on every checkout
+*.patch text eol=lf

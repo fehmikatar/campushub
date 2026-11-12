@@ -1,0 +1,111 @@
+[
+  {
+    "id": "C01",
+    "issue": "PFE duration conflict",
+    "pages": [
+      5,
+      12,
+      14
+    ],
+    "details": "Overview says 28 weeks, page 12 says at least six months, table page 14 says 26 weeks.",
+    "handling": "Do not assert a single exact mandatory duration; request staff verification."
+  },
+  {
+    "id": "C02",
+    "issue": "UE validation equality at eight",
+    "pages": [
+      7
+    ],
+    "details": "General rule says >=8 when general average >=10, but credit-validation rule says >8.",
+    "handling": "Apply each clause to its own context; for exactly 8 after special credit validation ask administration."
+  },
+  {
+    "id": "C03",
+    "issue": "Internship count wording",
+    "pages": [
+      5,
+      11,
+      14
+    ],
+    "details": "Curriculum says four internships including PFE; section 7.9 says three stages, referring to the three before PFE.",
+    "handling": "Interpret as 3 pre-PFE + 1 PFE; mention context when asked."
+  },
+  {
+    "id": "C04",
+    "issue": "Article 7 subheading numbering mismatch",
+    "pages": [
+      2,
+      8,
+      9
+    ],
+    "details": "Table of contents lists 7.6 ranking, 7.7 retake, 7.8 repetition, but body uses 7.6 retake, 7.7 repetition, 7.8 exam process.",
+    "handling": "Cite printed body section and page; do not fabricate ranking rules."
+  },
+  {
+    "id": "C05",
+    "issue": "PFE previous credits threshold unknown",
+    "pages": [
+      12
+    ],
+    "details": "Eligibility refers to class council threshold but gives no number.",
+    "handling": "Ask scolarité; do not invent threshold."
+  },
+  {
+    "id": "C06",
+    "issue": "No module-by-module syllabus",
+    "pages": [
+      5,
+      6
+    ],
+    "details": "Specific course prerequisites, assessment schemes, schedules and competencies are in separate module documents, not this PDF.",
+    "handling": "Require syllabus or Course Service data for course recommendations."
+  },
+  {
+    "id": "C07",
+    "issue": "Calendar dates not always anchored to academic year",
+    "pages": [
+      3,
+      4,
+      13
+    ],
+    "details": "Some annual November/March/June deadlines are general and not explicit year-specific calendar dates.",
+    "handling": "Keep month/day and verify operative academic calendar before sending reminders."
+  },
+  {
+    "id": "C08",
+    "issue": "PFE 2026/27 explicit end date",
+    "pages": [
+      12
+    ],
+    "details": "The document explicitly gives October 30, 2027 as an end-of-internship date for PFE 26/27.",
+    "handling": "Distinguish internship end date from defense/submission dates, which are not given."
+  },
+  {
+    "id": "C09",
+    "issue": "Control session promotion incomplete specification",
+    "pages": [
+      7
+    ],
+    "details": "Section provides >=10 overall and <=15 previous ECTS outstanding; it does not separately specify current-year acquired ECTS threshold.",
+    "handling": "Do not infer 45/60 or another threshold; verify with administration."
+  },
+  {
+    "id": "C10",
+    "issue": "Exam leaving clause nuance",
+    "pages": [
+      9
+    ],
+    "details": "One bullet permits departure after 30 minutes; another forbids leaving the room during an exam except approved circumstances.",
+    "handling": "Present both and defer procedural interpretation to exam invigilator."
+  },
+  {
+    "id": "C11",
+    "issue": "No automatic authority for recommendations",
+    "pages": [
+      3,
+      15
+    ],
+    "details": "Official decisions lie with ESPRIT staff; a recommendation engine is advisory.",
+    "handling": "Never present an AI estimate as an enrollment, graduation or promotion decision."
+  }
+]

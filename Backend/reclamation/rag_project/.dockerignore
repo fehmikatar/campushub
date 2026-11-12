@@ -1,0 +1,48 @@
+# Build context of the Reclamation image: source code, migrations, the regulation dataset
+# (data/regulation) and the docker/ scripts only. Never local data, secrets or caches.
+
+# Version control, editors, tools
+.git
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+.claude/
+*.swp
+*~
+
+# Python environments and caches
+.venv/
+venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Secrets and local configuration (.env.example stays: it documents the variables)
+.env
+.env.*
+!.env.example
+
+# Local data: SQLite, ChromaDB index, uploaded PDFs (the image ships an empty data/pdfs/)
+db.sqlite3
+*.sqlite3
+*.sqlite3-journal
+data/chroma/
+data/pdfs/*
+!data/pdfs/.gitkeep
+
+# Logs, reports, temporary files
+*.log
+logs/
+reports/
+test-results/
+*.tmp
+tmp/
+
+# Compose files (they are read by docker compose, not needed inside the image)
+docker-compose*.yml

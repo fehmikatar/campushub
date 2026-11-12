@@ -14,7 +14,7 @@ class RabbitMqConsume extends Command
 {
     protected $signature = 'rabbitmq:consume';
 
-    protected $description = 'Écoute les files RabbitMQ (forum.events, evaluation.events, course.events)';
+    protected $description = 'Écoute les files RabbitMQ (forum.events, evaluation.events, course.events, reclamation.events)';
 
     public function handle(RabbitMqConsumer $consumer, EventMessageProcessor $processor): int
     {
@@ -33,6 +33,9 @@ class RabbitMqConsume extends Command
         }
 
         $this->info('Connecté à RabbitMQ. Files : '.implode(', ', $consumer->queues()));
+        if (in_array('reclamation.events', $consumer->queues(), true) && $processor->reclamationAdminIds() === []) {
+            $this->warn('RECLAMATION_ADMIN_IDS ne contient aucun sub Keycloak : reclamation.created ne prévient aucun administrateur.');
+        }
         $this->line('En attente de messages... (Ctrl+C pour arrêter)');
 
         try {

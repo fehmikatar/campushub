@@ -1,0 +1,2329 @@
+{
+  "schema_version": "1.0",
+  "document": {
+    "id": "esprit-reglement-scolarite-2026-2027",
+    "name": "Règlement de scolarité 2026-2027",
+    "institution": "ESPRIT",
+    "program": "Cours du jour",
+    "language": "fr",
+    "pages": 22,
+    "source_file": "Réglement 26-27.pdf",
+    "classification": "official_source_supplied_by_user",
+    "extracted_at": "2026-11-11"
+  },
+  "rule_count": 156,
+  "rules": [
+    {
+      "id": "REG001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "1",
+      "pages": [
+        3
+      ],
+      "category": "REG",
+      "rule_type": "info",
+      "rule": "The regulation defines admission, study organization, evaluation, degree requirements, rights, obligations and ethical duties at ESPRIT.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 1, p. 3",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "REG002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "1",
+      "pages": [
+        3
+      ],
+      "category": "REG",
+      "rule_type": "info",
+      "rule": "Article 1 states the regulation entered into force in 2021–2022 and replaced earlier regulations; the document cover is labeled 2026–2027.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 1, p. 3",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ADM001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "2",
+      "pages": [
+        3
+      ],
+      "category": "ADM",
+      "rule_type": "administrative",
+      "rule": "Admissions by competitive selection, qualification review, tests and interviews are governed by conditions determined by the school management.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 2, p. 3",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "INS001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "required",
+      "rule": "A student must be enrolled to follow a school program.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "required",
+      "rule": "Enrollment requires an application file comprising diplomas, transcripts, medical file, and internship certificates.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "required",
+      "rule": "Tuition fees must be paid by the deadlines set by the administration.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "limit",
+      "rule": "Only one enrollment deferral is permitted during the full course of study.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "procedure",
+      "rule": "A request for enrollment deferral must be made on a form deposited at the school's bureau d'ordre.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "INS006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3
+      ],
+      "category": "INS",
+      "rule_type": "deadline",
+      "rule": "A deferral request must be submitted no later than November 30 of the current year to qualify for a possible tuition refund.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        3,
+        4
+      ],
+      "category": "INS",
+      "rule_type": "financial",
+      "rule": "If the deferral deadline is respected, tuition is refundable except for registration fees.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 3, 4",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        4
+      ],
+      "category": "INS",
+      "rule_type": "procedure",
+      "rule": "Enrollment cancellation requires a cancellation request form submitted to the bureau d'ordre.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 4",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "INS009",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        4
+      ],
+      "category": "INS",
+      "rule_type": "financial",
+      "rule": "For cancellation submitted before November 30, tuition is refundable except registration fees.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 4",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS010",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        4
+      ],
+      "category": "INS",
+      "rule_type": "financial",
+      "rule": "For cancellation submitted December 1 through January 31, the first tuition installment is not refunded and the remainder is refundable.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 4",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INS011",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "3",
+      "pages": [
+        4
+      ],
+      "category": "INS",
+      "rule_type": "financial",
+      "rule": "For cancellation submitted from February 1 onward, no refund is made.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 3, p. 4",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ORG001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4
+      ],
+      "category": "ORG",
+      "rule_type": "info",
+      "rule": "The academic year consists of two 16-week semesters, each including two weeks reserved for exams.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ORG002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4
+      ],
+      "category": "ORG",
+      "rule_type": "administrative",
+      "rule": "The administration communicates the annual calendar, timetables, examinations, internships, and cultural and social activities at the beginning of the academic year.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ORG003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4
+      ],
+      "category": "ORG",
+      "rule_type": "info",
+      "rule": "Basic instruction covers semesters 1 to 4, including applied mathematics, physics, electronics, computer science, languages and humanities/social sciences.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ORG004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4
+      ],
+      "category": "ORG",
+      "rule_type": "info",
+      "rule": "Specialization options listed include GI, GT, GEM and GC.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ORG005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4
+      ],
+      "category": "ORG",
+      "rule_type": "requirement",
+      "rule": "One integrated project is planned in each academic year.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ORG006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "4",
+      "pages": [
+        4,
+        5
+      ],
+      "category": "ORG",
+      "rule_type": "requirement",
+      "rule": "A final-year project internship is planned in semester 10.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 4, p. 4, 5",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PRO001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "info",
+      "rule": "Curricula consist of teaching units (UE) made up of one or more constituent modules (ECUE).",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "PRO002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "info",
+      "rule": "ECTS for a UE represent total learner workload including taught and untaught hours.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "PRO003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "threshold",
+      "rule": "One academic year represents 60 ECTS, with about five teaching units per semester.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PRO004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "requirement",
+      "rule": "The degree path comprises four internships when the final-year PFE internship is included.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PRO005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "information",
+      "rule": "Each UE has a description listing the responsible teacher, hours, credits, modules, prerequisites and learning outcomes.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "PRO006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "5",
+      "pages": [
+        5
+      ],
+      "category": "PRO",
+      "rule_type": "information",
+      "rule": "Module syllabuses specify prerequisites, outcomes and detailed assessment methods.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 5, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "STU001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "6",
+      "pages": [
+        5
+      ],
+      "category": "STU",
+      "rule_type": "info",
+      "rule": "A five-year engineering program applies to candidates entering with a scientific baccalaureate.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 6, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "STU002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "6",
+      "pages": [
+        5
+      ],
+      "category": "STU",
+      "rule_type": "info",
+      "rule": "A four-year engineering program applies to candidates admitted into the first preparatory-year route indicated in the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 6, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "STU003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "6",
+      "pages": [
+        5
+      ],
+      "category": "STU",
+      "rule_type": "info",
+      "rule": "A three-year program applies to candidates admitted by national engineering entrance examination or with the specified technical/scientific qualifications.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 6, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "STU004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "6",
+      "pages": [
+        5
+      ],
+      "category": "STU",
+      "rule_type": "info",
+      "rule": "A two-year program applies to candidates admitted from a first master's year, first engineering-cycle year, or master's degree as indicated in the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 6, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "STU005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "6",
+      "pages": [
+        5
+      ],
+      "category": "STU",
+      "rule_type": "info",
+      "rule": "Teaching methods include integrated courses, workshops, seminars, practicals, project/problem-based learning and projects.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 6, p. 5",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ECT001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.1",
+      "pages": [
+        5,
+        6
+      ],
+      "category": "ECT",
+      "rule_type": "info",
+      "rule": "ECTS is used to plan, recognize, validate and accumulate teaching-unit learning outcomes and workload.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.1, p. 5, 6",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ECT002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.1",
+      "pages": [
+        6
+      ],
+      "category": "ECT",
+      "rule_type": "threshold",
+      "rule": "A full-time academic year corresponds to 60 ECTS.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.1, p. 6",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ECT003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.1",
+      "pages": [
+        6
+      ],
+      "category": "ECT",
+      "rule_type": "calculation",
+      "rule": "UE ECTS credits are the weighting coefficients used to calculate the overall average.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.1, p. 6",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EVA001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.2",
+      "pages": [
+        6
+      ],
+      "category": "EVA",
+      "rule_type": "required",
+      "rule": "Assessment tests whether the learner achieves the learning outcomes for each ECUE.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.2, p. 6",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EVA002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.2",
+      "pages": [
+        6
+      ],
+      "category": "EVA",
+      "rule_type": "required",
+      "rule": "Module assessment criteria are set by pedagogical staff, detailed in syllabuses and supplied at the first session of each module.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.2, p. 6",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EVA003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.2",
+      "pages": [
+        6
+      ],
+      "category": "EVA",
+      "rule_type": "administrative",
+      "rule": "An examination schedule with examination modalities must be circulated before each exam session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.2, p. 6",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "EVA004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.2",
+      "pages": [
+        6
+      ],
+      "category": "EVA",
+      "rule_type": "info",
+      "rule": "Final evaluation has a principal session and a retake session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.2, p. 6",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "EVA005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.2",
+      "pages": [
+        6
+      ],
+      "category": "EVA",
+      "rule_type": "info",
+      "rule": "Continuous assessment may include participation, written/oral tests, practical assessments, reports and oral presentations.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.2, p. 6",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "GRD001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        6
+      ],
+      "category": "GRD",
+      "rule_type": "calculation",
+      "rule": "For exam-only modules, the module grade is 100% final exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 6",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "GRD002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        6,
+        7
+      ],
+      "category": "GRD",
+      "rule_type": "calculation",
+      "rule": "For CC plus exam modules, the module grade is 40% CC plus 60% exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 6, 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "GRD003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        6,
+        7
+      ],
+      "category": "GRD",
+      "rule_type": "calculation",
+      "rule": "For CC plus practical/project plus exam modules, the grade is 30% CC plus 20% practical/project plus 50% exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 6, 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "GRD004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        6,
+        7
+      ],
+      "category": "GRD",
+      "rule_type": "calculation",
+      "rule": "For Type 1 practical/project plus exam modules, the grade is 20% practical/project plus 80% exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 6, 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "GRD005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        6,
+        7
+      ],
+      "category": "GRD",
+      "rule_type": "calculation",
+      "rule": "For Type 2 practical/project plus exam modules, the grade is 50% practical/project plus 50% exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 6, 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "GRD006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.3",
+      "pages": [
+        7
+      ],
+      "category": "GRD",
+      "rule_type": "manual_review",
+      "rule": "For integrated projects, assessment weighting varies by project type and is not fixed in the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.3, p. 7",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "VAL001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "conditional",
+      "rule": "If overall average is at least 10/20, a non-project UE is validated with UE average at least 8/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "conditional",
+      "rule": "Projects are validated only with an average at least 10/20, regardless of the general-average compensation rule.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "conditional",
+      "rule": "If overall average is below 10/20, a UE is validated only with UE average at least 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "conditional",
+      "rule": "A UE with average below 8/20 in both principal and retake sessions remains unvalidated and may be addressed by a later ECTS-credit validation examination.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "conditional",
+      "rule": "Later credit-validation exams concern modules within an unvalidated UE whose module average was below 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "calculation",
+      "rule": "The grade obtained in a credit-validation session is treated as the relevant UE grade.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "VAL007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "manual_review",
+      "rule": "The credit-validation section says a UE is validated if the resulting mark is strictly above 8/20, with projects requiring at least 10/20; clarify the exact boundary at 8/20 with the administration.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "VAL008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.4",
+      "pages": [
+        7
+      ],
+      "category": "VAL",
+      "rule_type": "calculation",
+      "rule": "The overall academic average is an ECTS-weighted average of UE grades.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.4, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Principal-session promotion requires overall average at least 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Principal-session promotion requires exactly 60 ECTS acquired in the current year.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Principal-session promotion requires zero accumulated unvalidated prior-year ECTS.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Control-session promotion requires overall average at least 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Control-session promotion requires accumulated unvalidated prior-year ECTS at most 15.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        8
+      ],
+      "category": "PAS",
+      "rule_type": "conditional",
+      "rule": "Students not meeting the stated conditions for promotion are declared repeating students.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PAS007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.5",
+      "pages": [
+        7
+      ],
+      "category": "PAS",
+      "rule_type": "manual_review",
+      "rule": "The regulation does not explicitly state a separate current-year ECTS threshold for control-session promotion: do not invent one.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.5, p. 7",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RET001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "conditional",
+      "rule": "Students not admitted at the principal session are authorized to take a retake of the final examination.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "conditional",
+      "rule": "If principal-session overall average is below 10/20, a student may retake modules with module average below 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "conditional",
+      "rule": "If principal-session overall average is at least 10/20, the student may retake below-10 modules within unvalidated UEs below 8/20 from current or earlier years.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "restriction",
+      "rule": "Integrated projects cannot be retaken through the ordinary retake session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "conditional",
+      "rule": "For a student who has passed the year, an unvalidated integrated project is handled as credits to validate during an exceptional project-validation session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "conditional",
+      "rule": "Repeating students must attend project supervision sessions again to validate integrated projects.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "calculation",
+      "rule": "A retake grade may replace either the original exam grade or the continuous-assessment grade with its corresponding coefficient, whichever yields a better module result.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RET008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.6",
+      "pages": [
+        8
+      ],
+      "category": "RET",
+      "rule_type": "calculation",
+      "rule": "If the original principal-session result is better than the retake-based alternatives, the original result is retained.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.6, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        8
+      ],
+      "category": "REP",
+      "rule_type": "limit",
+      "rule": "Only one repeated year is tolerated per training cycle.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        8
+      ],
+      "category": "REP",
+      "rule_type": "conditional",
+      "rule": "When an earlier UE was validated with grade at least 10/20, the repeating student may retake modules for grade improvement; keep the improved module mark only if higher.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 8",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        8,
+        9
+      ],
+      "category": "REP",
+      "rule_type": "required",
+      "rule": "When an earlier UE is unvalidated with UE average below 10/20, repeating students must retake all modules in that UE graded below 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 8, 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        9
+      ],
+      "category": "REP",
+      "rule_type": "required",
+      "rule": "For mandatory repeated modules, previous marks are reset to zero; attending all sessions and taking all assessments is required.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        9
+      ],
+      "category": "REP",
+      "rule_type": "optional",
+      "rule": "Repeating students may also attend and retake modules above 10/20 to try to improve their overall average.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "REP006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.7",
+      "pages": [
+        9
+      ],
+      "category": "REP",
+      "rule_type": "required",
+      "rule": "Repeating students must attend newly introduced modules and consult the head of department about changed modules and coefficients.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.7, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "required",
+      "rule": "Students must arrive 15 minutes before an examination with student card or other accepted identity document.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Without an accepted identity document (CIN, passport or student card), students cannot enter the exam room and are marked absent.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "required",
+      "rule": "The attendance sheet must be signed at the start and end of each exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "required",
+      "rule": "Students must complete exam-script header details and indicate sheet numbers and total submitted sheets.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Students arriving more than 20 minutes after exam papers are distributed cannot enter the exam room.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Late arrivals do not receive extra time to compensate for lateness.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Students may leave after at least 30 minutes have elapsed from the beginning of the exam, subject to the restriction on leaving during an ongoing exam.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Leaving during the examination is prohibited; exceptional bathroom accommodations require prior medical documentation and administrative consent.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM009",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Connected devices must be switched off and stored before entering; any visible connected device during the examination is considered fraud.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM010",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "restriction",
+      "rule": "Exchanging equipment such as calculators, correction tape, pens or pencils between students during exams is forbidden.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM011",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "required",
+      "rule": "Students must obey examination instructions and submit their examination paper at the end.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM012",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "penalty",
+      "rule": "Absence from an exam, practical assessment, or supervised test leads to a zero, subject to the documented exception review process.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM013",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        9
+      ],
+      "category": "EXM",
+      "rule_type": "conditional",
+      "rule": "An unexcused missed final exam receives zero; retake is possible if its UE is not validated in the principal session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 9",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "EXM014",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        11
+      ],
+      "category": "EXM",
+      "rule_type": "manual_review",
+      "rule": "For final assessment absences, the listed justifications are accidents, contagious illnesses, hospitalizations, or death of a close relative; ordinary medical certificates alone are not accepted as final-exam justification.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 11",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "EXM015",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        11
+      ],
+      "category": "EXM",
+      "rule_type": "procedure",
+      "rule": "Exceptional exam-retake requests are reviewed case by case after filing with the academic administration and consultation with department heads.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 11",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "EXM016",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        11
+      ],
+      "category": "EXM",
+      "rule_type": "procedure",
+      "rule": "For intermediate assessment absences, the student submits justification such as hospitalization or a medical certificate to the academic administration.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 11",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "FRA001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        11
+      ],
+      "category": "FRA",
+      "rule_type": "discipline",
+      "rule": "Fraud or attempted fraud at a supervised test or exam can lead to disciplinary proceedings and academic/administrative sanctions.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 11",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "FRA002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.8",
+      "pages": [
+        11
+      ],
+      "category": "FRA",
+      "rule_type": "discipline",
+      "rule": "Potential sanctions include warning, reprimand, exclusion from one or two exam sessions, restrictions on compensation or international mobility, temporary exclusion and permanent exclusion.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.8, p. 11",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "INT001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        11
+      ],
+      "category": "INT",
+      "rule_type": "required",
+      "rule": "The three pre-PFE internships are mandatory and graded: human/social training, company immersion and engineering internship.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 11",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        11
+      ],
+      "category": "INT",
+      "rule_type": "required",
+      "rule": "For each internship, students must provide a logbook, internship report and host-organization certificate.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 11",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "requirement",
+      "rule": "Human/social training internship is worth 2 ECTS, lasts at least four weeks and is scheduled in summer after first common-core year.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "eligibility",
+      "rule": "Accepted human/social internship organizations include NGO, club, high school, enterprise and civil organization.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "requirement",
+      "rule": "Company-immersion internship is worth 3 ECTS, lasts at least six weeks and is scheduled in summer after third year (first engineering-cycle year).",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "eligibility",
+      "rule": "Accepted company-immersion hosts include enterprises, consultancy/engineering offices, factories and experimental/research laboratories.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "requirement",
+      "rule": "Engineering internship is worth 5 ECTS, lasts at least eight weeks and is scheduled in summer after fourth year (second engineering-cycle year).",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        12
+      ],
+      "category": "INT",
+      "rule_type": "eligibility",
+      "rule": "Accepted engineering internship hosts include enterprises, engineering offices, factories and experimental/research laboratories.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT009",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "penalty",
+      "rule": "For human/social or immersion internship, falsified submissions result in a zero that year, with possible ECTS validation the following year.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT010",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "deadline",
+      "rule": "Human/social and immersion internship complete submissions by March 1 in first principal session receive 100% of the eligible grade.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT011",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "deadline",
+      "rule": "Complete submissions by June 1 in second principal session incur a two-point deduction, with a minimum mark of 10, except students with RdN submissions who retain 100%.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT012",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "deadline",
+      "rule": "At third/retake session before class board, complete human/social or immersion submissions retain 100%; incomplete files with a certificate validate at 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT013",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "penalty",
+      "rule": "Falsified engineering internship submissions receive zero and require repeating the internship, with the new grade in retake session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT014",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "deadline",
+      "rule": "For engineering internship, complete submission is described as from October 15; grades entered before November 22 count in principal session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "INT015",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "procedure",
+      "rule": "For engineering internship, the academic-supervisor validation meeting is scheduled within 10 days after submission.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "INT016",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.9",
+      "pages": [
+        13
+      ],
+      "category": "INT",
+      "rule_type": "deadline",
+      "rule": "Engineering internship grades entered after November 22 count in retake session.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.9, p. 13",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        12
+      ],
+      "category": "PFE",
+      "rule_type": "conditional",
+      "rule": "PFE internship begins after validation of first semester of fifth year and resolution of previous-credit requirements exceeding the class council's permitted threshold; the exact threshold is not specified.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        12
+      ],
+      "category": "PFE",
+      "rule_type": "manual_review",
+      "rule": "The PFE narrative specifies a minimum duration of six months, while the PFE table specifies 26 weeks, and the curriculum overview mentions 28 weeks; flag the discrepancy for staff verification.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 12",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "PFE003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        12
+      ],
+      "category": "PFE",
+      "rule_type": "deadline",
+      "rule": "For the 2026–2027 PFE cohort, the deadline for ending the internship is October 30, 2027.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        12
+      ],
+      "category": "PFE",
+      "rule_type": "required",
+      "rule": "PFE requires a written report and an oral defense before a jury with the membership described in the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 12",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "assessment",
+      "rule": "PFE evaluation includes periodic evaluations, academic/professional/technical supervision, defense evaluation and a final jury.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "required",
+      "rule": "PFE report must be signed by academic and professional supervisors and stamped by the host organization.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "required",
+      "rule": "PFE submissions require an anti-plagiarism report with rate strictly below 18%.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "required",
+      "rule": "PFE submissions require an internship certificate issued by the host organization.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE009",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "requirement",
+      "rule": "The PFE table indicates 30 ECTS in semester 10 (second semester of fifth year) and a minimum of 26 weeks.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "PFE010",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "7.10",
+      "pages": [
+        14
+      ],
+      "category": "PFE",
+      "rule_type": "eligibility",
+      "rule": "Accepted PFE hosts include enterprise, engineering office, factory or experimental/research laboratory.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 7.10, p. 14",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "required",
+      "rule": "Engineering diploma requires validation of all UE and all corresponding study credits.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "required",
+      "rule": "Engineering diploma requires validation of all mandatory internships.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "required",
+      "rule": "Engineering diploma requires B2 proficiency in both French and English through internal assessment at the specified stages, or valid equivalent international certification from an accredited language center.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "required",
+      "rule": "Engineering diploma requires PFE grade at least 10/20.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "required",
+      "rule": "Engineering diploma requires an administrative clearance (quitus), including paid fees and returned borrowed items.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP006",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "administrative",
+      "rule": "Successful graduates receive their diploma, fifth-year transcript and diploma certificate.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "DIP007",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "conditional",
+      "rule": "Students missing internship validation, successful PFE defense or B2 requirements may receive an extension of up to six months.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIP008",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "8",
+      "pages": [
+        15
+      ],
+      "category": "DIP",
+      "rule_type": "conditional",
+      "rule": "After extension, an unvalidated PFE may require repeating PFE with a different topic, if repetition conditions are satisfied.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 8, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ATT001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "9",
+      "pages": [
+        15
+      ],
+      "category": "ATT",
+      "rule_type": "required",
+      "rule": "Attendance is mandatory for teaching activities including courses, practical classes, seminars, internships and company visits.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 9, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ATT002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "9",
+      "pages": [
+        15
+      ],
+      "category": "ATT",
+      "rule_type": "administrative",
+      "rule": "Repeated absences can trigger personalized follow-up and notification to parents.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 9, p. 15",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ATT003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "9",
+      "pages": [
+        15
+      ],
+      "category": "ATT",
+      "rule_type": "restriction",
+      "rule": "Students arriving late to teaching activities may be refused admission to class.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 9, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ATT004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "9",
+      "pages": [
+        15
+      ],
+      "category": "ATT",
+      "rule_type": "deadline",
+      "rule": "For a medically justified or force majeure absence, the student must provide justification to the academic administration within one week.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 9, p. 15",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ATT005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "9",
+      "pages": [
+        16
+      ],
+      "category": "ATT",
+      "rule_type": "penalty",
+      "rule": "Attendance at all tests and exams is mandatory; unjustified absence receives zero.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 9, p. 16",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ETH001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "10",
+      "pages": [
+        16
+      ],
+      "category": "ETH",
+      "rule_type": "required",
+      "rule": "Students must practice intellectual honesty throughout their studies.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 10, p. 16",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ETH002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "10",
+      "pages": [
+        16
+      ],
+      "category": "ETH",
+      "rule_type": "procedure",
+      "rule": "On detected cheating, invigilators document and seize tools used where possible and report through academic administration.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 10, p. 16",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ETH003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "10",
+      "pages": [
+        16
+      ],
+      "category": "ETH",
+      "rule_type": "discipline",
+      "rule": "Cheating can result in school disciplinary proceedings up to exclusion.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 10, p. 16",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "ETH004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "10",
+      "pages": [
+        16
+      ],
+      "category": "ETH",
+      "rule_type": "required",
+      "rule": "Written reports must include bibliographic references; quoted passages must be clearly enclosed in quotation marks.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 10, p. 16",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ETH005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "10",
+      "pages": [
+        16
+      ],
+      "category": "ETH",
+      "rule_type": "administrative",
+      "rule": "Students must submit works electronically for plagiarism checking; reported plagiarism is referred to relevant academic and internship staff.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 10, p. 16",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "DIS001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "11",
+      "pages": [
+        16
+      ],
+      "category": "DIS",
+      "rule_type": "required",
+      "rule": "Students must maintain clean, neat and appropriate dress and conduct; repeated breaches may result in sanctions.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 11, p. 16",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIS002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "11",
+      "pages": [
+        16,
+        17
+      ],
+      "category": "DIS",
+      "rule_type": "required",
+      "rule": "Students must respect staff and peers and protect others from psychological, bodily or moral violence.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 11, p. 16, 17",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIS003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "11",
+      "pages": [
+        17
+      ],
+      "category": "DIS",
+      "rule_type": "required",
+      "rule": "Students must protect school equipment, facilities and cleanliness; vandalism or theft can trigger school disciplinary proceedings.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 11, p. 17",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIS004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "11",
+      "pages": [
+        17
+      ],
+      "category": "DIS",
+      "rule_type": "restriction",
+      "rule": "Smoking is forbidden in the covered areas of the institution specified by the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 11, p. 17",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "DIS005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "11",
+      "pages": [
+        17
+      ],
+      "category": "DIS",
+      "rule_type": "restriction",
+      "rule": "Alcohol, drugs and other toxic substances must not be distributed or consumed at the institution.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 11, p. 17",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RGT001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12",
+      "pages": [
+        17
+      ],
+      "category": "RGT",
+      "rule_type": "right",
+      "rule": "Students enjoy expression, peaceful assembly and association consistent with school values and applicable regulations.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12, p. 17",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RGT002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        17
+      ],
+      "category": "RGT",
+      "rule_type": "right",
+      "rule": "Students are entitled to quality teaching, module descriptors, adequate project supervision and support.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 17",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RGT003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "RGT",
+      "rule_type": "right",
+      "rule": "Students are entitled to information in a student portal and course materials on adopted LMS platforms.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RGT004",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "RGT",
+      "rule_type": "right",
+      "rule": "Students are entitled to respectful study conditions free of harassment, intimidation and discrimination.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RGT005",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "RGT",
+      "rule_type": "right",
+      "rule": "Students may participate through delegates, teaching evaluation and program review.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "DAT001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "DAT",
+      "rule_type": "privacy",
+      "rule": "The regulation refers to Tunisian personal data protection law 2004-63 and the school privacy policy.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "DAT002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "DAT",
+      "rule_type": "privacy",
+      "rule": "Access to student personal data is restricted to authorized parties and processors subject to confidentiality obligations.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "DAT003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.1",
+      "pages": [
+        18
+      ],
+      "category": "DAT",
+      "rule_type": "privacy",
+      "rule": "The regulation states students consent to personal data collection and processing according to institutional privacy policies.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.1, p. 18",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "RES001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.2",
+      "pages": [
+        19
+      ],
+      "category": "RES",
+      "rule_type": "required",
+      "rule": "Students must respect fellow community members, school rules, fees, property and the mailing list charter.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.2, p. 19",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RES002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.2",
+      "pages": [
+        19,
+        20
+      ],
+      "category": "RES",
+      "rule_type": "required",
+      "rule": "Students must respect intellectual property, research integrity and applicable project confidentiality obligations.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.2, p. 19, 20",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "RES003",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.2",
+      "pages": [
+        20
+      ],
+      "category": "RES",
+      "rule_type": "required",
+      "rule": "Students are expected to preserve school reputation, cleanliness and ecological responsibility.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.2, p. 20",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "SUP001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.3",
+      "pages": [
+        20
+      ],
+      "category": "SUP",
+      "rule_type": "support",
+      "rule": "The student listening/support unit is voluntary and confidential.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.3, p. 20",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "SUP002",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "12.3",
+      "pages": [
+        20
+      ],
+      "category": "SUP",
+      "rule_type": "support",
+      "rule": "The support unit receives students individually, accepts course/logistical complaints, collaborates with delegates and can orient students to professional support.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. 12.3, p. 20",
+      "authority": "source_policy",
+      "automatable": false
+    },
+    {
+      "id": "MAIL001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "Annex 1",
+      "pages": [
+        21
+      ],
+      "category": "MAIL",
+      "rule_type": "restriction",
+      "rule": "The alumni mailing list excludes insulting, aggressive, vulgar, harassing, defamatory, hateful, racist, obscene or unlawful-content posts described in the charter.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. Annex 1, p. 21",
+      "authority": "source_policy",
+      "automatable": true
+    },
+    {
+      "id": "ACK001",
+      "source": "ESPRIT Règlement de scolarité 2026-2027 (cours du jour)",
+      "article": "Acknowledgment",
+      "pages": [
+        22
+      ],
+      "category": "ACK",
+      "rule_type": "procedure",
+      "rule": "The final page provides a student acknowledgment and signature area for acceptance of the regulation.",
+      "source_citation": "Règlement de scolarité 2026-2027, art. Acknowledgment, p. 22",
+      "authority": "source_policy",
+      "automatable": false
+    }
+  ],
+  "ambiguities": [
+    {
+      "id": "C01",
+      "issue": "PFE duration conflict",
+      "pages": [
+        5,
+        12,
+        14
+      ],
+      "details": "Overview says 28 weeks, page 12 says at least six months, table page 14 says 26 weeks.",
+      "handling": "Do not assert a single exact mandatory duration; request staff verification."
+    },
+    {
+      "id": "C02",
+      "issue": "UE validation equality at eight",
+      "pages": [
+        7
+      ],
+      "details": "General rule says >=8 when general average >=10, but credit-validation rule says >8.",
+      "handling": "Apply each clause to its own context; for exactly 8 after special credit validation ask administration."
+    },
+    {
+      "id": "C03",
+      "issue": "Internship count wording",
+      "pages": [
+        5,
+        11,
+        14
+      ],
+      "details": "Curriculum says four internships including PFE; section 7.9 says three stages, referring to the three before PFE.",
+      "handling": "Interpret as 3 pre-PFE + 1 PFE; mention context when asked."
+    },
+    {
+      "id": "C04",
+      "issue": "Article 7 subheading numbering mismatch",
+      "pages": [
+        2,
+        8,
+        9
+      ],
+      "details": "Table of contents lists 7.6 ranking, 7.7 retake, 7.8 repetition, but body uses 7.6 retake, 7.7 repetition, 7.8 exam process.",
+      "handling": "Cite printed body section and page; do not fabricate ranking rules."
+    },
+    {
+      "id": "C05",
+      "issue": "PFE previous credits threshold unknown",
+      "pages": [
+        12
+      ],
+      "details": "Eligibility refers to class council threshold but gives no number.",
+      "handling": "Ask scolarité; do not invent threshold."
+    },
+    {
+      "id": "C06",
+      "issue": "No module-by-module syllabus",
+      "pages": [
+        5,
+        6
+      ],
+      "details": "Specific course prerequisites, assessment schemes, schedules and competencies are in separate module documents, not this PDF.",
+      "handling": "Require syllabus or Course Service data for course recommendations."
+    },
+    {
+      "id": "C07",
+      "issue": "Calendar dates not always anchored to academic year",
+      "pages": [
+        3,
+        4,
+        13
+      ],
+      "details": "Some annual November/March/June deadlines are general and not explicit year-specific calendar dates.",
+      "handling": "Keep month/day and verify operative academic calendar before sending reminders."
+    },
+    {
+      "id": "C08",
+      "issue": "PFE 2026/27 explicit end date",
+      "pages": [
+        12
+      ],
+      "details": "The document explicitly gives October 30, 2027 as an end-of-internship date for PFE 26/27.",
+      "handling": "Distinguish internship end date from defense/submission dates, which are not given."
+    },
+    {
+      "id": "C09",
+      "issue": "Control session promotion incomplete specification",
+      "pages": [
+        7
+      ],
+      "details": "Section provides >=10 overall and <=15 previous ECTS outstanding; it does not separately specify current-year acquired ECTS threshold.",
+      "handling": "Do not infer 45/60 or another threshold; verify with administration."
+    },
+    {
+      "id": "C10",
+      "issue": "Exam leaving clause nuance",
+      "pages": [
+        9
+      ],
+      "details": "One bullet permits departure after 30 minutes; another forbids leaving the room during an exam except approved circumstances.",
+      "handling": "Present both and defer procedural interpretation to exam invigilator."
+    },
+    {
+      "id": "C11",
+      "issue": "No automatic authority for recommendations",
+      "pages": [
+        3,
+        15
+      ],
+      "details": "Official decisions lie with ESPRIT staff; a recommendation engine is advisory.",
+      "handling": "Never present an AI estimate as an enrollment, graduation or promotion decision."
+    }
+  ],
+  "usage_notes": [
+    "This is a structured paraphrase; check exact French PDF for binding interpretation.",
+    "Keep policy text separate from advisory logic.",
+    "Always include article/page references.",
+    "Personal recommendations require securely retrieved individual student records.",
+    "Course recommendations require separate module syllabus/catalog data."
+  ]
+}

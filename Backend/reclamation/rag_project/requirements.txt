@@ -1,0 +1,26 @@
+# Tested together on Python 3.14 (Windows): Django 6.1.3, chromadb 1.5.9, PyMuPDF 1.28.0,
+# openai 3.49.0, python-dotenv 1.2.4, djangorestframework 3.18.3, django-mongodb-backend 6.1.0,
+# django-mongodb-extensions 0.3.0, pymongo 4.19.0 (with MongoDB 8.2).
+# 6.1 only: django-mongodb-backend's major.minor must equal Django's.
+Django>=6.1,<6.2
+# Reclamations API: Django REST Framework + MongoDB (official backend and its DRF serializers)
+djangorestframework>=3.18,<3.19
+django-mongodb-backend>=6.1,<6.2
+django-mongodb-extensions[rest-framework]>=0.3,<0.4
+pymongo>=4.7,<5
+# Pinned: rag/vectorstore.py works around a bug verified on this exact version.
+chromadb==1.5.9
+pymupdf>=1.24,<2
+openai>=1.40,<4
+python-dotenv>=1.0,<2
+# Keycloak token validation (RS256); the crypto extra installs `cryptography` for RSA keys.
+PyJWT[crypto]>=2.15,<3
+# Production WSGI server for the Linux container. Unix only, so it is skipped on Windows, where
+# local development keeps using `manage.py runserver`.
+gunicorn>=26.2,<27; sys_platform != "win32"
+# Server to use behind the API Gateway (Windows and Linux). The Gateway forwards request bodies
+# chunked, without Content-Length; waitress turns them into normal bodies. runserver does not
+# (Django would read them as empty; config/middleware.py answers 411 instead).
+waitress>=3,<4
+# RabbitMQ producer (reclamations/events.py): Reclamation -> Notification events, best effort.
+pika>=1.3,<2
