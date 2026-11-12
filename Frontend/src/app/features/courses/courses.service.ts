@@ -18,6 +18,9 @@ export class CoursesService {
     if (filters.statut) {
       params = params.set('statut', filters.statut);
     }
+    if (filters.formateurId) {
+      params = params.set('formateurId', filters.formateurId);
+    }
     if (filters.categorie) {
       params = params.set('categorie', filters.categorie);
     }

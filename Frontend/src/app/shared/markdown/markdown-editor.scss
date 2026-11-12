@@ -1,0 +1,16 @@
+:host { display: block; }
+.editor { border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--card); overflow: hidden; }
+.editor.invalid { border-color: var(--danger); }
+.editor:focus-within { outline: 2px solid var(--indigo); outline-offset: -1px; }
+.toolbar { display: flex; align-items: center; gap: 2px; padding: 6px; border-bottom: 1px solid var(--border); background: var(--bg); }
+.toolbar button {
+  display: inline-grid; place-items: center; min-width: 32px; height: 32px; padding: 0 8px; border: 0;
+  border-radius: 6px; background: transparent; color: var(--text-muted); font: inherit; cursor: pointer;
+}
+.toolbar button:hover { background: var(--card); color: var(--indigo); }
+.preview-toggle { margin-left: auto; font-weight: 500; }
+.preview-toggle.active { background: var(--indigo-soft); color: var(--indigo); }
+textarea { display: block; width: 100%; padding: 12px; border: 0; outline: 0; resize: vertical; font: inherit; color: var(--text); background: transparent; }
+.preview { min-height: 120px; padding: 12px; }
+.empty { margin: 0; padding: 0 12px 12px; }
+.muted { color: var(--text-muted); }

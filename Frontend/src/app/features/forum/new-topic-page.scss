@@ -1,0 +1,12 @@
+:host { display: block; max-width: 760px; }
+.back { display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px; color: var(--text-muted); text-decoration: none; }
+h1 { margin: 0 0 16px; }
+.form { display: grid; gap: 16px; padding: 24px; }
+.muted { color: var(--text-muted); font-weight: 400; }
+.narrow { max-width: 280px; }
+select {
+  height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--card); font: inherit; color: var(--text);
+}
+.field { display: grid; gap: 6px; font-weight: 500; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }

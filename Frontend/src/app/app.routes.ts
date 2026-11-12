@@ -4,8 +4,6 @@ import { authGuard, guestGuard, roleGuard } from './core/auth/auth.guards';
 const courseWorkspace = () =>
   import('./features/courses/course-workspace').then((m) => m.CourseWorkspace);
 
-const placeholder = () => import('./features/placeholder/placeholder').then((m) => m.Placeholder);
-
 export const routes: Routes = [
   {
     path: 'login',
@@ -48,7 +46,10 @@ export const routes: Routes = [
         canActivate: [authGuard],
         loadChildren: () => import('./features/courses/course.routes').then((m) => m.COURSE_ROUTES),
       },
-      { path: 'forum', loadComponent: placeholder, data: { title: 'Forum' } },
+      { path: 'forum', loadComponent: () => import('./features/forum/forum-page').then((m) => m.ForumPage) },
+      // « nouveau » avant « :id » pour ne pas être pris pour un identifiant de sujet.
+      { path: 'forum/sujets/nouveau', loadComponent: () => import('./features/forum/new-topic-page').then((m) => m.NewTopicPage) },
+      { path: 'forum/sujets/:id', loadComponent: () => import('./features/forum/topic-page').then((m) => m.TopicPage) },
       {
         path: 'quiz',
         canActivate: [authGuard],
@@ -69,6 +70,10 @@ export const routes: Routes = [
         path: 'notifications/preferences',
         loadComponent: () =>
           import('./features/notifications/preferences-page').then((m) => m.PreferencesPage),
+      },
+      {
+        path: 'profil',
+        loadComponent: () => import('./features/profile/profile-page').then((m) => m.ProfilePage),
       },
       {
         path: 'utilisateurs',

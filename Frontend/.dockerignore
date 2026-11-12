@@ -1,0 +1,11 @@
+node_modules
+dist
+.angular
+.git
+.vscode
+npm-debug.log*
+# réglages locaux d'un poste de développement : l'image écrit sa propre configuration
+public/config.local.json
+Dockerfile
+.dockerignore
+docker-compose*.yml

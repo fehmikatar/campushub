@@ -1,0 +1,174 @@
+@if (notFound()) {
+  <div class="card empty">
+    <h2>Sujet introuvable</h2>
+    <p class="muted">Ce sujet n'existe plus ou a été supprimé.</p>
+    <a class="btn btn-primary" routerLink="/forum">Retour au forum</a>
+  </div>
+} @else if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger ce sujet.
+    <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+  </div>
+} @else if (topic(); as topic) {
+  <a class="back" routerLink="/forum" [queryParams]="{ cours: topic.courseId }">
+    <app-icon [name]="icons.chevronLeft" [size]="16" /> Forum
+  </a>
+
+  <article class="card topic">
+    <header class="topic-head">
+      <div class="badges">
+        <span class="pill info">{{ roleLabels[topic.authorRole] }}</span>
+        @if (topic.isPinned) { <span class="pill info"><app-icon [name]="icons.pin" [size]="12" /> Épinglé</span> }
+        @if (topic.isResolved) { <span class="pill success"><app-icon [name]="icons.circleCheck" [size]="12" /> Résolu</span> }
+        @if (topic.isLocked) { <span class="pill warning"><app-icon [name]="icons.lock" [size]="12" /> Verrouillé</span> }
+        <span class="muted">{{ ago(topic.createdAt) }} · {{ topic.viewsCount }} vues</span>
+      </div>
+
+      @if (hasMenu(topic) || canEditTopic(topic)) {
+        <div class="moderation">
+          <button type="button" class="icon-btn" aria-label="Actions" [attr.aria-expanded]="menuOpen()" (click)="menuOpen.set(!menuOpen())">
+            <app-icon [name]="icons.ellipsis" [size]="18" />
+          </button>
+          @if (menuOpen()) {
+            <div class="menu" role="menu">
+              @if (canEditTopic(topic)) {
+                <button type="button" role="menuitem" (click)="startEditTopic(topic); menuOpen.set(false)"><app-icon [name]="icons.pencil" [size]="16" /> Modifier</button>
+              }
+              @if (canPinOrLock()) {
+                <button type="button" role="menuitem" (click)="toggle('pin')">
+                  <app-icon [name]="topic.isPinned ? icons.pinOff : icons.pin" [size]="16" /> {{ topic.isPinned ? 'Désépingler' : 'Épingler' }}
+                </button>
+                <button type="button" role="menuitem" (click)="toggle('lock')">
+                  <app-icon [name]="topic.isLocked ? icons.lockOpen : icons.lock" [size]="16" /> {{ topic.isLocked ? 'Déverrouiller' : 'Verrouiller' }}
+                </button>
+              }
+              @if (canResolve(topic)) {
+                <button type="button" role="menuitem" (click)="toggle('resolve')">
+                  <app-icon [name]="icons.circleCheck" [size]="16" /> {{ topic.isResolved ? 'Marquer comme non résolu' : 'Marquer comme résolu' }}
+                </button>
+              }
+              @if (canDeleteTopic(topic)) {
+                <button type="button" role="menuitem" class="danger" (click)="askDeleteTopic()"><app-icon [name]="icons.trash" [size]="16" /> Supprimer le sujet</button>
+              }
+            </div>
+          }
+        </div>
+      }
+    </header>
+
+    @if (editingTopic()) {
+      <div class="edit">
+        @if (editError(); as message) { <div class="alert" role="alert">{{ message }}</div> }
+        <label class="field">
+          <span>Titre</span>
+          <input type="text" maxlength="150" [value]="editTitle()" (input)="editTitle.set($any($event.target).value)" />
+        </label>
+        <app-markdown-editor [(value)]="editContent" [rows]="8" />
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" (click)="editingTopic.set(false)">Annuler</button>
+          <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saveTopic()">Enregistrer</button>
+        </div>
+      </div>
+    } @else {
+      <h1>{{ topic.title }}</h1>
+      <div class="md body" [innerHTML]="topicHtml()"></div>
+      @if (topic.tags.length > 0) {
+        <div class="tags">
+          @for (tag of topic.tags; track tag) { <span class="pill">#{{ tag }}</span> }
+        </div>
+      }
+    }
+  </article>
+
+  <section class="replies" aria-label="Réponses">
+    <h2>{{ topic.repliesCount }} {{ topic.repliesCount > 1 ? 'réponses' : 'réponse' }}</h2>
+
+    @for (view of postViews(); track view.post._id) {
+      <article class="card post" [class.accepted]="view.post.isAcceptedAnswer">
+        @if (view.post.isAcceptedAnswer) {
+          <span class="pill success best"><app-icon [name]="icons.circleCheck" [size]="12" /> Meilleure réponse</span>
+        }
+        <header class="post-head">
+          <span class="pill info">{{ roleLabels[view.post.authorRole] }}</span>
+          <span class="muted">{{ ago(view.post.createdAt) }}</span>
+          @if (parentLabel(view.post); as label) {
+            <span class="muted parent"><app-icon [name]="icons.cornerDownRight" [size]="12" /> {{ label }}</span>
+          }
+        </header>
+
+        @if (editingPostId() === view.post._id) {
+          <app-markdown-editor [(value)]="editPostContent" [rows]="5" />
+          <div class="actions">
+            <button type="button" class="btn btn-secondary" (click)="editingPostId.set(null)">Annuler</button>
+            <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="savePost(view.post)">Enregistrer</button>
+          </div>
+        } @else {
+          <div class="md body" [innerHTML]="view.html"></div>
+          <footer class="post-actions">
+            <button type="button" class="action" [class.on]="view.post.likedByMe" [attr.aria-pressed]="!!view.post.likedByMe" (click)="like(view.post)">
+              <app-icon [name]="icons.thumbsUp" [size]="16" /> J'aime <strong>{{ view.post.likesCount }}</strong>
+            </button>
+            @if (canReply(topic)) {
+              <button type="button" class="action" (click)="setReplyTo(view.post)"><app-icon [name]="icons.messageCircle" [size]="16" /> Répondre</button>
+            }
+            @if (canAccept(topic)) {
+              <button type="button" class="action" [class.on]="view.post.isAcceptedAnswer" [disabled]="busy()" (click)="accept(view.post)">
+                <app-icon [name]="icons.circleCheck" [size]="16" /> {{ view.post.isAcceptedAnswer ? 'Retirer la validation' : 'Marquer comme meilleure réponse' }}
+              </button>
+            }
+            @if (canEditPost(view.post)) {
+              <button type="button" class="action" (click)="startEditPost(view.post)"><app-icon [name]="icons.pencil" [size]="16" /> Modifier</button>
+              <button type="button" class="action danger" (click)="askDeletePost(view.post)"><app-icon [name]="icons.trash" [size]="16" /> Supprimer</button>
+            }
+          </footer>
+        }
+      </article>
+    } @empty {
+      <p class="muted">Aucune réponse pour le moment.</p>
+    }
+
+    @if (totalPages > 1) {
+      <nav class="pager" aria-label="Pagination des réponses">
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() <= 1" (click)="loadPosts(currentPage() - 1)">
+          <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+        </button>
+        <span class="muted">Page {{ currentPage() }} sur {{ totalPages }}</span>
+        <button type="button" class="btn btn-secondary" [disabled]="currentPage() >= totalPages" (click)="loadPosts(currentPage() + 1)">
+          Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+        </button>
+      </nav>
+    }
+  </section>
+
+  @if (canReply(topic)) {
+    <section class="card reply">
+      <h2>Répondre</h2>
+      @if (topic.isLocked) {
+        <p class="banner warning">Ce sujet est verrouillé : seuls les enseignants et les administrateurs peuvent encore répondre.</p>
+      }
+      @if (replyTo(); as parent) {
+        <p class="quote">
+          <app-icon [name]="icons.cornerDownRight" [size]="14" /> En réponse à un message de {{ roleLabels[parent.authorRole] }}
+          <button type="button" class="link-btn" (click)="setReplyTo(null)">Annuler</button>
+        </p>
+      }
+      @if (replyError(); as message) { <div class="alert" role="alert">{{ message }}</div> }
+      <app-markdown-editor [(value)]="replyContent" [rows]="5" placeholder="Écrivez votre réponse. Le Markdown est accepté." />
+      <div class="actions">
+        <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="sendReply()">Publier la réponse</button>
+      </div>
+    </section>
+  } @else {
+    <p class="banner warning">Ce sujet est verrouillé : il n'accepte plus de nouvelles réponses.</p>
+  }
+}
+
+@if (pending(); as item) {
+  <app-confirm-dialog
+    [title]="item.kind === 'topic' ? 'Supprimer ce sujet ?' : 'Supprimer cette réponse ?'"
+    [message]="item.kind === 'topic' ? 'Le sujet et toutes ses réponses seront supprimés définitivement.' : 'La réponse sera supprimée définitivement.'"
+    [busy]="busy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="pending.set(null)"
+  />
+}

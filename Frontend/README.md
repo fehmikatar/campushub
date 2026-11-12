@@ -57,3 +57,30 @@ Angular CLI does not come with an end-to-end testing framework by default. You c
 ## Additional Resources
 
 For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+
+## Docker (nginx)
+
+L'image construit l'application (`ng build --configuration production`) puis la sert avec nginx.
+
+| Élément | Rôle |
+|---|---|
+| `Dockerfile` | build Angular puis image `nginx:1.27-alpine` |
+| `docker/nginx.conf.template` | repli sur `index.html` pour les routes Angular, cache, et relais `/gateway/` vers la Gateway |
+| `docker/40-runtime-config.sh` | écrit `config.local.json` au démarrage depuis les variables d'environnement |
+| `docker-compose.yml` | service `frontend` (à ajouter dans `include:` du compose racine) |
+
+Seul : `docker compose -f Frontend/docker-compose.yml up --build -d`, puis http://localhost:4200.
+Dans le compose global, ajouter `- path: Frontend/docker-compose.yml` sous `include:` ; la Gateway est alors jointe par son nom `api-gateway`.
+
+Le port reste **4200** : Keycloak (redirections) et la Gateway (CORS) n'acceptent que `http://localhost:4200`. Arrêter `npm start` avant de lancer l'image.
+
+### Variables
+
+| Variable | Défaut | Rôle |
+|---|---|---|
+| `API_URL` | `/gateway` | adresse de l'API vue par le navigateur (`/gateway` = relayée par nginx, sans CORS) |
+| `GATEWAY_URL` | `http://api-gateway:8080` | Gateway vue par nginx, sur le réseau Docker |
+| `KEYCLOAK_URL` | `http://localhost:8180` | Keycloak vu par le navigateur (même adresse que l'`iss` des tokens) |
+| `KEYCLOAK_REALM`, `KEYCLOAK_CLIENT_ID` | `campushub`, `campushub-frontend` | realm et client |
+
+Dans le compose, on les règle avec `FRONT_API_URL`, `FRONT_GATEWAY_URL`, `FRONT_KEYCLOAK_URL` et `FRONTEND_PORT`.

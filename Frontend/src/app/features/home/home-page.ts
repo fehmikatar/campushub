@@ -1,22 +1,25 @@
 import { Component, inject } from '@angular/core';
 import { AuthService } from '../../core/auth/auth.service';
 import { AdminDashboard } from '../admin/dashboard/admin-dashboard';
+import { StudentDashboard } from '../dashboard/student-dashboard';
+import { TeacherDashboard } from '../dashboard/teacher-dashboard';
 
-/** Accueil : tableau de bord pour l'administrateur, message provisoire pour les autres rôles (lot 7). */
+/** Accueil : le tableau de bord du rôle de l'utilisateur (écrans 31, 32 et 33). */
 @Component({
   selector: 'app-home-page',
-  imports: [AdminDashboard],
+  imports: [AdminDashboard, StudentDashboard, TeacherDashboard],
   template: `
-    @if (user()?.role === 'ADMIN') {
-      <app-admin-dashboard />
-    } @else {
-      <h1>Bienvenue {{ user()?.prenom }}</h1>
-      <p class="muted">Cet écran sera disponible dans un prochain lot.</p>
+    @switch (user()?.role) {
+      @case ('ADMIN') {
+        <app-admin-dashboard />
+      }
+      @case ('ENSEIGNANT') {
+        <app-teacher-dashboard />
+      }
+      @default {
+        <app-student-dashboard />
+      }
     }
-  `,
-  styles: `
-    h1 { margin: 0 0 8px; }
-    .muted { margin: 0; color: var(--text-muted); }
   `,
 })
 export class HomePage {

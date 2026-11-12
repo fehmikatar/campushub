@@ -11,6 +11,7 @@ name: campushub
 
 include:
   - path: Backend/notification-service/docker-compose.yml
+  - path: Frontend/docker-compose.yml
 
 services:
 
@@ -86,8 +87,8 @@ services:
       EUREKA_INSTANCE_HOST: forum-service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       RABBITMQ_QUEUE: forum.events
-      # Passer a "true" quand Course valide les tokens Keycloak (sinon Course repond 401)
-      COURSE_CHECK_ENABLED: "false"
+      # "true" : Forum verifie l'existence du cours aupres de Course (404 si inconnu)
+      COURSE_CHECK_ENABLED: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -215,9 +216,49 @@ services:
       timeout: 5s
       retries: 20
 
+  enrollment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: enrollment_db
+      POSTGRES_USER: enrollment
+      POSTGRES_PASSWORD: enrollment_dev_password
+    volumes:
+      - enrollment_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enrollment -d enrollment_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  enrollment-service:
+    build: ./Backend/enrollment-service
+    depends_on:
+      enrollment-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      PORT: "8083"
+      DEBUG: "False"
+      SECRET_KEY: dev-secret-key-enrollment-docker
+      ALLOWED_HOSTS: enrollment-service,localhost,127.0.0.1
+      CORS_ALLOWED_ORIGINS: http://localhost:4200
+      DB_NAME: enrollment_db
+      DB_USER: enrollment
+      DB_PASSWORD: enrollment_dev_password
+      DB_HOST: enrollment-db
+      DB_PORT: "5432"
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_HOST: enrollment-service
+    restart: unless-stopped
+
 volumes:
   keycloak_data:
   mongo_data:
   rabbitmq_data:
   course_postgres_data:
   mssql-data:
+  enrollment_db_data:
