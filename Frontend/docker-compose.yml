@@ -1,0 +1,28 @@
+# Frontend Angular servi par nginx, pour le docker-compose global :
+#   dans le compose racine, ajouter  `- path: Frontend/docker-compose.yml`  sous `include:`.
+# Seul : docker compose -f Frontend/docker-compose.yml up --build -d   puis http://localhost:4200
+#
+# Le port reste 4200 : Keycloak (redirections) et la Gateway (CORS) n'acceptent que http://localhost:4200.
+# L'API est appelée en /gateway/... sur la même adresse ; nginx relaie vers la Gateway.
+
+services:
+  frontend:
+    build: .
+    image: campushub/frontend
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    environment:
+      # Adresse de l'API vue par le navigateur ('/gateway' = relayée par nginx).
+      API_URL: ${FRONT_API_URL:-/gateway}
+      # Gateway vue par nginx, sur le réseau Docker.
+      GATEWAY_URL: ${FRONT_GATEWAY_URL:-http://api-gateway:8080}
+      # Keycloak vu par le navigateur (même adresse que l'issuer des tokens).
+      KEYCLOAK_URL: ${FRONT_KEYCLOAK_URL:-http://localhost:8180}
+      KEYCLOAK_REALM: campushub
+      KEYCLOAK_CLIENT_ID: campushub-frontend
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
