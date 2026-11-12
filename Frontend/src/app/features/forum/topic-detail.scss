@@ -1,0 +1,49 @@
+@use './forum-theme' as forum;
+@include forum.common;
+
+.question { padding: 24px; margin-bottom: 20px; }
+.q-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.q-head h1 { margin: 0 0 12px; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 12px; }
+.body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.count { margin: 0 0 12px; font-size: 16px; }
+.threads { display: grid; gap: 12px; margin: 0 0 16px; padding: 0; list-style: none; }
+.post { padding: 16px; }
+.post.accepted { border-color: var(--success); }
+.post-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 8px; }
+.own { margin-left: auto; display: inline-flex; }
+.post-actions { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+.like {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 999px; background: var(--card);
+  font: inherit; color: var(--text-muted); cursor: pointer;
+}
+.like.on { color: var(--indigo); border-color: var(--indigo); background: var(--indigo-soft); }
+.like.on app-icon { fill: currentColor; }
+.plain { text-decoration: none; font-size: 13px; }
+.replies { display: grid; gap: 12px; margin: 14px 0 0 24px; padding: 0 0 0 16px; list-style: none; border-left: 2px solid var(--border); }
+.menu-wrap { position: relative; }
+.menu {
+  position: absolute; right: 0; top: 38px; z-index: 20; display: grid; min-width: 230px; padding: 6px;
+}
+.menu button {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px; border: 0; border-radius: 6px;
+  background: transparent; font: inherit; color: var(--text); text-align: left; cursor: pointer;
+}
+.menu button:hover { background: var(--bg); }
+.menu .danger-item { color: var(--danger); }
+.banner {
+  display: flex; align-items: center; gap: 8px; padding: 12px 16px;
+  border: 1px solid var(--warning); border-radius: var(--radius-sm); background: var(--warning-bg); color: #92400e;
+}
+.reply-box { display: grid; gap: 10px; padding: 20px; }
+.reply-box h2 { margin: 0; }
+.replying { display: flex; align-items: center; gap: 8px; margin: 0; }
+textarea {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; color: var(--text); background: var(--card); resize: vertical;
+}
+textarea:focus { outline: 2px solid var(--indigo); outline-offset: -1px; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.replying .link-btn { margin-left: 8px; }

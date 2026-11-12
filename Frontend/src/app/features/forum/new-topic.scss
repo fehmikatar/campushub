@@ -1,0 +1,16 @@
+@use './forum-theme' as forum;
+@include forum.common;
+
+:host { max-width: 720px; }
+h1 { margin: 0 0 16px; }
+.form { display: grid; gap: 16px; padding: 24px; }
+select, textarea {
+  width: 100%; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font: inherit; font-weight: 400; color: var(--text); background: var(--card);
+}
+select { height: 40px; }
+textarea { padding: 10px 12px; resize: vertical; }
+select:focus, textarea:focus { outline: 2px solid var(--indigo); outline-offset: -1px; }
+select.invalid, textarea.invalid { border-color: var(--danger); }
+.hint { font-size: 12px; font-weight: 400; color: var(--text-muted); text-align: right; }
+.actions { display: flex; justify-content: flex-end; gap: 8px; }

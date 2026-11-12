@@ -1,0 +1,179 @@
+<p class="crumbs">
+  <a routerLink="/forum">Forum</a>
+  @if (topic(); as t) {
+    / <a [routerLink]="['/forum/cours', t.courseId]">Sujets du cours</a>
+  }
+</p>
+
+@if (failed()) {
+  <div class="alert" role="alert">
+    Impossible de charger ce sujet.
+    <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+  </div>
+} @else if (loading() || !topic()) {
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+  <div class="skeleton"></div>
+} @else if (topic(); as t) {
+  <article class="card question">
+    <header class="q-head">
+      <h1>{{ t.title }}</h1>
+      @if (isModerator()) {
+        <div class="menu-wrap">
+          <button type="button" class="icon-btn" aria-label="Actions de modération" aria-haspopup="menu" [attr.aria-expanded]="menuOpen()" (click)="toggleMenu()">
+            <app-icon [name]="icons.ellipsis" [size]="20" />
+          </button>
+          @if (menuOpen()) {
+            <div class="menu card" role="menu">
+              <button type="button" role="menuitem" (click)="moderate('pin')">
+                <app-icon [name]="t.isPinned ? icons.pinOff : icons.pin" [size]="16" /> {{ t.isPinned ? 'Désépingler' : 'Épingler' }}
+              </button>
+              <button type="button" role="menuitem" (click)="moderate('lock')">
+                <app-icon [name]="t.isLocked ? icons.lockOpen : icons.lock" [size]="16" /> {{ t.isLocked ? 'Déverrouiller' : 'Verrouiller' }}
+              </button>
+              <button type="button" role="menuitem" (click)="moderate('resolve')">
+                <app-icon [name]="icons.circleCheck" [size]="16" /> {{ t.isResolved ? 'Marquer comme non résolu' : 'Marquer comme résolu' }}
+              </button>
+              <button type="button" role="menuitem" class="danger-item" (click)="askDeleteTopic()">
+                <app-icon [name]="icons.trash" [size]="16" /> Supprimer le sujet
+              </button>
+            </div>
+          }
+        </div>
+      }
+    </header>
+    <div class="meta">
+      <app-forum-author [authorId]="t.authorId" [role]="t.authorRole" />
+      <span class="muted">{{ ago(t.createdAt ?? t.lastActivityAt) }}</span>
+      <span class="badges">
+        @if (t.isPinned) {
+          <span class="pill info badge"><app-icon [name]="icons.pin" [size]="12" /> Épinglé</span>
+        }
+        @if (t.isResolved) {
+          <span class="pill success badge"><app-icon [name]="icons.circleCheck" [size]="12" /> Résolu</span>
+        }
+        @if (t.isLocked) {
+          <span class="pill warning badge"><app-icon [name]="icons.lock" [size]="12" /> Verrouillé</span>
+        }
+      </span>
+    </div>
+    <p class="body">{{ t.content }}</p>
+    @if (t.tags.length > 0) {
+      <div class="tags">
+        @for (tag of t.tags; track tag) {
+          <span class="pill">#{{ tag }}</span>
+        }
+      </div>
+    }
+  </article>
+
+  <h2 class="count">{{ t.repliesCount }} {{ t.repliesCount > 1 ? 'réponses' : 'réponse' }}</h2>
+
+  <ul class="threads">
+    @for (thread of threads(); track thread.post._id) {
+      <li class="card post" [class.accepted]="thread.post.isAcceptedAnswer">
+        <ng-container *ngTemplateOutlet="postTpl; context: { $implicit: thread.post }" />
+        @if (thread.replies.length > 0) {
+          <ul class="replies">
+            @for (reply of thread.replies; track reply._id) {
+              <li class="nested" [class.accepted]="reply.isAcceptedAnswer">
+                <ng-container *ngTemplateOutlet="postTpl; context: { $implicit: reply }" />
+              </li>
+            }
+          </ul>
+        }
+      </li>
+    } @empty {
+      <li class="empty card">
+        <p>Aucune réponse pour le moment.</p>
+      </li>
+    }
+  </ul>
+
+  @if (posts(); as page) {
+    @if (page.totalPages > 1) {
+      <nav class="pager" aria-label="Pagination des messages">
+        <button type="button" class="btn btn-secondary" [disabled]="page.page <= 1" (click)="loadPosts(page.page - 1)">
+          <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+        </button>
+        <span class="muted">Page {{ page.page }} sur {{ page.totalPages }}</span>
+        <button type="button" class="btn btn-secondary" [disabled]="page.page >= page.totalPages" (click)="loadPosts(page.page + 1)">
+          Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+        </button>
+      </nav>
+    }
+  }
+
+  @if (t.isLocked) {
+    <div class="banner" role="status">
+      <app-icon [name]="icons.lock" [size]="18" /> Ce sujet est verrouillé : il n'est plus possible d'y répondre.
+    </div>
+  } @else {
+    <section id="reply-box" class="card reply-box">
+      <h2>Répondre</h2>
+      @if (replyTo(); as target) {
+        <p class="replying muted">
+          Réponse à <app-forum-author [authorId]="target.authorId" [role]="target.authorRole" />
+          <button type="button" class="link-btn" (click)="startReply(null)">Annuler</button>
+        </p>
+      }
+      <textarea rows="5" placeholder="Ajouter une réponse..." aria-label="Votre réponse" [value]="replyText()" (input)="replyText.set(value($event))"></textarea>
+      @if (replyError()) {
+        <span class="error">{{ replyError() }}</span>
+      }
+      <div class="actions">
+        <button type="button" class="btn btn-primary" [disabled]="!canReply()" (click)="publishReply()">Publier la réponse</button>
+      </div>
+    </section>
+  }
+}
+
+<ng-template #postTpl let-post>
+  <div class="post-head">
+    <app-forum-author [authorId]="post.authorId" [role]="post.authorRole" />
+    <span class="muted">{{ ago(post.createdAt) }}</span>
+    @if (post.isAcceptedAnswer) {
+      <span class="pill success badge"><app-icon [name]="icons.trophy" [size]="12" /> Meilleure réponse</span>
+    }
+    @if (isMine(post) && editingId() !== post._id) {
+      <span class="own">
+        <button type="button" class="icon-btn" aria-label="Modifier mon message" (click)="startEdit(post)"><app-icon [name]="icons.pencil" [size]="16" /></button>
+        <button type="button" class="icon-btn danger" aria-label="Supprimer mon message" (click)="askDeletePost(post)"><app-icon [name]="icons.trash" [size]="16" /></button>
+      </span>
+    }
+  </div>
+
+  @if (editingId() === post._id) {
+    <textarea rows="4" aria-label="Modifier le message" [value]="editText()" (input)="editText.set(value($event))"></textarea>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" (click)="cancelEdit()">Annuler</button>
+      <button type="button" class="btn btn-primary" [disabled]="!canSaveEdit()" (click)="saveEdit(post)">Enregistrer</button>
+    </div>
+  } @else {
+    <p class="body">{{ post.content }}</p>
+  }
+
+  <div class="post-actions">
+    <button type="button" class="like" [class.on]="liked().has(post._id)" [attr.aria-pressed]="liked().has(post._id)" (click)="toggleLike(post)">
+      <app-icon [name]="icons.thumbsUp" [size]="16" /> J'aime {{ post.likesCount }}
+    </button>
+    @if (!topic()?.isLocked) {
+      <button type="button" class="link-btn plain" (click)="startReply(post)">Répondre</button>
+    }
+    @if (canAccept()) {
+      <button type="button" class="link-btn plain" (click)="toggleAccept(post)">
+        {{ post.isAcceptedAnswer ? 'Retirer « Meilleure réponse »' : 'Meilleure réponse' }}
+      </button>
+    }
+  </div>
+</ng-template>
+
+@if (pending()) {
+  <app-confirm-dialog
+    [title]="pending()?.kind === 'topic' ? 'Supprimer ce sujet ?' : 'Supprimer ce message ?'"
+    [message]="pending()?.kind === 'topic' ? 'Le sujet et tous ses messages seront supprimés définitivement.' : 'Ce message sera supprimé définitivement.'"
+    [busy]="busy()"
+    (confirmed)="confirmDelete()"
+    (cancelled)="cancelDelete()"
+  />
+}
