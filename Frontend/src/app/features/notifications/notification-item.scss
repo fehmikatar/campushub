@@ -9,10 +9,10 @@
 .dot { flex: none; width: 8px; height: 8px; margin-top: 16px; border-radius: 50%; background: transparent; }
 .dot.on { background: var(--indigo); }
 .badge { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; }
-.badge.indigo { background: #e0e7ff; color: var(--indigo); }
-.badge.amber { background: var(--warning-bg); color: #b45309; }
-.badge.green { background: var(--success-bg); color: #15803d; }
-.badge.slate { background: #f1f5f9; color: var(--text-muted); }
+.badge.indigo { background: var(--tone-indigo-bg); color: var(--tone-indigo-fg); }
+.badge.amber { background: var(--warning-bg); color: var(--tone-amber-fg); }
+.badge.green { background: var(--success-bg); color: var(--tone-green-fg); }
+.badge.slate { background: var(--pill-bg); color: var(--text-muted); }
 .text { display: grid; gap: 2px; min-width: 0; }
 .item:not(.unread) strong { font-weight: 500; }
 .message { color: var(--text-muted); }

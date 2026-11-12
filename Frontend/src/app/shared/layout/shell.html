@@ -12,6 +12,12 @@
         </a>
       }
     </nav>
+
+    <button type="button" class="theme-toggle" role="switch" [attr.aria-checked]="theme.dark()" (click)="theme.toggle()">
+      <app-icon [name]="theme.dark() ? icons.moon : icons.sun" [size]="18" />
+      <span>Mode sombre</span>
+      <span class="switch" [class.on]="theme.dark()" aria-hidden="true"></span>
+    </button>
   </aside>
 
   <div class="main">
@@ -34,6 +40,10 @@
         </button>
         @if (menuOpen()) {
           <div class="dropdown">
+            <a class="dropdown-item" routerLink="/profil" (click)="menuOpen.set(false)">
+              <app-icon [name]="icons.user" [size]="16" />
+              Mon profil
+            </a>
             <button type="button" (click)="logout()">
               <app-icon [name]="icons.logOut" [size]="16" />
               Se déconnecter

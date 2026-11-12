@@ -22,6 +22,7 @@ export interface CoursePage {
 }
 
 export interface CourseFilters {
+  formateurId?: string;
   statut?: CourseStatus;
   categorie?: string;
   page?: number;
