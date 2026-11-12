@@ -66,8 +66,7 @@ services:
       KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
       # cles publiques lues par le reseau Docker
       SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
-      # User Service tourne encore sur la machine hote
-      USER_SERVICE_URI: http://host.docker.internal:8081
+      USER_SERVICE_URI: http://user-service:8081
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -255,6 +254,50 @@ services:
       EUREKA_INSTANCE_HOST: enrollment-service
     restart: unless-stopped
 
+
+  user-db:
+    image: mysql:8.4
+    # Pas de port publie : evite le conflit avec MAMP / un MySQL local sur 3306
+    environment:
+      MYSQL_DATABASE: campushub_users
+      MYSQL_USER: campushub_app
+      MYSQL_PASSWORD: user_dev_password
+      MYSQL_ROOT_PASSWORD: user_root_dev_password
+    volumes:
+      - user_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  # User Service (Spring Boot) : profils des utilisateurs. L'identite (comptes, mots de passe,
+  # roles) est dans Keycloak ; la table users est un simple profil, id = sub du token.
+  user-service:
+    build: ./Backend/USERMICROSERVICE
+    depends_on:
+      user-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: user-db
+      DB_PORT: "3306"
+      DB_NAME: campushub_users
+      DB_USERNAME: campushub_app
+      DB_PASSWORD: user_dev_password
+      CORS_ALLOWED_ORIGINS: http://localhost:4200
+      # iss attendu dans les tokens (adresse vue par le navigateur)
+      KEYCLOAK_ISSUER_URI: http://localhost:8180/realms/campushub
+      # cles publiques lues par le reseau Docker
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/campushub/protocol/openid-connect/certs
+      EUREKA_URL: http://eureka-server:8761/eureka/
+      EUREKA_INSTANCE_HOST: user-service
+    restart: unless-stopped
+
   # Reclamation Service (Django) : reclamations + assistant RAG, joignable seulement par la Gateway
   reclamation-service:
     build: ./Backend/reclamation/rag_project
@@ -297,7 +340,7 @@ services:
       EMBED_MODEL: ${RECLAMATION_EMBED_MODEL:-gemini-embedding-001}
       LLM_BASE_URL: ${RECLAMATION_LLM_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
       LLM_API_KEY: ${RECLAMATION_LLM_API_KEY:-}
-      LLM_MODEL: ${RECLAMATION_LLM_MODEL:-gemini-3.8-flash}
+      LLM_MODEL: ${RECLAMATION_LLM_MODEL:-gemini-3.5-flash}
       LLM_REASONING_EFFORT: ${RECLAMATION_LLM_REASONING_EFFORT:-low}
       # "true" = importer le reglement au demarrage (appelle le fournisseur d'embeddings ; deja importe = rien)
       RAG_INGEST_ON_START: ${RECLAMATION_INGEST_ON_START:-false}
@@ -331,3 +374,4 @@ volumes:
   mssql-data:
   enrollment_db_data:
   reclamation_data:
+  user_db_data:

@@ -9,9 +9,5 @@ logging:
 
 campushub:
   security:
-    jwt:
-      # Local-only, publicly known fallback so the app starts without JWT_SECRET on a developer
-      # machine. Tokens signed with it protect nothing; always set JWT_SECRET anywhere else.
-      secret: ${JWT_SECRET:local-development-only-insecure-jwt-signing-secret-change-me}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
