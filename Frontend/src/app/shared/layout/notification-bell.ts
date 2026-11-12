@@ -1,7 +1,7 @@
 import { Component, ElementRef, HostListener, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { AppNotification } from '../../features/notifications/notification.model';
-import { metaFor } from '../../features/notifications/notification-meta';
+import { targetFor } from '../../features/notifications/notification-meta';
 import { NotificationItem } from '../../features/notifications/notification-item';
 import { NotificationsService } from '../../features/notifications/notifications.service';
 import { Icon } from '../icon/icon';
@@ -72,7 +72,8 @@ export class NotificationBell {
         error: () => undefined,
       });
     }
-    void this.router.navigate(metaFor(notification.type).link ?? ['/notifications']);
+    const target = targetFor(notification);
+    void this.router.navigate(target?.commands ?? ['/notifications'], { queryParams: target?.queryParams });
   }
 
   @HostListener('document:click', ['$event'])
