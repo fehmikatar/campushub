@@ -7,18 +7,23 @@ import { firstValueFrom } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { CourseService } from './course.service';
 import { CourseSession } from './course-session';
+import { errorMessage } from '../../core/http/error-message';
+import { Enrollment, percentOf, percentRead } from '../enrollments/enrollment.model';
+import { MyEnrollments } from '../enrollments/my-enrollments';
+import { EnrollmentsService } from '../enrollments/enrollments.service';
 import { Chapter, Course } from './course.models';
 
 @Component({
   selector: 'app-course-workspace',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, MyEnrollments],
   templateUrl: './course-workspace.html',
   styleUrl: './course-workspace.scss',
 })
 export class CourseWorkspace {
   readonly api = inject(CourseService);
   readonly session = inject(CourseSession);
+  private enrollments = inject(EnrollmentsService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private fb = inject(FormBuilder);
@@ -28,6 +33,13 @@ export class CourseWorkspace {
   readonly course = signal<Course | null>(null);
   readonly categories = signal<string[]>([]);
   readonly busy = signal(false);
+  /** Inscription de l'étudiant au cours affiché (null : pas inscrit). */
+  readonly enrollment = signal<Enrollment | null>(null);
+  /** Le service d'inscriptions ne répond pas : « S'inscrire » est désactivé avec un message. */
+  readonly enrollmentUnavailable = signal(false);
+  readonly enrolling = signal(false);
+  readonly confirmingCancel = signal(false);
+  readonly enrollmentError = signal('');
   readonly error = signal('');
   readonly notice = signal('');
   readonly total = signal(0);
@@ -86,6 +98,10 @@ export class CourseWorkspace {
     this.view.set(this.route.snapshot.data['view']);
     this.page.set(1);
     this.course.set(null);
+    this.enrollment.set(null);
+    this.enrollmentUnavailable.set(false);
+    this.confirmingCancel.set(false);
+    this.enrollmentError.set('');
     this.editingId = null;
     this.editChapterId.set(null);
     this.imageFile = null;
@@ -117,6 +133,7 @@ export class CourseWorkspace {
       }
       const course = await firstValueFrom(this.api.get(id));
       this.course.set(course);
+      if (this.view() === 'detail') await this.loadEnrollment(course);
       if (['edit', 'chapters'].includes(this.view()) && !this.session.canEdit(course))
         throw new Error('Vous ne pouvez modifier que vos propres cours.');
       if (this.view() === 'edit') {
@@ -129,7 +146,78 @@ export class CourseWorkspace {
         this.imagePreview.set(this.api.imageUrl(course.imageUrl));
       }
       if (this.view() === 'read' && !this.currentChapter) throw new Error('Chapitre introuvable.');
+      if (this.view() === 'read') void this.trackProgress(course);
     });
+  }
+  get isStudent() {
+    return this.session.user.role === 'ETUDIANT';
+  }
+  /** L'étudiant peut s'inscrire à un cours publié. */
+  get canEnroll() {
+    return this.isStudent && this.course()?.statut === 'PUBLIE';
+  }
+  /** Charge l'inscription de l'étudiant à ce cours ; une panne du service n'empêche pas d'afficher le cours. */
+  private async loadEnrollment(course: Course) {
+    if (!this.isStudent) return;
+    try {
+      const list = await firstValueFrom(this.enrollments.list({ coursId: course.id }));
+      this.enrollment.set(list.find((item) => item.cours_id === `${course.id}`) ?? null);
+    } catch {
+      this.enrollmentUnavailable.set(true);
+    }
+  }
+  /**
+   * Progression à la lecture : atteindre le chapitre n sur N (chapitres visibles) vaut n/N. Elle ne recule jamais,
+   * et rien n'est enregistré si l'étudiant n'est pas inscrit ou si le service ne répond pas.
+   */
+  private async trackProgress(course: Course) {
+    if (!this.isStudent) return;
+    try {
+      const mine = (await firstValueFrom(this.enrollments.list({ coursId: course.id }))).find((item) => item.cours_id === `${course.id}`);
+      const index = this.chapters.findIndex((chapter) => chapter.id === this.chapterId());
+      if (!mine || index < 0) return;
+      const target = percentRead(index + 1, this.chapters.length);
+      if (target > percentOf(mine)) {
+        await firstValueFrom(this.enrollments.setProgress(mine.id, target));
+      }
+    } catch {
+      /* le suivi de progression est secondaire : la lecture continue */
+    }
+  }
+  async enroll() {
+    const course = this.course();
+    if (!course || this.enrolling()) return;
+    this.enrolling.set(true);
+    this.enrollmentError.set('');
+    try {
+      this.enrollment.set(await firstValueFrom(this.enrollments.enroll(course.id)));
+      this.notice.set('Inscription confirmée.');
+    } catch (error) {
+      const e = error as HttpErrorResponse;
+      if (e.status === 400) {
+        // « Déjà inscrit » : on recharge pour afficher l'état réel.
+        await this.loadEnrollment(course);
+      }
+      this.enrollmentError.set(errorMessage(error, 'Inscription impossible pour le moment.'));
+    } finally {
+      this.enrolling.set(false);
+    }
+  }
+  async cancelEnrollment() {
+    const current = this.enrollment();
+    if (!current || this.enrolling()) return;
+    this.enrolling.set(true);
+    this.enrollmentError.set('');
+    try {
+      await firstValueFrom(this.enrollments.cancel(current.id));
+      this.enrollment.set(null);
+      this.confirmingCancel.set(false);
+      this.notice.set('Inscription annulée.');
+    } catch (error) {
+      this.enrollmentError.set(errorMessage(error, "Impossible d'annuler l'inscription."));
+    } finally {
+      this.enrolling.set(false);
+    }
   }
   async reload() {
     await this.initialize();

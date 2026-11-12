@@ -12,6 +12,7 @@
   <app-stat-card label="Publiés" [value]="counts()?.published ?? null" detail="visibles par les étudiants" [icon]="icons.send" />
   <app-stat-card label="Brouillons" [value]="counts()?.drafts ?? null" detail="à terminer et publier" [icon]="icons.pencil" />
   <app-stat-card label="Archivés" [value]="counts()?.archived ?? null" detail="retirés du catalogue" [icon]="icons.archive" />
+  <app-stat-card label="Étudiants inscrits" [value]="enrollmentsFailed() ? null : students()" detail="à au moins un de vos cours" [icon]="icons.users" />
 </div>
 
 <div class="grid">
@@ -35,6 +36,7 @@
                 <strong>{{ course.titre }}</strong>
                 <small class="muted">
                   {{ course.nbChapitres }} {{ course.nbChapitres > 1 ? 'chapitres' : 'chapitre' }} · modifié le {{ course.updatedAt | date: 'dd/MM/yyyy' }}
+                  @if (!enrollmentsFailed() && enrollments() !== null) { · {{ enrolledIn(course) }} {{ enrolledIn(course) > 1 ? 'inscrits' : 'inscrit' }} }
                 </small>
               </div>
               <span class="pill" [class]="'pill ' + tones[course.statut]">{{ labels[course.statut] }}</span>

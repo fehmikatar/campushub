@@ -14,18 +14,20 @@ const empty = { data: [], current_page: 1, last_page: 1, per_page: 3, total: 0 }
 describe('StudentDashboard', () => {
   let http: HttpTestingController;
 
-  const open = (results: object[] | 'error', courses: { data: object[]; total: number } | 'error') => {
+  const open = (results: object[] | 'error', courses: { data: object[]; total: number } | 'error', enrolled: object[] | 'error' = []) => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: AuthService, useValue: { user: signal({ id: 'u1', prenom: 'Yassine', nom: 'B', email: '', role: 'ETUDIANT' }) } },
+        { provide: AuthService, useValue: { accessToken: () => 'token', user: signal({ id: 'u1', prenom: 'Yassine', nom: 'B', email: '', role: 'ETUDIANT' }) } },
       ],
     });
     http = TestBed.inject(HttpTestingController);
     const fixture = TestBed.createComponent(StudentDashboard);
 
+    const enrollments = http.expectOne((r) => r.url === `${API}/enrollments/`);
+    enrolled === 'error' ? enrollments.flush({}, { status: 503, statusText: 'x' }) : enrollments.flush(enrolled);
     const mine = http.expectOne(`${API}/evaluation/resultats/me`);
     results === 'error' ? mine.flush({}, { status: 503, statusText: 'x' }) : mine.flush(results);
     const list = http.expectOne((r) => r.url === `${API}/courses`);
@@ -88,5 +90,30 @@ describe('StudentDashboard', () => {
   it('signale une liste de cours indisponible', () => {
     const fixture = open([], 'error');
     expect(text(fixture)).toContain('Impossible de charger les cours');
+  });
+
+  it("propose en priorité les cours inscrits, avec leur progression", () => {
+    const enrolled = [
+      { id: 1, etudiant_id: 'u1', cours_id: '5', date_inscription: '2026-11-01', progression: { id: 1, inscription: 1, pourcentage: 100 } },
+      { id: 2, etudiant_id: 'u1', cours_id: '6', date_inscription: '2026-11-02', progression: { id: 2, inscription: 2, pourcentage: 40 } },
+    ];
+    const fixture = open([], { data: [course(9, 'Catalogue seul')], total: 1 }, enrolled);
+    http.expectOne(`${API}/courses/5`).flush(course(5, 'Cours terminé'));
+    http.expectOne(`${API}/courses/6`).flush(course(6, 'Cours en cours'));
+    fixture.detectChanges();
+    const html = text(fixture);
+
+    expect(html).toContain("Reprendre l'apprentissage");
+    expect(html).toContain('progression 40 %');
+    // le cours à poursuivre passe avant le cours terminé ; le catalogue n'est plus proposé
+    expect(html.indexOf('Cours en cours')).toBeLessThan(html.indexOf('Cours terminé'));
+    expect(html).not.toContain('Catalogue seul');
+    expect(html).toContain('progression moyenne 70 %');
+  });
+
+  it("retombe sur le catalogue si le service d'inscriptions est indisponible", () => {
+    const fixture = open([], { data: [course(9, 'Catalogue seul')], total: 1 }, 'error');
+    expect(text(fixture)).toContain('Cours à découvrir');
+    expect(text(fixture)).toContain('Catalogue seul');
   });
 });

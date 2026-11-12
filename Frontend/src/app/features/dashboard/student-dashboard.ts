@@ -9,6 +9,9 @@ import { Course } from '../courses/course';
 import { CoursesService } from '../courses/courses.service';
 import { QuizResult } from '../evaluations/quiz.models';
 import { QuizService } from '../evaluations/quiz.service';
+import { CourseService } from '../courses/course.service';
+import { EnrolledCourse, loadEnrolledCourses } from '../enrollments/enrolled-courses';
+import { EnrollmentsService } from '../enrollments/enrollments.service';
 import { UnreadNotifications } from './unread-notifications';
 
 interface ResultRow {
@@ -18,7 +21,8 @@ interface ResultRow {
 
 /**
  * Écran 31 : tableau de bord étudiant. Données réelles : résultats de quiz, cours publiés, notifications.
- * Pas d'API d'inscription ni de progression pour l'instant : « Reprendre l'apprentissage » propose les derniers cours.
+ * « Reprendre l'apprentissage » liste les cours où l'étudiant est inscrit (progression réelle) ; sans inscription ou si
+ * le service est indisponible, on propose les derniers cours du catalogue.
  */
 @Component({
   selector: 'app-student-dashboard',
@@ -29,6 +33,8 @@ interface ResultRow {
 export class StudentDashboard {
   private readonly quizzes = inject(QuizService);
   private readonly coursesApi = inject(CoursesService);
+  private readonly enrollmentsApi = inject(EnrollmentsService);
+  private readonly courseApi = inject(CourseService);
 
   protected readonly icons = Icons;
   protected readonly user = inject(AuthService).user;
@@ -37,6 +43,7 @@ export class StudentDashboard {
   protected readonly rows = signal<ResultRow[]>([]);
   protected readonly courses = signal<Course[] | null>(null);
   protected readonly courseTotal = signal<number | null>(null);
+  protected readonly enrolled = signal<EnrolledCourse[] | null>(null);
   protected readonly resultsFailed = signal(false);
   protected readonly coursesFailed = signal(false);
 
@@ -45,7 +52,24 @@ export class StudentDashboard {
     return list && list.length > 0 ? Math.round(list.reduce((sum, result) => sum + result.score, 0) / list.length) : null;
   });
 
+  /** Cours inscrits à poursuivre : les moins avancés d'abord, les terminés à la fin. */
+  protected readonly resume = computed(() =>
+    [...(this.enrolled() ?? [])]
+      .filter((item) => item.course !== null)
+      .sort((a, b) => Number(a.percent >= 100) - Number(b.percent >= 100) || b.percent - a.percent)
+      .slice(0, 4),
+  );
+  protected readonly averageProgress = computed(() => {
+    const list = this.enrolled();
+    return list && list.length > 0 ? Math.round(list.reduce((sum, item) => sum + item.percent, 0) / list.length) : null;
+  });
+
   constructor() {
+    // Inscriptions : une panne du service ne casse pas le tableau de bord (on retombe sur le catalogue).
+    loadEnrolledCourses(this.enrollmentsApi, this.courseApi).subscribe({
+      next: (items) => this.enrolled.set(items),
+      error: () => this.enrolled.set([]),
+    });
     this.quizzes.mine().subscribe({
       next: (list) => {
         const latest = [...list].sort((a, b) => b.datePassage.localeCompare(a.datePassage));
