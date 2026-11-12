@@ -1,19 +1,11 @@
 import { Role } from '../../core/auth/role';
 
-/** Catégorie du forum. Pas de compteurs de sujets dans l'API. */
-export interface Category {
-  _id: string;
-  name: string;
-  slug?: string;
-  description: string;
-  order: number;
-}
-
+/** Sujet du forum (forum-service). Toujours rattaché à un cours ; pas de nom d'auteur dans l'API. */
 export interface Topic {
   _id: string;
   title: string;
   content: string;
-  courseId: number;
+  courseId: string;
   categoryId: string | null;
   tags: string[];
   authorId: string;
@@ -24,24 +16,25 @@ export interface Topic {
   repliesCount: number;
   viewsCount: number;
   lastActivityAt: string;
-  createdAt?: string;
+  createdAt: string;
 }
 
+/** Réponse à un sujet. `likedByMe` n'est renvoyé que dans la liste des messages. */
 export interface Post {
   _id: string;
-  topicId?: string;
+  topicId: string;
+  parentPostId: string | null;
   content: string;
   authorId: string;
   authorRole: Role;
   isAcceptedAnswer: boolean;
   likesCount: number;
-  parentPostId: string | null;
-  createdAt?: string;
-  updatedAt?: string;
+  likedByMe?: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
-/** Pagination du forum-service. */
-export interface Page<T> {
+export interface Paged<T> {
   items: T[];
   page: number;
   limit: number;
@@ -60,8 +53,8 @@ export interface TopicFilters {
 export interface TopicInput {
   title: string;
   content: string;
-  tags: string[];
-  categoryId?: string;
+  tags?: string[];
+  categoryId?: string | null;
 }
 
-export type ModerationFlag = 'pin' | 'lock' | 'resolve';
+export type TopicFlag = 'pin' | 'lock' | 'resolve';

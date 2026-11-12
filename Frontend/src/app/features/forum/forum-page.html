@@ -1,0 +1,114 @@
+<header class="head">
+  <h1>Forum</h1>
+  <a class="btn btn-primary" routerLink="/forum/sujets/nouveau" [queryParams]="{ cours: courseId }" [class.disabled]="!courseId">
+    <app-icon [name]="icons.plus" [size]="16" /> Nouveau sujet
+  </a>
+</header>
+
+@if (coursesFailed()) {
+  <div class="alert" role="alert">Impossible de charger les cours. Réessayez dans un instant.</div>
+} @else if (coursesLoaded() && courses().length === 0) {
+  <div class="card empty">
+    <h2>Aucun cours disponible</h2>
+    <p class="muted">Le forum est organisé par cours : il apparaîtra dès qu'un cours est publié.</p>
+  </div>
+} @else if (courses().length > 0) {
+  <div class="filters">
+    <label class="select">
+      <span class="muted">Cours</span>
+      <select [(ngModel)]="courseId" (ngModelChange)="changeCourse()" aria-label="Cours">
+        @for (course of courses(); track course.id) {
+          <option [value]="'' + course.id">{{ course.titre }}</option>
+        }
+      </select>
+    </label>
+
+    <form class="search" (ngSubmit)="submitSearch()">
+      <input type="search" name="q" [(ngModel)]="search" placeholder="Rechercher un sujet" aria-label="Rechercher un sujet" />
+      <button type="submit" class="btn btn-secondary">Rechercher</button>
+    </form>
+
+    <label class="select">
+      <span class="muted">État</span>
+      <select [(ngModel)]="resolved" (ngModelChange)="submitSearch()" aria-label="Filtrer par état">
+        <option value="">Tous</option>
+        <option value="false">Non résolus</option>
+        <option value="true">Résolus</option>
+      </select>
+    </label>
+  </div>
+
+  @if (categories().length > 0) {
+    <div class="chips" role="group" aria-label="Catégories">
+      <button type="button" [class.active]="categoryId === ''" (click)="setCategory('')">Toutes</button>
+      @for (category of categories(); track category._id) {
+        <button type="button" [class.active]="categoryId === category._id" [title]="category.description" (click)="setCategory(category._id)">
+          {{ category.name }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" [class.active]="tab() === 'recent'" [attr.aria-selected]="tab() === 'recent'" (click)="setTab('recent')">Récents</button>
+    <button type="button" role="tab" [class.active]="tab() === 'popular'" [attr.aria-selected]="tab() === 'popular'" (click)="setTab('popular')">Populaires</button>
+    <button type="button" role="tab" [class.active]="tab() === 'unanswered'" [attr.aria-selected]="tab() === 'unanswered'" (click)="setTab('unanswered')">Sans réponse</button>
+  </div>
+
+  @if (failed()) {
+    <div class="alert" role="alert">
+      Impossible de charger les sujets.
+      <button type="button" class="link-btn" (click)="load()">Réessayer</button>
+    </div>
+  } @else if (loading() && !result()) {
+    <p class="muted">Chargement...</p>
+  } @else if (result(); as page) {
+    @if (shown().length === 0) {
+      <div class="card empty">
+        <h2>Aucun sujet</h2>
+        <p class="muted">
+          {{ hasFilters ? 'Aucun sujet ne correspond à ces filtres.' : 'Soyez le premier à poser une question dans ce cours.' }}
+        </p>
+        @if (hasFilters) {
+          <button type="button" class="btn btn-secondary" (click)="resetFilters()">Réinitialiser les filtres</button>
+        }
+      </div>
+    } @else {
+      <ul class="topics">
+        @for (topic of shown(); track topic._id) {
+          <li class="card topic" [class.pinned]="topic.isPinned">
+            <div class="topic-main">
+              <a class="title" [routerLink]="['/forum/sujets', topic._id]">{{ topic.title }}</a>
+              <div class="meta">
+                <span class="pill info">{{ roleLabels[topic.authorRole] }}</span>
+                @if (categoryName(topic); as name) {
+                  <span class="pill">{{ name }}</span>
+                }
+                <span class="muted">{{ ago(topic.lastActivityAt) }}</span>
+                @if (topic.isPinned) { <span class="pill info"><app-icon [name]="icons.pin" [size]="12" /> Épinglé</span> }
+                @if (topic.isResolved) { <span class="pill success"><app-icon [name]="icons.circleCheck" [size]="12" /> Résolu</span> }
+                @if (topic.isLocked) { <span class="pill warning"><app-icon [name]="icons.lock" [size]="12" /> Verrouillé</span> }
+              </div>
+            </div>
+            <div class="counts muted">
+              <span title="Réponses"><app-icon [name]="icons.messageCircle" [size]="16" /> {{ topic.repliesCount }}</span>
+              <span title="Vues"><app-icon [name]="icons.eye" [size]="16" /> {{ topic.viewsCount }}</span>
+            </div>
+          </li>
+        }
+      </ul>
+
+      @if (totalPages > 1) {
+        <nav class="pager" aria-label="Pagination">
+          <button type="button" class="btn btn-secondary" [disabled]="currentPage() <= 1" (click)="goTo(currentPage() - 1)">
+            <app-icon [name]="icons.chevronLeft" [size]="16" /> Précédent
+          </button>
+          <span class="muted">Page {{ currentPage() }} sur {{ totalPages }} ({{ page.total }} sujets)</span>
+          <button type="button" class="btn btn-secondary" [disabled]="currentPage() >= totalPages" (click)="goTo(currentPage() + 1)">
+            Suivant <app-icon [name]="icons.chevronRight" [size]="16" />
+          </button>
+        </nav>
+      }
+    }
+  }
+}

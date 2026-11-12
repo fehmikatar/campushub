@@ -1,0 +1,34 @@
+:host { display: block; max-width: 960px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.head h1 { margin: 0; }
+.disabled { pointer-events: none; opacity: 0.5; }
+.filters { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.select { display: grid; gap: 4px; }
+select, .search input {
+  height: 40px; padding: 0 12px; border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--card); font: inherit; color: var(--text);
+}
+select { min-width: 200px; }
+.search { display: flex; gap: 8px; flex: 1; min-width: 260px; }
+.search input { flex: 1; }
+.chips, .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.chips button, .tabs button {
+  height: 34px; padding: 0 14px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--card); font: inherit; color: var(--text); cursor: pointer;
+}
+.chips button.active { background: var(--indigo-soft); border-color: var(--indigo); color: var(--indigo); }
+.tabs button.active { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+.topics { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.topic { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 18px; }
+.topic.pinned { background: var(--indigo-soft); border-color: var(--indigo); }
+.topic-main { display: grid; gap: 6px; min-width: 0; }
+.title { font-size: 16px; font-weight: 500; color: var(--text); text-decoration: none; overflow-wrap: anywhere; }
+.title:hover { color: var(--indigo); }
+.meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 12px; }
+.meta .pill { display: inline-flex; align-items: center; gap: 4px; }
+.counts { display: flex; gap: 14px; flex: none; }
+.counts span { display: inline-flex; align-items: center; gap: 4px; }
+.empty { display: grid; justify-items: center; gap: 6px; padding: 40px 16px; text-align: center; }
+.empty h2, .empty p { margin: 0; }
+.empty .btn { margin-top: 10px; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 20px; }
