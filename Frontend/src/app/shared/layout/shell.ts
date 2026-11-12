@@ -2,6 +2,7 @@ import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { ROLE_LABELS } from '../../core/auth/role';
+import { ThemeService } from '../../core/theme/theme.service';
 import { NotificationsService } from '../../features/notifications/notifications.service';
 import { Icon } from '../icon/icon';
 import { Icons } from '../icon/icons';
@@ -22,6 +23,7 @@ export class Shell {
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
   private readonly notifications = inject(NotificationsService);
+  protected readonly theme = inject(ThemeService);
 
   constructor() {
     this.notifications.refreshUnreadCount();

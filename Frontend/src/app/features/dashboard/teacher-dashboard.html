@@ -1,0 +1,53 @@
+<section class="banner">
+  <h1>Bonjour, {{ user()?.prenom || 'bienvenue' }} ! 👩‍🏫</h1>
+  <p>Gérez vos cours et suivez vos évaluations.</p>
+  <div class="shortcuts">
+    <a class="btn btn-secondary" routerLink="/courses/new">+ Nouveau cours</a>
+    <a class="btn btn-secondary" routerLink="/quiz/new">+ Nouveau quiz</a>
+  </div>
+</section>
+
+<div class="stats">
+  <app-stat-card label="Cours gérés" [value]="counts()?.total ?? null" detail="créés par vous" [icon]="icons.library" link="/mes-cours" />
+  <app-stat-card label="Publiés" [value]="counts()?.published ?? null" detail="visibles par les étudiants" [icon]="icons.send" />
+  <app-stat-card label="Brouillons" [value]="counts()?.drafts ?? null" detail="à terminer et publier" [icon]="icons.pencil" />
+  <app-stat-card label="Archivés" [value]="counts()?.archived ?? null" detail="retirés du catalogue" [icon]="icons.archive" />
+</div>
+
+<div class="grid">
+  <div class="column">
+    <section class="card block">
+      <header>
+        <h2>Derniers cours mis à jour</h2>
+        <a routerLink="/mes-cours">Tous mes cours →</a>
+      </header>
+      @if (failed()) {
+        <p class="muted pad">Impossible de charger vos cours.</p>
+      } @else if (courses() === null) {
+        <p class="muted pad">Chargement...</p>
+      } @else if (recent().length === 0) {
+        <p class="muted pad">Vous n'avez pas encore créé de cours.</p>
+      } @else {
+        <ul class="list">
+          @for (course of recent(); track course.id) {
+            <li>
+              <div class="grow">
+                <strong>{{ course.titre }}</strong>
+                <small class="muted">
+                  {{ course.nbChapitres }} {{ course.nbChapitres > 1 ? 'chapitres' : 'chapitre' }} · modifié le {{ course.updatedAt | date: 'dd/MM/yyyy' }}
+                </small>
+              </div>
+              <span class="pill" [class]="'pill ' + tones[course.statut]">{{ labels[course.statut] }}</span>
+              <a class="btn btn-secondary small" [routerLink]="['/courses', course.id, 'edit']">Modifier</a>
+              <a class="btn btn-secondary small" [routerLink]="['/courses', course.id, 'chapters']">Chapitres</a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <div class="column">
+    <app-unread-notifications />
+  </div>
+</div>

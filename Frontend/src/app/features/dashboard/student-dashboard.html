@@ -1,0 +1,68 @@
+<section class="banner">
+  <h1>Bonjour, {{ user()?.prenom || 'bienvenue' }} ! 👋</h1>
+  <p>Retrouvez vos cours, vos résultats et vos notifications.</p>
+</section>
+
+<div class="stats">
+  <app-stat-card label="Quiz passés" [value]="resultsFailed() ? null : results()?.length ?? null" detail="depuis votre inscription" [icon]="icons.clipboardList" link="/quiz" />
+  <app-stat-card label="Score moyen" [value]="average() === null ? null : average() + ' %'" [detail]="results()?.length === 0 ? 'Aucun quiz passé' : 'sur vos quiz passés'" [icon]="icons.trendingUp" />
+  <app-stat-card label="Cours disponibles" [value]="courseTotal()" detail="publiés sur la plateforme" [icon]="icons.bookOpen" link="/catalogue" />
+</div>
+
+<div class="grid">
+  <div class="column">
+    <section class="card block">
+      <header>
+        <h2>Reprendre l'apprentissage</h2>
+        <a routerLink="/catalogue">Voir le catalogue →</a>
+      </header>
+      @if (coursesFailed()) {
+        <p class="muted pad">Impossible de charger les cours.</p>
+      } @else if (courses() === null) {
+        <p class="muted pad">Chargement...</p>
+      } @else if (courses()!.length === 0) {
+        <p class="muted pad">Aucun cours publié pour le moment.</p>
+      } @else {
+        <ul class="list">
+          @for (course of courses(); track course.id) {
+            <li>
+              <div class="grow">
+                <strong>{{ course.titre }}</strong>
+                <small class="muted">{{ course.categorie }} · {{ course.nbChapitres }} {{ course.nbChapitres > 1 ? 'chapitres' : 'chapitre' }}</small>
+              </div>
+              <a class="btn btn-secondary small" [routerLink]="['/courses', course.id]">Continuer</a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="card block">
+      <header><h2>Mes derniers résultats</h2></header>
+      @if (resultsFailed()) {
+        <p class="muted pad">Impossible de charger vos résultats.</p>
+      } @else if (results() === null) {
+        <p class="muted pad">Chargement...</p>
+      } @else if (rows().length === 0) {
+        <p class="muted pad">Aucun examen passé pour le moment.</p>
+      } @else {
+        <ul class="list">
+          @for (row of rows(); track row.result.id) {
+            <li>
+              <div class="grow">
+                <strong>{{ row.title }}</strong>
+                <small class="muted">{{ row.result.datePassage | date: 'dd/MM/yyyy à HH:mm' }}</small>
+              </div>
+              <span class="pill" [class.success]="row.result.score >= 50" [class.danger]="row.result.score < 50">{{ row.result.score | number: '1.0-0' }} %</span>
+              <a class="btn btn-secondary small" [routerLink]="['/quiz/result', row.result.id]">Détail</a>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+  </div>
+
+  <div class="column">
+    <app-unread-notifications />
+  </div>
+</div>
