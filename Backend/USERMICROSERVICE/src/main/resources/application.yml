@@ -11,6 +11,16 @@ spring:
     username: ${DB_USERNAME:campushub_app}
     password: ${DB_PASSWORD}
 
+  # Keycloak : le service vérifie les tokens, il n'en crée aucun.
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # iss attendu dans les tokens (adresse vue par le navigateur)
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8180/realms/campushub}
+          # clés publiques lues directement (en Docker : http://keycloak:8080/...)
+          jwk-set-uri: ${KEYCLOAK_JWKS_URI:http://localhost:8180/realms/campushub/protocol/openid-connect/certs}
+
   jpa:
     open-in-view: false
     hibernate:
@@ -55,20 +65,14 @@ springdoc:
 
 campushub:
   security:
-    jwt:
-      # Required, at least 32 bytes. No default outside the local profile.
-      secret: ${JWT_SECRET}
-      issuer: campushub-user-service
-      # No refresh token: when this expires, the user logs in again.
-      access-token-ttl: ${JWT_ACCESS_TOKEN_TTL:PT1H}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:}
-    rate-limit:
-      login-max-attempts: ${RATE_LIMIT_LOGIN_MAX:10}
-      register-max-attempts: ${RATE_LIMIT_REGISTER_MAX:5}
-      password-change-max-attempts: ${RATE_LIMIT_PASSWORD_CHANGE_MAX:5}
-      window: ${RATE_LIMIT_WINDOW:PT15M}
-  # First administrator: created at startup only if both are set and no admin exists yet.
-  admin-bootstrap:
-    email: ${CAMPUSHUB_ADMIN_EMAIL:}
-    password: ${CAMPUSHUB_ADMIN_PASSWORD:}
+
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_URL:http://localhost:8761/eureka/}
+  instance:
+    # Nom sous lequel la Gateway joint le service (en Docker : user-service)
+    hostname: ${EUREKA_INSTANCE_HOST:localhost}

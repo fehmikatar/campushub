@@ -1,62 +1,45 @@
 package com.campushub.userservice.config;
 
-import com.campushub.userservice.security.JwtAuthenticationFilter;
-import com.campushub.userservice.security.JwtService;
 import com.campushub.userservice.security.RestAccessDeniedHandler;
 import com.campushub.userservice.security.RestAuthenticationEntryPoint;
-import com.campushub.userservice.user.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
- * Stateless JWT security: no HTTP session, no login form, no HTTP Basic. CSRF protection is off
- * because no cookie authenticates anything — every protected request carries a Bearer token,
- * which a browser never attaches on its own.
- *
- * <ul>
- *   <li>Public: register, login, health, Swagger.</li>
- *   <li>{@code /api/v1/admin/**}: ADMIN only (repeated with {@code @PreAuthorize} on the controller).</li>
- *   <li>Everything else: any authenticated user.</li>
- * </ul>
+ * Resource server Keycloak : le service ne crée aucun token, il vérifie celui de Keycloak
+ * (signature RS256, issuer, expiration). Les rôles viennent de realm_access.roles.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
+    private static final List<String> APP_ROLES = List.of("ETUDIANT", "ENSEIGNANT", "ADMIN");
+
     private static final String[] PUBLIC_ENDPOINTS = {
             "/actuator/health",
             "/swagger-ui.html",
             "/swagger-ui/**",
             "/v3/api-docs",
-            "/v3/api-docs/**",
-            "/api/v1/auth/register",
-            "/api/v1/auth/login"
+            "/v3/api-docs/**"
     };
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
-
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtService jwtService, UserRepository userRepository) {
-        return new JwtAuthenticationFilter(jwtService, userRepository);
-    }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(CorsProperties corsProperties) {
@@ -70,9 +53,28 @@ public class SecurityConfig {
         return source;
     }
 
+    /** realm_access.roles (ETUDIANT / ENSEIGNANT / ADMIN) -> ROLE_ETUDIANT / ROLE_ENSEIGNANT / ROLE_ADMIN. */
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            Map<String, Object> realmAccess = jwt.getClaimAsMap("realm_access");
+            Object roles = realmAccess == null ? null : realmAccess.get("roles");
+            if (!(roles instanceof Collection<?> list)) {
+                return List.<GrantedAuthority>of();
+            }
+            return list.stream()
+                    .map(Object::toString)
+                    .filter(APP_ROLES::contains)
+                    .<GrantedAuthority>map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .toList();
+        });
+        return converter;
+    }
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           JwtAuthenticationConverter jwtAuthenticationConverter,
                                            RestAuthenticationEntryPoint authenticationEntryPoint,
                                            RestAccessDeniedHandler accessDeniedHandler,
                                            CorsConfigurationSource corsConfigurationSource) throws Exception {
@@ -82,14 +84,18 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                        // Appelé par Notification sans token : id, prénom, nom seulement
+                        .requestMatchers(HttpMethod.GET, "/api/v1/users/*/public").permitAll()
                         .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter))
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                        .accessDeniedHandler(accessDeniedHandler))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .formLogin(AbstractHttpConfigurer::disable)
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
