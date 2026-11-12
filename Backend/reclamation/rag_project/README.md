@@ -91,7 +91,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `eval_rag [-v 2] [--semantic-weight W] [--lexical-weight W]` | Recall of pages / rules / ambiguities on `data/regulation/eval_questions.json` |
 | `setup_roles [--demo]` | Optional legacy local accounts/groups only; grants no API access |
 | `eureka_register [--once]` | Register in Eureka and send heartbeats until Ctrl+C (deregisters); see [Eureka](#eureka-service-discovery) |
-| `test` | 291 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
+| `test` | 293 tests: no Ollama/API/Keycloak/Eureka/Gateway/Course/RabbitMQ needed; never touches `db.sqlite3`, `data/chroma` or the development MongoDB database |
 | `test tests.test_gateway` | the 8 API Gateway tests (chunked bodies, waitress, pagination links; 1 needs MongoDB) |
 | `test tests.test_reclamations_offline` | 43 reclamations tests that need **no** MongoDB (routing, rules, roles, validation…) |
 | `test tests.test_reclamations` | 36 reclamations tests against a **real MongoDB** (skipped, with the reason, when none is running) |
@@ -100,7 +100,7 @@ mode and refuse to load unless a real `DJANGO_SECRET_KEY` is set (see [Configura
 | `test tests.test_reclamations_identity` | 9 real MongoDB ownership and migration tests |
 | `test tests.test_conversation_ownership` | 10 private-conversation tests (RAG), no MongoDB required |
 | `test tests.test_eureka` | 21 Eureka registration tests against a local fake Eureka (no real Eureka) |
-| `test tests.test_course_client` | 20 Course check tests against local fake Course / Eureka servers (5 need MongoDB) |
+| `test tests.test_course_client` | 22 Course check tests against local fake Course / Eureka servers (5 need MongoDB) |
 | `test tests.test_events` | 17 RabbitMQ event tests with a fake broker connection (7 need MongoDB) |
 | `test tests.test_document_permissions` | 8 document authorization tests: reads for every role, changes for ADMIN only, no side effect when refused |
 
@@ -131,7 +131,7 @@ this folder, absolute = used as is (e.g. a Docker volume), empty = the default.
 | `PUBLIC_API_URL` | empty (page links use the address the request was sent to) | the Gateway address of `/api`, e.g. `http://localhost:8080/api/v1/reclamation` |
 | `COURSE_SERVICE_URL` | empty = Eureka lookup of `COURSE-SERVICE` | `http://course-service:8082` |
 | `RABBITMQ_URL` | empty = no event published | `amqp://guest:guest@rabbitmq:5672` (a secret if it holds a real password) |
-| `RECLAMATION_EVENTS_ENABLED`, `RECLAMATION_EVENTS_QUEUE` | `false`, `reclamation.events` (not approved yet) | `true` only once Notification consumes the queue |
+| `RECLAMATION_EVENTS_ENABLED`, `RECLAMATION_EVENTS_QUEUE` | `false`, `reclamation.events` | `true` where Notification's `rabbitmq:consume` runs (it declares the queue) |
 
 - With DEBUG off, the service **refuses to start** if `DJANGO_SECRET_KEY` is missing or weak (the
   rule of `manage.py check --deploy`). Generate one with
@@ -394,7 +394,7 @@ one MongoDB aggregation (`$facet`).
 ### Tests
 
 ```powershell
-python manage.py test --noinput                       # 291 total with MongoDB: 233 offline + 58 integration
+python manage.py test --noinput                       # 293 total with MongoDB: 235 offline + 58 integration
 python manage.py check
 # Offline suite: real signed RS256 tokens, local fake JWKS, fake embedding/LLM providers
 python manage.py test tests.test_rag tests.test_settings tests.test_auth tests.test_reclamations_offline tests.test_reclamations_auth --noinput
@@ -466,10 +466,10 @@ The automated tests (`python manage.py test tests.test_eureka`) use a local fake
 
 ## API Gateway
 
-**Proposed, not applied yet:** the team Gateway (`Backend/api-gateway`, Spring Cloud Gateway
-Server WebMVC) belongs to its owner, who has to approve the prefix `/api/v1/reclamation/**`. The
-ready-to-apply change is [`docs/gateway/01-reclamation-route.patch`](docs/gateway/01-reclamation-route.patch)
-(6 lines in `src/main/resources/application.properties`, same pattern as Notification):
+The team Gateway (`Backend/api-gateway`, Spring Cloud Gateway Server WebMVC, owned by the Gateway
+team) routes `/api/v1/reclamation/**` to this service: `routes[6]` in
+`Backend/api-gateway/src/main/resources/application.properties`, in its own commit for the owner's
+review (same pattern as Notification; the six existing routes are unchanged):
 
 ```properties
 spring.cloud.gateway.server.webmvc.routes[6].id=reclamation-service
@@ -504,7 +504,8 @@ with an explanation (`config/middleware.py`) instead of being processed as empty
 (curl, Postman, tests) send `Content-Length` and work with both servers.
 
 What the Gateway does (measured 2026-11-11 on a scratch copy with this route, the real
-`eureka_register` agent and a local stub Keycloak/Eureka; not yet with the team's live servers):
+`eureka_register` agent and a local stub Keycloak/Eureka, and again on 2026-11-12 with the real team
+Eureka server, see "End-to-end integration test"; not yet with the team's live Keycloak):
 
 - **Authentication:** the Gateway checks the token (signature, issuer, expiry) and forwards the
   `Authorization` header unchanged; this service checks it again and applies roles and ownership.
@@ -521,7 +522,8 @@ What the Gateway does (measured 2026-11-11 on a scratch copy with this route, th
 - **Service down:** the Gateway answers **500** (both while the stopped instance is still listed
   and once it is deregistered). The optional, Gateway-wide
   [`docs/gateway/02-optional-service-unavailable-503.patch`](docs/gateway/02-optional-service-unavailable-503.patch)
-  makes it `503` (tested). Stop `eureka_register` **before** the server: it deregisters at once;
+  makes it `503` (tested, **not applied**: it changes the error answer of every route, a separate
+  decision for the Gateway owner). Stop `eureka_register` **before** the server: it deregisters at once;
   otherwise the stopped instance stays listed for up to ~30 s (agent) + the Gateway's caches.
 - In Docker, `Host` will be the advertised `EUREKA_INSTANCE_HOST`: add it to `DJANGO_ALLOWED_HOSTS`.
 
@@ -551,9 +553,17 @@ number used). `course_id` is set at creation only: PUT / PATCH refuse it, so no 
 calls Course. Existing reclamations read `course_id: null` (migration `0003` changes no document);
 the free-text `module` stays.
 
-- Not yet in the team's fixed table of synchronous calls: "Reclamation -> Course, refuse (503) if
-  Course is down" has to be added.
-- Live test pending: Course running in Keycloak mode, a published and a draft course, a student token.
+- The 3 s are a total budget: Eureka advertises `localhost`, so IPv4 is tried first and connecting
+  and reading share one deadline (with the standard client, a refused `::1`, ~2 s on Windows when the
+  service listens on 127.0.0.1 only, came on top of a full timeout: 5 s measured).
+- Course's contract checked in its code (`CourseService.findOneFor`): `GET /courses/:id`, a course
+  that is not published is 404 for ETUDIANT. Course accepts our RS256 Keycloak tokens only when it
+  runs with `KEYCLOAK_ISSUER_URI`; in its legacy HS256 mode it refuses them (the student gets 401).
+- Tested through the Gateway and the real Eureka against a local Course test server (see
+  "End-to-end integration test"). A test with the real Course Service needs its PostgreSQL, Course
+  in Keycloak mode and a Keycloak token.
+- To add to the team's table of synchronous calls (kept outside this repository): "Reclamation ->
+  Course, refuse (503) if Course is down".
 
 ## Notification events (RabbitMQ)
 
@@ -574,16 +584,51 @@ consumer and declares the queues: this service never declares one.
 - **Best effort:** a RabbitMQ failure is logged (never the URL) and never fails the request, which
   waits 3 s at most for RabbitMQ. Not a transactional outbox: an event can be lost (broker down,
   process stopped right after the write); this code never sends one twice.
-- **Off by default.** The queue `reclamation.events` and these events are a proposal: Notification
-  consumes only `forum.events`, `evaluation.events` and `course.events`. Publishing needs
-  `RECLAMATION_EVENTS_ENABLED=true` **and** `RABBITMQ_URL`; otherwise no network call is made. Enable
-  it only once Notification declares and consumes the queue (RabbitMQ drops a message sent to a
-  missing queue; this service logs it).
-- Prepared for the Notification owner, not applied:
-  [`docs/notification/01-reclamation-events-consumer.patch`](docs/notification/01-reclamation-events-consumer.patch)
-  declares `reclamation.events`, notifies the student of each status change and, for new
-  reclamations, the administrators listed in `RECLAMATION_ADMIN_IDS` (Keycloak subs): how
-  administrators are found is still to decide.
+- **Consumer: Notification** (`Backend/notification-service`, `EventMessageProcessor`, its own
+  commit): `php artisan rabbitmq:consume` declares `reclamation.events` (durable) next to its three
+  other queues. `reclamation.status_changed` notifies the student (`studentSub` = Notification's
+  `user_id`, both the Keycloak sub). `reclamation.created` notifies the administrators of
+  Notification's `RECLAMATION_ADMIN_IDS`: the Keycloak subs (UUIDs) of the ADMIN accounts,
+  comma-separated, **required** to notify anyone (the User Service lists administrators only for an
+  ADMIN token, which the consumer does not have). Empty or invalid = the event is acked, nobody is
+  notified, and a warning is logged.
+- **Off by default here.** Publishing needs `RECLAMATION_EVENTS_ENABLED=true` **and** `RABBITMQ_URL`;
+  otherwise no network call is made. Start RabbitMQ, then Notification's consumer, then this
+  service: a message sent before the queue exists comes back unroutable and is logged (`queue
+  'reclamation.events' does not exist`); it is not delivered later.
+
+## End-to-end integration test (2026-11-12)
+
+Run on one machine with a local harness (not part of this repository): 90 checks, all passed.
+No live Keycloak, Course or RabbitMQ was available, so three parts are **test doubles**:
+
+| Part | How it ran |
+|---|---|
+| API Gateway (with `routes[6]`), Eureka server | **real** team code built from this branch (`java -jar`) |
+| Reclamation | **real**: waitress + `eureka_register`, MongoDB (scratch database, dropped afterwards) |
+| Notification | **real** code (scratch copy): `php artisan rabbitmq:consume` (php-amqplib), its HTTP API, `eureka:register`, scratch SQLite |
+| Keycloak | stub: OIDC discovery + JWKS, RS256 tokens with realm roles |
+| Course | local test server registered in the real Eureka as `COURSE-SERVICE` (same 200 / 404 rules as `CourseService.findOneFor`) |
+| RabbitMQ | AMQP 0-9-1 test double, **not RabbitMQ**: the real pika producer and php-amqplib consumer talk to it over TCP |
+
+Verified:
+- Student -> Gateway -> Eureka -> Django: `POST /reclamations/` with `course_id` -> Course found in
+  Eureka, called once with the student's token byte for byte -> saved in MongoDB with its reference ->
+  one `reclamation.created` (default exchange, routing key `reclamation.events`, persistent JSON,
+  `actorId` = student) -> consumed and acked by Notification -> one notification for the configured
+  administrator, none for the student; the administrator reads it through the Gateway.
+- ADMIN `change-status` new -> in_progress -> resolved through the Gateway: history in MongoDB, two
+  `reclamation.status_changed` (none for the refused third change), two notifications for the
+  student, read through the Gateway (`/api/v1/notifications`).
+- Course draft / missing -> 404, token refused -> 401, access refused -> 403, slower than 3 s -> 503
+  within the budget, down or not in Eureka -> 503: nothing saved, no event, no internal address.
+- RabbitMQ down: creation and `change-status` still answer normally (bounded wait), the failure is
+  logged without the URL. Published before Notification declared the queue: returned and logged.
+- Refused actions (other student, student or teacher as ADMIN, forged `X-Role` / `?role=`, token
+  signed by another key, document changes by a student or a teacher, another student's
+  conversation): the expected 401 / 403 / 404 and no event.
+- Notification's other queues (`course.events`, `evaluation.events`) still work with the same
+  consumer; invalid or unsupported reclamation messages are acked once, logged, never requeued.
 
 ## Authentication (Keycloak)
 
@@ -773,16 +818,14 @@ Add real student questions to `data/regulation/eval_questions.json`.
 
 ## Not done yet (needs input)
 
-- API Gateway route: prepared and tested on a scratch copy (see "API Gateway"); waiting for the
-  Gateway owner's approval of `/api/v1/reclamation/**`, then a live test with the team's Keycloak,
-  Eureka and Gateway.
+- Live test with the team's running Keycloak, Course (PostgreSQL, Keycloak mode) and RabbitMQ: the
+  end-to-end test above used local test doubles for these three.
 - Security follow-ups (audit of 2026-11-11; document changes are now ADMIN-only):
   `/api/health` is public and also returns the embedding / LLM model names and the document and
   index counts (keep only `status` for anonymous callers?); `/api/academic-assistant/ask` has no
   rate limit, so any authenticated user can spend the LLM / embedding quota (throttle per `sub`).
-- Course check: add "Reclamation -> Course" to the team's table of synchronous calls; live test.
-- RabbitMQ: approval of the queue `reclamation.events`, the two events and the administrator
-  recipients; the Notification patch applied by its owner; only then `RECLAMATION_EVENTS_ENABLED=true`.
+- Notification's `RECLAMATION_ADMIN_IDS`: the real ADMIN subs of the realm (no value in the repository).
+- Gateway-wide 503 instead of 500 when a service is down: `docs/gateway/02-…` (Gateway owner's decision).
 
 - Reclamations: suggested related regulation rules on creation — deferred. The hybrid retriever
   would send the student's (private) reclamation text to the external embedding provider inside

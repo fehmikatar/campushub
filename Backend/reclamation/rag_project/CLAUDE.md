@@ -21,23 +21,24 @@ Cloud API Gateway). Two functionalities:
 - `discovery/` = Eureka registration only (`discovery/eureka.py`, `manage.py eureka_register`), as
   RECLAMATION-SERVICE on port 8087, health `/api/health`. Never start it from `AppConfig.ready()`
   or any import: it is a separate process; Django must keep working without Eureka.
-- API Gateway (route `/api/v1/reclamation/**` -> `/api/**`, `lb://reclamation-service`, owned by the
-  Gateway team): it forwards bodies chunked without Content-Length, which Django reads as empty.
+- API Gateway (`routes[6]` in Backend/api-gateway application.properties: `/api/v1/reclamation/**`
+  -> `/api/**`, `lb://reclamation-service`, owned by the Gateway team): it forwards bodies chunked without Content-Length, which Django reads as empty.
   Behind it, serve with waitress (README "API Gateway"); `config/middleware.RejectUnreadableBody`
   (first middleware) answers 411 instead of processing an empty body. Keep both. Page links go
   through `reclamations.views.public_link` (`PUBLIC_API_URL`), never the service's own address.
 - Reclamation -> Course (`reclamations/course_client.py`, team rules "communication synchrone"): only
   in `create`, only when `course_id` is given, AFTER auth + serializer validation and BEFORE any
   MongoDB write. Forward the caller's Authorization header unchanged; COURSE_SERVICE_URL else Eureka
-  COURSE-SERVICE (never the Gateway); 3 s total, one attempt, no retry, no redirect. 404 -> 404,
+  COURSE-SERVICE (never the Gateway); 3 s TOTAL (`_BudgetConnection`: IPv4 first, connect + read share
+  the deadline), one attempt, no retry, no redirect. 404 -> 404,
   401/403 -> same, everything else -> 503; never 500, never an internal address in a message.
   `course_id` is creation-only (not in STUDENT_EDITABLE_FIELDS). No foreign key to Course.
 - Reclamation -> Notification (`reclamations/events.py`, pika): producer only; default exchange,
   routing key = queue name, never declare a queue (Notification does). Emitted by the services right
   after the successful insert / compare-and-set, never on a refusal or 409. Best effort (never
   raises, waits 3 s at most). actorId = verified sub, studentSub = stored author_sub; no token,
-  secret or free text in events. OFF unless RECLAMATION_EVENTS_ENABLED=true and RABBITMQ_URL: the
-  queue `reclamation.events` is not approved yet (patch for Notification in docs/notification/).
+  secret or free text in events. OFF unless RECLAMATION_EVENTS_ENABLED=true and RABBITMQ_URL: turn it
+  on only where Notification's consumer runs (EventMessageProcessor; admins = its RECLAMATION_ADMIN_IDS).
 - `/api/documents`: every role reads, only ADMIN changes (POST / PUT / DELETE / any non-GET), via
   `ApiView.write_roles` in config/api.py: checked on the verified principal's highest role right
   after authentication, BEFORE the body is parsed or any file / SQLite / Chroma / embedding access
@@ -125,7 +126,7 @@ Cloud API Gateway). Two functionalities:
 ## Commands
 
 ```bash
-python manage.py test                       # 291 tests (233 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
+python manage.py test                       # 293 tests (235 offline + 58 MongoDB): RAG offline (fake embedder + fake LLM),
                                             # reclamations offline + against a real MongoDB (skipped without one)
 python manage.py migrate && python manage.py migrate --database mongodb
 python manage.py setup_roles [--demo]       # optional legacy groups/users; no API access

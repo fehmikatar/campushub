@@ -210,9 +210,9 @@ COURSE_SERVICE_URL = env_http_url("COURSE_SERVICE_URL", "http://localhost:8082")
 
 # --------------------------------------------------------------------------
 # Asynchronous events Reclamation -> Notification (reclamations/events.py): best effort, published
-# after the MongoDB write, never declares a queue (Notification does). OFF until the team approves
-# the queue and Notification consumes it: RECLAMATION_EVENTS_ENABLED=true AND a RABBITMQ_URL are both
-# needed. Empty RABBITMQ_URL = no publishing (team rule).
+# after the MongoDB write, never declares a queue (Notification declares and consumes it). OFF by
+# default: RECLAMATION_EVENTS_ENABLED=true AND a RABBITMQ_URL are both needed, only where the
+# Notification consumer runs. Empty RABBITMQ_URL = no publishing (team rule).
 # --------------------------------------------------------------------------
 RABBITMQ_URL = env_text("RABBITMQ_URL", "")
 RECLAMATION_EVENTS = {

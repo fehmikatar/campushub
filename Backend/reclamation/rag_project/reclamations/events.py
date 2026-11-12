@@ -7,9 +7,12 @@ Team conventions (Notification README / RabbitMqConsumer, Forum and Course publi
       {"event": "...", "occurredAt": "2026-11-11T18:00:00Z", "actorId": "<keycloak sub>", "data": {...}}
   - best effort: a RabbitMQ failure never fails the request; empty RABBITMQ_URL = nothing sent.
 
-NOT APPROVED YET: the queue `reclamation.events` and these two events are a proposal (Notification
-consumes only forum/evaluation/course.events). Publishing is therefore OFF unless
-RECLAMATION_EVENTS_ENABLED=true AND RABBITMQ_URL is set; when off, no network call is made.
+Consumer: Notification (EventMessageProcessor, queue `reclamation.events` declared by its
+`php artisan rabbitmq:consume`): the student for a status change, the administrators of its
+RECLAMATION_ADMIN_IDS for a new reclamation. Publishing stays OFF by default: it needs
+RECLAMATION_EVENTS_ENABLED=true AND RABBITMQ_URL (when off, no network call is made). Enable it where
+the consumer runs; start RabbitMQ, then Notification, then this service (a message sent before
+Notification declared the queue comes back unroutable and is logged, not stored).
 
   reclamation.created         after the insert        data {reclamationId, reference, studentSub, category}
   reclamation.status_changed  after the atomic update data {reclamationId, reference, studentSub,
