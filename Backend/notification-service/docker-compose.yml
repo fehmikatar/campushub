@@ -30,6 +30,9 @@ x-notification-env: &notification-env
   EUREKA_INSTANCE_HOST: notification-service
   SERVICE_PORT: 8085
   USER_SERVICE_URL: ${USER_SERVICE_URL:-}
+  # Destinataires de reclamation.created : sub Keycloak des comptes ADMIN (separes par des virgules).
+  # Par defaut admin1 du realm importe (keycloak/campushub-realm.json, id fixe).
+  RECLAMATION_ADMIN_IDS: ${RECLAMATION_ADMIN_IDS:-99999999-9999-4999-8999-999999999999}
 
 services:
   notification-mysql:
