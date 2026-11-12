@@ -11,6 +11,7 @@ name: campushub
 
 include:
   - path: Backend/notification-service/docker-compose.yml
+  - path: Frontend/docker-compose.yml
 
 services:
 
@@ -86,8 +87,8 @@ services:
       EUREKA_INSTANCE_HOST: forum-service
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
       RABBITMQ_QUEUE: forum.events
-      # Passer a "true" quand Course valide les tokens Keycloak (sinon Course repond 401)
-      COURSE_CHECK_ENABLED: "false"
+      # "true" : Forum verifie l'existence du cours aupres de Course (404 si inconnu)
+      COURSE_CHECK_ENABLED: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
