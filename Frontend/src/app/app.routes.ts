@@ -4,8 +4,6 @@ import { authGuard, guestGuard, roleGuard } from './core/auth/auth.guards';
 const courseWorkspace = () =>
   import('./features/courses/course-workspace').then((m) => m.CourseWorkspace);
 
-const placeholder = () => import('./features/placeholder/placeholder').then((m) => m.Placeholder);
-
 export const routes: Routes = [
   {
     path: 'login',
@@ -48,7 +46,10 @@ export const routes: Routes = [
         canActivate: [authGuard],
         loadChildren: () => import('./features/courses/course.routes').then((m) => m.COURSE_ROUTES),
       },
-      { path: 'forum', loadComponent: placeholder, data: { title: 'Forum' } },
+      {
+        path: 'forum',
+        loadChildren: () => import('./features/forum/forum.routes').then((m) => m.FORUM_ROUTES),
+      },
       {
         path: 'quiz',
         canActivate: [authGuard],

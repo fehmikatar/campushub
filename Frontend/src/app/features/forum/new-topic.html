@@ -1,0 +1,50 @@
+<p class="crumbs">
+  <a routerLink="/forum">Forum</a> / <a [routerLink]="['/forum/cours', courseId]">Sujets du cours</a> / Nouveau sujet
+</p>
+<h1>Nouveau sujet</h1>
+
+<form class="card form" (submit)="$event.preventDefault(); submit()" novalidate>
+  <label class="field">
+    Titre
+    <input type="text" [value]="title()" (input)="title.set(value($event))" [class.invalid]="touched() && titleError()" />
+    <span class="hint">{{ title().trim().length }} / {{ limits.TITLE_MAX }}</span>
+    @if (titleError() && (touched() || title() !== '')) {
+      <span class="error">{{ titleError() }}</span>
+    }
+  </label>
+
+  <label class="field">
+    Catégorie
+    <select [value]="categoryId()" (change)="categoryId.set(value($event))" [class.invalid]="touched() && categoryError()">
+      <option value="">Choisir une catégorie</option>
+      @for (category of categories(); track category._id) {
+        <option [value]="category._id" [selected]="categoryId() === category._id">{{ category.name }}</option>
+      }
+    </select>
+    @if (touched() && categoryError()) {
+      <span class="error">{{ categoryError() }}</span>
+    }
+  </label>
+
+  <label class="field">
+    Contenu
+    <textarea rows="8" [value]="content()" (input)="content.set(value($event))" [class.invalid]="touched() && contentError()"></textarea>
+    <span class="hint">{{ content().length }} / {{ limits.CONTENT_MAX }}</span>
+    @if (contentError() && (touched() || content() !== '')) {
+      <span class="error">{{ contentError() }}</span>
+    }
+  </label>
+
+  <label class="field">
+    Tags (séparés par des virgules, {{ limits.TAGS_MAX }} maximum)
+    <input type="text" [value]="tagsRaw()" (input)="tagsRaw.set(value($event))" [class.invalid]="tagsError()" />
+    @if (tagsError()) {
+      <span class="error">{{ tagsError() }}</span>
+    }
+  </label>
+
+  <div class="actions">
+    <a class="btn btn-secondary" [routerLink]="['/forum/cours', courseId]">Annuler</a>
+    <button type="submit" class="btn btn-primary" [disabled]="!valid() || busy()">Publier le sujet</button>
+  </div>
+</form>
